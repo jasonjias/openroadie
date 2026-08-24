@@ -94,6 +94,24 @@ enum RoadieToolFormatting {
         return "Recent trips, newest first:\n" + lines.joined(separator: "\n")
     }
 
+    /// Summarizes the posted limits found along a named road: highways change
+    /// limits stretch to stretch, so report the range and the typical value.
+    static func describeRoadLimits(road: String, mphValues: [Int]) -> String {
+        guard !mphValues.isEmpty else {
+            return "No posted speed limit for \"\(road)\" is mapped near the driver. Say the limit is unknown — do not guess one."
+        }
+        let sorted = mphValues.sorted()
+        let low = sorted.first!
+        let high = sorted.last!
+        if low == high {
+            return "The posted limit on \(road) near the driver is \(low) mph."
+        }
+        // Most common value = the typical stretch.
+        let typical = Dictionary(grouping: mphValues) { $0 }
+            .max { $0.value.count < $1.value.count }!.key
+        return "The posted limit on \(road) near the driver varies from \(low) to \(high) mph by stretch; most segments are \(typical) mph."
+    }
+
     /// "4 min", "1 hr 5 min" — durations phrased for a spoken-style answer.
     static func spokenDuration(_ interval: TimeInterval) -> String {
         let totalMinutes = Int(interval) / 60

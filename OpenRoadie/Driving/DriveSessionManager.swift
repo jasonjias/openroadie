@@ -27,10 +27,16 @@ final class DriveSessionManager {
 
     private let locationService = LocationService()
     private let roadService = RoadService()
+    private let alerts = AlertCenter()
     private let store: TripStore?
     private var tracker = TripTracker()
+    private var alertEngine = SpeedAlertEngine()
     private var updatesTask: Task<Void, Never>?
     private var currentTrip: Trip?
+    private var stationarySince: Date?
+
+    /// Parked this long → the drive ends and saves itself.
+    private static let autoEndAfter: TimeInterval = 600
 
     /// `store` is optional so previews and tests can run without persistence.
     init(store: TripStore? = nil) {
@@ -41,6 +47,9 @@ final class DriveSessionManager {
         guard !isDriving else { return }
         lastErrorDescription = nil
         isStationary = false
+        stationarySince = nil
+        alertEngine.config = AlertCenter.configFromDefaults()
+        alertEngine.reset()
         tracker.start()
         context = tracker.context
         isDriving = true
@@ -101,6 +110,39 @@ final class DriveSessionManager {
             if case .accepted(movedFromLastPoint: true) = result, let trip = currentTrip {
                 store?.recordPoint(from: context, in: trip)
             }
+            evaluateSpeedRules()
+        }
+
+        autoEndIfParked()
+    }
+
+    /// Deterministic speed alerts, mirrored to a paired Apple Watch by iOS.
+    private func evaluateSpeedRules() {
+        let mph = { (metersPerSecond: Double) in metersPerSecond * 2.236936 }
+        let events = alertEngine.process(
+            speedMph: context.speed.map(mph),
+            postedLimitMph: context.road?.speedLimit.map(mph) ?? nil
+        )
+        if !events.isEmpty {
+            alerts.deliver(events)
+        }
+    }
+
+    /// Parked for a while → end and save the drive on the driver's behalf.
+    private func autoEndIfParked() {
+        guard AlertCenter.autoEndEnabled else {
+            stationarySince = nil
+            return
+        }
+        if isStationary {
+            let since = stationarySince ?? .now
+            stationarySince = since
+            if Date.now.timeIntervalSince(since) > Self.autoEndAfter {
+                stopDrive()
+                alerts.deliverDriveAutoEnded()
+            }
+        } else {
+            stationarySince = nil
         }
     }
 

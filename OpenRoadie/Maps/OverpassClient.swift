@@ -55,6 +55,31 @@ struct OverpassClient: Sendable {
         return try Self.parsePlaces(await post(query), category: category)
     }
 
+    /// Fetches the `maxspeed` tags of roads matching a name or route number
+    /// within `radius` meters — powers "what's the limit on 101?".
+    /// Tags-only (no geometry), so it's a light query.
+    func speedLimitTags(matching roadQuery: String, near coordinate: Coordinate, radius: Double) async throws -> [String] {
+        // Regex-escape the user text; Overpass regex special characters
+        // would otherwise break or hijack the query.
+        let escaped = roadQuery.replacingOccurrences(
+            of: #"[\\.\[\]\(\)\*\+\?\^\$\|\{\}"]"#,
+            with: #"\\$0"#,
+            options: .regularExpression
+        )
+        let around = "around:\(Int(radius)),\(coordinate.latitude),\(coordinate.longitude)"
+        let query = """
+        [out:json][timeout:8];
+        (
+          way(\(around))["highway"]["maxspeed"]["ref"~"\(escaped)",i];
+          way(\(around))["highway"]["maxspeed"]["name"~"\(escaped)",i];
+        );
+        out tags;
+        """
+        let data = try await post(query)
+        let decoded = try JSONDecoder().decode(Response.self, from: data)
+        return decoded.elements.compactMap { $0.tags?["maxspeed"] }
+    }
+
     /// POSTs a query, failing over across public instances when one is busy.
     private func post(_ query: String) async throws -> Data {
         var lastError: Error = URLError(.badServerResponse)

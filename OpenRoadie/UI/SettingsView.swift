@@ -4,7 +4,11 @@ import SwiftUI
 struct SettingsView: View {
     @AppStorage(RoadService.enabledKey) private var roadAwarenessEnabled = true
     @AppStorage(SpeechSpeaker.voiceDefaultsKey) private var voiceIdentifier = ""
-    @AppStorage(WakeWordCoordinator.enabledKey) private var heyRoadieEnabled = false
+    @AppStorage(WakeWordCoordinator.modeKey) private var heyRoadieMode = WakeWordCoordinator.Mode.off.rawValue
+    @AppStorage(AlertCenter.overLimitKey) private var alertOverLimit = false
+    @AppStorage(AlertCenter.marginKey) private var alertMargin = 0.0
+    @AppStorage(AlertCenter.maxSpeedKey) private var alertMaxSpeed = 0.0
+    @AppStorage(AlertCenter.autoEndKey) private var autoEndDrive = true
     @Environment(\.dismiss) private var dismiss
     @State private var previewSpeaker = SpeechSpeaker()
 
@@ -20,9 +24,38 @@ struct SettingsView: View {
                 }
 
                 Section {
-                    Toggle("\u{201C}Hey Roadie\u{201D} during drives", isOn: $heyRoadieEnabled)
+                    Toggle("Alert over the posted limit", isOn: $alertOverLimit)
+                    Picker("Extra alert past the limit", selection: $alertMargin) {
+                        Text("Off").tag(0.0)
+                        ForEach([5.0, 10.0, 15.0], id: \.self) { margin in
+                            Text("+\(Int(margin)) mph").tag(margin)
+                        }
+                    }
+                    Picker("My max speed", selection: $alertMaxSpeed) {
+                        Text("Off").tag(0.0)
+                        ForEach(Array(stride(from: 55.0, through: 100.0, by: 5)), id: \.self) { speed in
+                            Text("\(Int(speed)) mph").tag(speed)
+                        }
+                    }
+                    Toggle("End drive when parked", isOn: $autoEndDrive)
+                } header: {
+                    Text("Speed alerts")
                 } footer: {
-                    Text("While a drive is active, OpenRoadie keeps the microphone on and listens on this device for \u{201C}Hey Roadie\u{201D} — ask anything hands-free. Your voice never leaves the phone and music keeps playing while it listens. Uses some extra battery; iOS shows the microphone indicator the whole time.")
+                    Text("Alerts fire once per crossing with a small grace band, take effect on your next drive, and buzz a paired Apple Watch automatically. \u{201C}My max speed\u{201D} also warns when you're within 3 mph of it. Parked for 10 minutes ends and saves the drive.")
+                }
+                .onChange(of: alertOverLimit) { _, on in if on { AlertCenter.requestAuthorization() } }
+                .onChange(of: alertMargin) { _, value in if value > 0 { AlertCenter.requestAuthorization() } }
+                .onChange(of: alertMaxSpeed) { _, value in if value > 0 { AlertCenter.requestAuthorization() } }
+
+                Section {
+                    Picker("\u{201C}Hey Roadie\u{201D}", selection: $heyRoadieMode) {
+                        ForEach(WakeWordCoordinator.Mode.allCases) { mode in
+                            Text(mode.title).tag(mode.rawValue)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                } footer: {
+                    Text("Listens on this device for \u{201C}Hey Roadie\u{201D} so you can ask anything hands-free. Your voice never leaves the phone, and music keeps playing while it listens. \u{201C}Always\u{201D} keeps the microphone on whenever OpenRoadie is open, even parked — more battery, and iOS shows the mic indicator the whole time.")
                 }
 
                 Section {

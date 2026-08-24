@@ -8,8 +8,24 @@ import Observation
 @MainActor
 @Observable
 final class WakeWordCoordinator {
-    /// UserDefaults key for the Settings toggle. Defaults to off (opt-in).
-    static let enabledKey = "heyRoadieEnabled"
+    /// UserDefaults key for the listening mode. Defaults to off (opt-in).
+    static let modeKey = "heyRoadieMode"
+
+    enum Mode: String, CaseIterable, Identifiable {
+        case off
+        case duringDrives
+        case always
+
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .off: "Off"
+            case .duringDrives: "During drives"
+            case .always: "Always"
+            }
+        }
+    }
 
     enum Status: Equatable {
         case off
@@ -35,14 +51,22 @@ final class WakeWordCoordinator {
         }
     }
 
-    var isEnabled: Bool {
-        UserDefaults.standard.bool(forKey: Self.enabledKey)
+    var mode: Mode {
+        Mode(rawValue: UserDefaults.standard.string(forKey: Self.modeKey) ?? "") ?? .off
+    }
+
+    private var wantsListening: Bool {
+        switch mode {
+        case .off: false
+        case .duringDrives: drive.isDriving
+        case .always: true
+        }
     }
 
     /// Re-evaluates whether the wake listener should be running. Call on
-    /// drive start/stop, toggle changes, and app start.
+    /// drive start/stop, mode changes, and app start.
     func refresh() {
-        let shouldListen = isEnabled && drive.isDriving && manualSuspensions == 0
+        let shouldListen = wantsListening && manualSuspensions == 0
 
         switch (shouldListen, status) {
         case (true, .off):
@@ -71,7 +95,7 @@ final class WakeWordCoordinator {
         guard status == .off else { return }
         guard await SpeechRecognizer.requestPermissions() else { return }
         // Conditions may have changed while permissions were pending.
-        guard isEnabled, drive.isDriving, manualSuspensions == 0, status == .off else { return }
+        guard wantsListening, manualSuspensions == 0, status == .off else { return }
         status = .listening
         listener.start()
     }

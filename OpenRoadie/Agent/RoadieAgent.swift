@@ -57,6 +57,8 @@ final class RoadieAgent {
     0.3 mi N, Osteria 0.4 mi E." A count alone, like "there are 5 \
     restaurants", is a useless answer — always give names. If the user names \
     a brand or place ("Tesla charger", "Chipotle"), pass it as brandOrName.
+    - Questions about the speed limit of a SPECIFIC named road or highway \
+    ("what's the limit on 101?"): call speedLimitFor with that road name.
     - Questions about past drives: call tripHistory.
 
     Style: short and glanceable, one to three plain sentences. No markdown, \
@@ -112,6 +114,7 @@ final class RoadieAgent {
         var tools: [any Tool] = [
             CurrentDriveTool(session: driveSession),
             FindNearbyTool(session: driveSession, places: placeService),
+            RoadLimitTool(session: driveSession),
         ]
         if let store {
             tools.append(TripHistoryTool(store: store))

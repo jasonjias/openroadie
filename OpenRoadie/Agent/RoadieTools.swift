@@ -86,6 +86,61 @@ struct FindNearbyTool: Tool {
     }
 }
 
+/// Speed limit of a NAMED road near the driver ("what's the limit on 101?"),
+/// as opposed to the road currently being driven (that's currentDrive).
+struct RoadLimitTool: Tool {
+    let name = "speedLimitFor"
+    let description = """
+    Get the posted speed limit of a specific named road or highway near the \
+    driver, like "101", "I-280", or "El Camino Real". For the road the driver \
+    is currently on, use currentDrive instead.
+    """
+
+    private let session: DriveSessionManager
+    private let client = OverpassClient()
+
+    init(session: DriveSessionManager) {
+        self.session = session
+    }
+
+    @Generable
+    struct Arguments {
+        @Guide(description: "The road name or highway number, e.g. 101, I-280, El Camino Real")
+        var road: String
+    }
+
+    func call(arguments: Arguments) async throws -> String {
+        var origin = await MainActor.run { session.context.coordinate }
+        if origin == nil {
+            origin = await LocationService.currentFix()
+        }
+        guard let origin else {
+            return "The driver's location is unavailable, so nearby roads can't be searched."
+        }
+
+        let searchTerm = Self.searchTerm(from: arguments.road)
+        do {
+            let tags = try await client.speedLimitTags(matching: searchTerm, near: origin, radius: 15_000)
+            let mphValues = tags
+                .compactMap(RoadMatcher.speedLimit(fromMaxspeedTag:))
+                .map { DriveFormatting.milesPerHour(fromMetersPerSecond: $0) }
+            return RoadieToolFormatting.describeRoadLimits(road: arguments.road, mphValues: mphValues)
+        } catch {
+            return "The road lookup didn't respond — possibly offline."
+        }
+    }
+
+    /// "I-280" → "280", "US 101" → "101"; names pass through. OSM refs are
+    /// written like "I 280"/"US 101", so the bare number matches best.
+    static func searchTerm(from input: String) -> String {
+        let digits = input.filter(\.isNumber)
+        if !digits.isEmpty, digits.count >= 1, input.count <= digits.count + 5 {
+            return digits
+        }
+        return input.trimmingCharacters(in: .whitespaces)
+    }
+}
+
 /// The agent's view of local trip history.
 struct TripHistoryTool: Tool {
     let name = "tripHistory"

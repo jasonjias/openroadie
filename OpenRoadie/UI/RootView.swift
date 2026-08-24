@@ -6,7 +6,7 @@ struct RootView: View {
     let speaker: SpeechSpeaker
     let wake: WakeWordCoordinator
 
-    @AppStorage(WakeWordCoordinator.enabledKey) private var heyRoadieEnabled = false
+    @AppStorage(WakeWordCoordinator.modeKey) private var heyRoadieMode = WakeWordCoordinator.Mode.off.rawValue
 
     var body: some View {
         TabView {
@@ -25,6 +25,6 @@ struct RootView: View {
         }
         .task { wake.refresh() }
         .onChange(of: session.isDriving) { _, _ in wake.refresh() }
-        .onChange(of: heyRoadieEnabled) { _, _ in wake.refresh() }
+        .onChange(of: heyRoadieMode) { _, _ in wake.refresh() }
     }
 }
