@@ -19,6 +19,7 @@
 /* Begin PBXFileReference section */
 		0A0000000000000000000006 /* OpenRoadie.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OpenRoadie.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0A0000000000000000000007 /* OpenRoadieTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OpenRoadieTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		0A0000000000000000000020 /* Shared.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Shared.xcconfig; path = Config/Shared.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -68,6 +69,7 @@
 		0A0000000000000000000004 = {
 			isa = PBXGroup;
 			children = (
+				0A0000000000000000000020 /* Shared.xcconfig */,
 				0A0000000000000000000008 /* OpenRoadie */,
 				0A0000000000000000000009 /* OpenRoadieTests */,
 				0A0000000000000000000005 /* Products */,
@@ -334,12 +336,12 @@
 		};
 		0A0000000000000000000017 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 0A0000000000000000000020 /* Shared.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = OpenRoadie/Info.plist;
@@ -361,12 +363,12 @@
 		};
 		0A0000000000000000000018 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 0A0000000000000000000020 /* Shared.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = OpenRoadie/Info.plist;
@@ -388,11 +390,11 @@
 		};
 		0A000000000000000000001A /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 0A0000000000000000000020 /* Shared.xcconfig */;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.openroadie.OpenRoadieTests;
@@ -405,11 +407,11 @@
 		};
 		0A000000000000000000001B /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 0A0000000000000000000020 /* Shared.xcconfig */;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.openroadie.OpenRoadieTests;

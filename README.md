@@ -66,7 +66,7 @@ Android and additional integrations can follow as the core architecture develops
 Requirements: Xcode 26 or later, an iPhone running iOS 26 or later (or the iOS 26 simulator).
 
 1. Open `OpenRoadie.xcodeproj` in Xcode.
-2. Select the **OpenRoadie** target → *Signing & Capabilities* → choose your development team (any free Apple ID works).
+2. Create `Config/Local.xcconfig` (gitignored) containing `DEVELOPMENT_TEAM = YOURTEAMID` — any free Apple ID's Personal Team works (Xcode → Settings → Accounts). Alternatively pick your team under *Signing & Capabilities*, just don't commit that change.
 3. Select your iPhone as the run destination and press Run.
 4. Tap **Start Drive** and grant location access ("Allow While Using App") when prompted.
 

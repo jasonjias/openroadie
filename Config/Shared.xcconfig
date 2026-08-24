@@ -1,0 +1,12 @@
+// Shared build configuration.
+//
+// To run on a physical iPhone, put your Apple Development team in
+// Config/Local.xcconfig (gitignored so personal team IDs stay out of the
+// repo):
+//
+//   DEVELOPMENT_TEAM = YOURTEAMID
+//
+// Find your team ID in Xcode -> Settings -> Accounts, or just set the team
+// in Signing & Capabilities (but don't commit that pbxproj change).
+
+#include? "Local.xcconfig"
