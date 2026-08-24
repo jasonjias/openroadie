@@ -55,7 +55,7 @@ enum RoadieToolFormatting {
         limit: Int = 6
     ) -> String {
         guard !results.isEmpty else {
-            return "No \(category.title.lowercased()) found within about 2 miles."
+            return "No \(category.title.lowercased()) found within \(Int((category.searchRadius / 1609.344).rounded())) miles."
         }
         let lines = results.prefix(limit).enumerated().map { index, result in
             let direction = DriveFormatting.cardinal(

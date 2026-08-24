@@ -39,16 +39,16 @@ struct RoadieFormattingTests {
     @Test func describesPlacesWithDistanceAndDirection() {
         let origin = Coordinate(latitude: 37.0, longitude: -122.0)
         let results = [
-            (Place(id: "node/1", name: "Blue Bottle", brand: nil, category: .coffee,
+            (Place(id: "node/1", name: "Blue Bottle", brand: nil, operatedBy: nil, category: .coffee,
                    coordinate: Coordinate(latitude: 37.001, longitude: -122.0)), 111.0),
-            (Place(id: "node/2", name: nil, brand: nil, category: .coffee,
+            (Place(id: "node/2", name: nil, brand: nil, operatedBy: nil, category: .coffee,
                    coordinate: Coordinate(latitude: 36.99, longitude: -122.0)), 1113.0),
         ]
         let text = RoadieToolFormatting.describePlaces(results, category: .coffee, origin: origin)
         #expect(text.contains("Blue Bottle"))
         #expect(text.contains("N")) // due north of origin
         #expect(text.contains("0.7 mi")) // the far one
-        #expect(text.contains("Unnamed coffee"))
+        #expect(text.contains("Unnamed cafe"))
     }
 
     @Test func emptyPlacesSayNothingFound() {

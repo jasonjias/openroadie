@@ -33,8 +33,9 @@ struct FindNearbyTool: Tool {
     let name = "findNearby"
     let description = """
     Find nearby places by category. Valid categories: food, coffee, gas, \
-    charger, landmark. Returns the closest matches with distance and compass \
-    direction from the driver.
+    charger, landmark. Optionally filter by a brand or name like "Tesla", \
+    "Chipotle", or "Shell". Returns the closest matches with distance and \
+    compass direction from the driver.
     """
 
     private let session: DriveSessionManager
@@ -49,6 +50,9 @@ struct FindNearbyTool: Tool {
     struct Arguments {
         @Guide(description: "One of: food, coffee, gas, charger, landmark")
         var category: String
+
+        @Guide(description: "Optional brand or place name to filter by, like Tesla, Chipotle, or Starbucks. Omit to get everything.")
+        var brandOrName: String?
     }
 
     func call(arguments: Arguments) async throws -> String {
@@ -65,6 +69,16 @@ struct FindNearbyTool: Tool {
         do {
             let found = try await places.places(near: origin, category: category)
             let sorted = PlaceGeometry.sortedByDistance(found, from: origin)
+
+            if let keyword = arguments.brandOrName?.trimmingCharacters(in: .whitespaces), !keyword.isEmpty {
+                let matching = sorted.filter { $0.place.matches(keyword: keyword) }
+                if matching.isEmpty {
+                    // Honest miss, but still useful: offer what IS around.
+                    return "No \(category.singular) matching \"\(keyword)\" nearby. "
+                        + RoadieToolFormatting.describePlaces(sorted, category: category, origin: origin)
+                }
+                return RoadieToolFormatting.describePlaces(matching, category: category, origin: origin)
+            }
             return RoadieToolFormatting.describePlaces(sorted, category: category, origin: origin)
         } catch {
             return "The place search didn't respond — possibly offline. Suggest trying again."

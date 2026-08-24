@@ -41,6 +41,26 @@ enum PlaceCategory: String, CaseIterable, Identifiable, Sendable {
         case .landmark: #"["tourism"~"^(attraction|museum|viewpoint)$"]"#
         }
     }
+
+    /// How far people realistically go for this category: you walk to coffee,
+    /// you drive to a charger.
+    var searchRadius: Double {
+        switch self {
+        case .food, .coffee: 3_000
+        case .fuel, .landmark: 5_000
+        case .charger: 8_000
+        }
+    }
+
+    var singular: String {
+        switch self {
+        case .food: "restaurant"
+        case .coffee: "cafe"
+        case .fuel: "gas station"
+        case .charger: "charger"
+        case .landmark: "landmark"
+        }
+    }
 }
 
 /// One point of interest near the drive.
@@ -49,10 +69,23 @@ struct Place: Identifiable, Equatable, Sendable {
     var id: String
     var name: String?
     var brand: String?
+    var operatedBy: String?
     var category: PlaceCategory
     var coordinate: Coordinate
 
-    var displayName: String { name ?? "Unnamed \(category.title.lowercased())" }
+    /// Best label available — many mapped places (charger boxes especially)
+    /// carry only a brand or operator tag, not a name.
+    var displayName: String {
+        name ?? brand ?? operatedBy ?? "Unnamed \(category.singular)"
+    }
+
+    /// True when the place's name, brand, or operator mentions the keyword —
+    /// how "tesla" finds a Supercharger whatever tag it lives in.
+    func matches(keyword: String) -> Bool {
+        [name, brand, operatedBy].compactMap { $0 }.contains {
+            $0.localizedCaseInsensitiveContains(keyword)
+        }
+    }
 }
 
 /// Geometry helpers for presenting places relative to the driver.
@@ -80,7 +113,6 @@ enum PlaceGeometry {
 /// between category tabs doesn't hammer the free Overpass API.
 @MainActor
 final class PlaceService {
-    static let searchRadius: Double = 3_000 // ~1.9 mi
     private static let cacheMaxAge: TimeInterval = 300
     private static let cacheMaxDrift: Double = 500
 
@@ -93,7 +125,7 @@ final class PlaceService {
            TripTracker.distance(from: cached.center, to: coordinate) < Self.cacheMaxDrift {
             return cached.places
         }
-        let places = try await client.places(near: coordinate, radius: Self.searchRadius, category: category)
+        let places = try await client.places(near: coordinate, radius: category.searchRadius, category: category)
         cache[category] = (coordinate, .now, places)
         return places
     }

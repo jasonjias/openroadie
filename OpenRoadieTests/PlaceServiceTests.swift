@@ -21,7 +21,7 @@ struct PlaceParsingTests {
         #expect(places[0].name == "Blue Bottle")
         // A way's center becomes its coordinate; brand fills a missing name.
         #expect(places[1].id == "way/202")
-        #expect(places[1].name == "Starbucks")
+        #expect(places[1].displayName == "Starbucks")
         #expect(places[1].coordinate == Coordinate(latitude: 37.45, longitude: -122.15))
     }
 
@@ -30,7 +30,37 @@ struct PlaceParsingTests {
         {"elements":[{"type":"node","id":1,"lat":37.0,"lon":-122.0,"tags":{"amenity":"fuel"}}]}
         """
         let places = try OverpassClient.parsePlaces(Data(json.utf8), category: .fuel)
-        #expect(places[0].displayName == "Unnamed gas")
+        #expect(places[0].displayName == "Unnamed gas station")
+    }
+
+    @Test func chargerFallsBackToBrandThenOperator() throws {
+        let json = """
+        {"elements":[
+          {"type":"node","id":1,"lat":37.0,"lon":-122.0,
+           "tags":{"amenity":"charging_station","brand":"Tesla Supercharger","operator":"Tesla, Inc."}},
+          {"type":"node","id":2,"lat":37.0,"lon":-122.0,
+           "tags":{"amenity":"charging_station","operator":"ChargePoint"}}
+        ]}
+        """
+        let places = try OverpassClient.parsePlaces(Data(json.utf8), category: .charger)
+        #expect(places[0].displayName == "Tesla Supercharger")
+        #expect(places[1].displayName == "ChargePoint")
+    }
+
+    @Test func keywordMatchesAnyIdentityTag() {
+        let supercharger = Place(
+            id: "node/1", name: "Mountain View Supercharger", brand: "Tesla Supercharger",
+            operatedBy: "Tesla, Inc.", category: .charger,
+            coordinate: Coordinate(latitude: 37, longitude: -122)
+        )
+        let blink = Place(
+            id: "node/2", name: nil, brand: "Blink", operatedBy: nil,
+            category: .charger, coordinate: Coordinate(latitude: 37, longitude: -122)
+        )
+        #expect(supercharger.matches(keyword: "tesla"))
+        #expect(supercharger.matches(keyword: "TESLA"))
+        #expect(!blink.matches(keyword: "tesla"))
+        #expect(blink.matches(keyword: "blink"))
     }
 
     @Test func everyCategoryHasAValidFilter() {
@@ -57,9 +87,9 @@ struct PlaceGeometryTests {
 
     @Test func sortsNearestFirst() {
         let origin = Coordinate(latitude: 37.0, longitude: -122.0)
-        let far = Place(id: "node/1", name: "Far", brand: nil, category: .food,
+        let far = Place(id: "node/1", name: "Far", brand: nil, operatedBy: nil, category: .food,
                         coordinate: Coordinate(latitude: 37.02, longitude: -122.0))
-        let near = Place(id: "node/2", name: "Near", brand: nil, category: .food,
+        let near = Place(id: "node/2", name: "Near", brand: nil, operatedBy: nil, category: .food,
                          coordinate: Coordinate(latitude: 37.001, longitude: -122.0))
 
         let sorted = PlaceGeometry.sortedByDistance([far, near], from: origin)

@@ -103,8 +103,9 @@ struct OverpassClient: Sendable {
             let tags = element.tags ?? [:]
             return Place(
                 id: "\(element.type)/\(element.id)",
-                name: tags["name"] ?? tags["brand"],
+                name: tags["name"],
                 brand: tags["brand"],
+                operatedBy: tags["operator"],
                 category: category,
                 coordinate: Coordinate(latitude: latitude, longitude: longitude)
             )

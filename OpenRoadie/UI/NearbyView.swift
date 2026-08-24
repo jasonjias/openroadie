@@ -93,7 +93,7 @@ struct NearbyView: View {
             ContentUnavailableView(
                 "Nothing mapped nearby",
                 systemImage: category.systemImage,
-                description: Text("No \(category.title.lowercased()) within ~2 miles in OpenStreetMap.")
+                description: Text("No \(category.title.lowercased()) within ~\(Int((category.searchRadius / 1609.344).rounded())) miles in OpenStreetMap.")
             )
             Spacer()
         } else {
