@@ -57,13 +57,16 @@ enum RoadieToolFormatting {
         guard !results.isEmpty else {
             return "No \(category.title.lowercased()) found within about 2 miles."
         }
-        let lines = results.prefix(limit).map { result in
+        let lines = results.prefix(limit).enumerated().map { index, result in
             let direction = DriveFormatting.cardinal(
                 fromCourse: PlaceGeometry.bearing(from: origin, to: result.place.coordinate)
             )
-            return "\(result.place.displayName) — \(DriveFormatting.shortDistance(fromMeters: result.distance)) \(direction)"
+            return "\(index + 1). \(result.place.displayName) (\(DriveFormatting.shortDistance(fromMeters: result.distance)) \(direction))"
         }
-        return "Nearest \(category.title.lowercased()) (straight-line distances):\n" + lines.joined(separator: "\n")
+        // The header is an instruction to the model, not just data: small
+        // on-device models tend to summarize lists into a count otherwise.
+        return "Nearest \(category.title.lowercased()) — tell the user these names with distances:\n"
+            + lines.joined(separator: "\n")
     }
 
     static func describeTrips(_ trips: [Trip]) -> String {
