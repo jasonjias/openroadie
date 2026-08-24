@@ -5,6 +5,7 @@ import AVFoundation
 @MainActor
 final class SpeechSpeaker: NSObject, AVSpeechSynthesizerDelegate {
     private let synthesizer = AVSpeechSynthesizer()
+    private let voice = SpeechSpeaker.bestAvailableVoice()
 
     override init() {
         super.init()
@@ -16,7 +17,28 @@ final class SpeechSpeaker: NSObject, AVSpeechSynthesizerDelegate {
         let session = AVAudioSession.sharedInstance()
         try? session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
         try? session.setActive(true)
-        synthesizer.speak(AVSpeechUtterance(string: text))
+        let utterance = AVSpeechUtterance(string: text)
+        utterance.voice = voice
+        synthesizer.speak(utterance)
+    }
+
+    /// The default voice is the robotic compact one. Prefer the best English
+    /// voice installed: premium > enhanced > default, en-US over other
+    /// English. Users can download premium voices in Settings →
+    /// Accessibility → Spoken Content → Voices; we pick them up automatically.
+    private static func bestAvailableVoice() -> AVSpeechSynthesisVoice? {
+        let english = AVSpeechSynthesisVoice.speechVoices().filter { $0.language.hasPrefix("en") }
+        func rank(_ voice: AVSpeechSynthesisVoice) -> Int {
+            var score = 0
+            switch voice.quality {
+            case .premium: score += 100
+            case .enhanced: score += 50
+            default: break
+            }
+            if voice.language == "en-US" { score += 10 }
+            return score
+        }
+        return english.max { rank($0) < rank($1) }
     }
 
     func stop() {

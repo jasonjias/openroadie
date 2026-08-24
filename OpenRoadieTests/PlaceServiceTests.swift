@@ -50,7 +50,7 @@ struct PlaceParsingTests {
     @Test func keywordMatchesAnyIdentityTag() {
         let supercharger = Place(
             id: "node/1", name: "Mountain View Supercharger", brand: "Tesla Supercharger",
-            operatedBy: "Tesla, Inc.", category: .charger,
+            operatedBy: "Tesla, Inc.", address: nil, category: .charger,
             coordinate: Coordinate(latitude: 37, longitude: -122)
         )
         let blink = Place(
@@ -61,6 +61,24 @@ struct PlaceParsingTests {
         #expect(supercharger.matches(keyword: "TESLA"))
         #expect(!blink.matches(keyword: "tesla"))
         #expect(blink.matches(keyword: "blink"))
+    }
+
+    @Test func parsesStreetAddressFromAddrTags() throws {
+        let json = """
+        {"elements":[
+          {"type":"node","id":1,"lat":37.44,"lon":-122.16,
+           "tags":{"amenity":"charging_station","brand":"Tesla Supercharger",
+                   "addr:housenumber":"550","addr:street":"High Street","addr:city":"Palo Alto"}},
+          {"type":"node","id":2,"lat":37.44,"lon":-122.16,
+           "tags":{"amenity":"charging_station","addr:street":"Emerson Street"}},
+          {"type":"node","id":3,"lat":37.44,"lon":-122.16,
+           "tags":{"amenity":"charging_station"}}
+        ]}
+        """
+        let places = try OverpassClient.parsePlaces(Data(json.utf8), category: .charger)
+        #expect(places[0].address == "550 High Street, Palo Alto")
+        #expect(places[1].address == "Emerson Street")
+        #expect(places[2].address == nil)
     }
 
     @Test func everyCategoryHasAValidFilter() {
@@ -87,9 +105,9 @@ struct PlaceGeometryTests {
 
     @Test func sortsNearestFirst() {
         let origin = Coordinate(latitude: 37.0, longitude: -122.0)
-        let far = Place(id: "node/1", name: "Far", brand: nil, operatedBy: nil, category: .food,
+        let far = Place(id: "node/1", name: "Far", brand: nil, operatedBy: nil, address: nil, category: .food,
                         coordinate: Coordinate(latitude: 37.02, longitude: -122.0))
-        let near = Place(id: "node/2", name: "Near", brand: nil, operatedBy: nil, category: .food,
+        let near = Place(id: "node/2", name: "Near", brand: nil, operatedBy: nil, address: nil, category: .food,
                          coordinate: Coordinate(latitude: 37.001, longitude: -122.0))
 
         let sorted = PlaceGeometry.sortedByDistance([far, near], from: origin)

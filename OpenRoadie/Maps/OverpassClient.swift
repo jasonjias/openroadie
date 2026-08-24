@@ -101,11 +101,19 @@ struct OverpassClient: Sendable {
             let longitude = element.lon ?? element.center?.lon
             guard let latitude, let longitude else { return nil }
             let tags = element.tags ?? [:]
+            let street = [tags["addr:housenumber"], tags["addr:street"]]
+                .compactMap { $0 }
+                .joined(separator: " ")
+            let address: String? = street.isEmpty
+                ? nil
+                : tags["addr:city"].map { "\(street), \($0)" } ?? street
+
             return Place(
                 id: "\(element.type)/\(element.id)",
                 name: tags["name"],
                 brand: tags["brand"],
                 operatedBy: tags["operator"],
+                address: address,
                 category: category,
                 coordinate: Coordinate(latitude: latitude, longitude: longitude)
             )

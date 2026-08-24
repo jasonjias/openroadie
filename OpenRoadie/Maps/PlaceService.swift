@@ -70,6 +70,8 @@ struct Place: Identifiable, Equatable, Sendable {
     var name: String?
     var brand: String?
     var operatedBy: String?
+    /// Street address from OSM addr:* tags, when mapped.
+    var address: String?
     var category: PlaceCategory
     var coordinate: Coordinate
 

@@ -39,9 +39,9 @@ struct RoadieFormattingTests {
     @Test func describesPlacesWithDistanceAndDirection() {
         let origin = Coordinate(latitude: 37.0, longitude: -122.0)
         let results = [
-            (Place(id: "node/1", name: "Blue Bottle", brand: nil, operatedBy: nil, category: .coffee,
+            (Place(id: "node/1", name: "Blue Bottle", brand: nil, operatedBy: nil, address: nil, category: .coffee,
                    coordinate: Coordinate(latitude: 37.001, longitude: -122.0)), 111.0),
-            (Place(id: "node/2", name: nil, brand: nil, operatedBy: nil, category: .coffee,
+            (Place(id: "node/2", name: nil, brand: nil, operatedBy: nil, address: nil, category: .coffee,
                    coordinate: Coordinate(latitude: 36.99, longitude: -122.0)), 1113.0),
         ]
         let text = RoadieToolFormatting.describePlaces(results, category: .coffee, origin: origin)

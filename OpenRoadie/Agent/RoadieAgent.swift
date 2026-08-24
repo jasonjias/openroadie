@@ -61,8 +61,13 @@ final class RoadieAgent {
 
     Style: short and glanceable, one to three plain sentences. No markdown, \
     no emoji. US units (mph, miles, feet). If a tool says something is \
-    unknown, say so plainly. Never invent roads, places, or numbers. You \
-    cannot control the vehicle or navigation; you only inform.
+    unknown, say so plainly. Never invent roads, places, or numbers. \
+    Tools are your ONLY source of facts about the world. You do not know \
+    addresses, opening hours, or anything about a place beyond what \
+    findNearby returned — if asked for a detail the tool didn't provide, \
+    say you don't have it. Inventing an address or place is the worst \
+    possible failure. You cannot control the vehicle or navigation; you \
+    only inform.
     """
 
     /// Checks on-device model availability and prepares a session. Safe to

@@ -8,7 +8,11 @@ import Foundation
 enum RoadieToolFormatting {
     static func describeDrive(_ context: DrivingContext, isDriving: Bool) -> String {
         var lines: [String] = []
-        lines.append(isDriving ? "Drive status: active" : "Drive status: no active drive")
+        if isDriving {
+            lines.append("Drive status: active")
+        } else {
+            lines.append("Drive status: no active drive. Live speed, heading, and road are only measured during a drive — the driver can tap Start Drive on the Drive tab.")
+        }
 
         if let coordinate = context.coordinate {
             lines.append("Position: \(DriveFormatting.coordinate(coordinate))")
@@ -61,11 +65,16 @@ enum RoadieToolFormatting {
             let direction = DriveFormatting.cardinal(
                 fromCourse: PlaceGeometry.bearing(from: origin, to: result.place.coordinate)
             )
-            return "\(index + 1). \(result.place.displayName) (\(DriveFormatting.shortDistance(fromMeters: result.distance)) \(direction))"
+            var line = "\(index + 1). \(result.place.displayName) (\(DriveFormatting.shortDistance(fromMeters: result.distance)) \(direction))"
+            if let address = result.place.address {
+                line += " — \(address)"
+            }
+            return line
         }
         // The header is an instruction to the model, not just data: small
         // on-device models tend to summarize lists into a count otherwise.
-        return "Nearest \(category.title.lowercased()) — tell the user these names with distances:\n"
+        return "Nearest \(category.title.lowercased()) — tell the user these names with distances. "
+            + "Addresses are ONLY known where shown; never invent one:\n"
             + lines.joined(separator: "\n")
     }
 
