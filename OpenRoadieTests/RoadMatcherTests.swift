@@ -113,4 +113,18 @@ struct RouteColoringTests {
         #expect(RouteColoring.runs(forSpeeds: [10]).isEmpty)
         #expect(RouteColoring.runs(forSpeeds: []).isEmpty)
     }
+
+    @Test func extremeSpeedsLandInTopBands() {
+        // 80 mph ≈ 35.8 m/s and 110 mph ≈ 49.2 m/s must hit the two top bands.
+        let dark = try! #require(RouteColoring.bandIndex(forSpeed: 35.8))
+        let extreme = try! #require(RouteColoring.bandIndex(forSpeed: 49.2))
+        #expect(dark == RouteColoring.bands.count - 2)
+        #expect(extreme == RouteColoring.bands.count - 1)
+    }
+
+    @Test func legendListsOnlyVisitedBands() {
+        // A city drive: slow and medium speeds only.
+        let runs = RouteColoring.runs(forSpeeds: [3, 3, 10, 10, 3])
+        #expect(RouteColoring.presentBands(in: runs) == [0, 1])
+    }
 }

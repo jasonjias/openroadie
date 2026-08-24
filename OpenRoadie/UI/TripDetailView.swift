@@ -34,20 +34,20 @@ struct TripDetailView: View {
             }
             .mapStyle(.standard(elevation: .flat))
 
-            speedLegend
+            speedLegend(runs: runs)
             statsGrid
         }
         .navigationTitle(trip.startDate.formatted(.dateTime.month().day().hour().minute()))
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    private var speedLegend: some View {
+    /// Only the bands this trip actually visited, so quiet drives stay quiet.
+    private func speedLegend(runs: [RouteColoring.Run]) -> some View {
         HStack(spacing: 10) {
-            legendEntry(.teal, "<15")
-            legendEntry(.green, "15–30")
-            legendEntry(.yellow, "30–45")
-            legendEntry(.orange, "45–60")
-            legendEntry(.red, "60+ mph")
+            ForEach(RouteColoring.presentBands(in: runs), id: \.self) { index in
+                legendEntry(RouteColoring.bands[index].color, RouteColoring.bands[index].label)
+            }
+            Text("mph")
         }
         .font(.caption2)
         .foregroundStyle(.secondary)

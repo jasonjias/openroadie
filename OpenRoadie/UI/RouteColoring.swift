@@ -4,15 +4,24 @@ import SwiftUI
 /// trip map can draw an Activity-style speed-colored path with a handful of
 /// polylines instead of one per point.
 enum RouteColoring {
-    /// Speed bands (m/s) and their colors, slow → fast.
-    /// 15 / 30 / 45 / 60+ mph boundaries.
-    static let bands: [(upperBound: Double, color: Color)] = [
-        (6.7, .teal),
-        (13.4, .green),
-        (20.1, .yellow),
-        (26.8, .orange),
-        (.infinity, .red),
+    /// Speed bands (m/s) and their colors, slow → fast. Boundaries at
+    /// 15 / 30 / 45 / 60 / 75 / 100 mph; escalation follows weather-radar
+    /// convention, with purple reserved for the genuinely dangerous 100+.
+    static let bands: [(upperBound: Double, color: Color, label: String)] = [
+        (6.7, .teal, "<15"),
+        (13.4, .green, "15–30"),
+        (20.1, .yellow, "30–45"),
+        (26.8, .orange, "45–60"),
+        (33.5, .red, "60–75"),
+        (44.7, Color(red: 0.6, green: 0.05, blue: 0.1), "75–100"),
+        (.infinity, .purple, "100+"),
     ]
+
+    /// The bands a trip actually visited, in slow→fast order — so the legend
+    /// only shows colors that appear on the map.
+    static func presentBands(in runs: [Run]) -> [Int] {
+        Set(runs.map(\.bandIndex)).sorted()
+    }
 
     static func bandIndex(forSpeed speed: Double?) -> Int? {
         guard let speed else { return nil }
