@@ -1,3 +1,4 @@
+import MapKit
 import SwiftData
 import SwiftUI
 
@@ -17,16 +18,23 @@ struct TripsListView: View {
                     )
                 } else {
                     List {
-                        ForEach(trips) { trip in
-                            if trip.endDate == nil {
-                                TripRow(trip: trip)
-                            } else {
-                                NavigationLink(value: trip.persistentModelID) {
+                        Section {
+                            AllDrivesMap(trips: trips)
+                                .frame(height: 220)
+                                .listRowInsets(EdgeInsets())
+                        }
+                        Section {
+                            ForEach(trips) { trip in
+                                if trip.endDate == nil {
                                     TripRow(trip: trip)
+                                } else {
+                                    NavigationLink(value: trip.persistentModelID) {
+                                        TripRow(trip: trip)
+                                    }
                                 }
                             }
+                            .onDelete(perform: deleteTrips)
                         }
-                        .onDelete(perform: deleteTrips)
                     }
                     .navigationDestination(for: PersistentIdentifier.self) { id in
                         if let trip = modelContext.model(for: id) as? Trip {
@@ -43,6 +51,33 @@ struct TripsListView: View {
         for index in offsets {
             modelContext.delete(trips[index])
         }
+    }
+}
+
+/// Every recorded drive overlaid on one map — the "everywhere I've driven" view.
+private struct AllDrivesMap: View {
+    let trips: [Trip]
+
+    /// Cap the overlay work for very large histories; newest drives win.
+    private static let maxTrips = 50
+
+    var body: some View {
+        Map(initialPosition: .automatic) {
+            ForEach(trips.prefix(Self.maxTrips)) { trip in
+                let coordinates = trip.route.map {
+                    CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude)
+                }
+                if coordinates.count >= 2 {
+                    MapPolyline(coordinates: coordinates)
+                        .stroke(
+                            .blue.opacity(0.65),
+                            style: StrokeStyle(lineWidth: 3.5, lineCap: .round, lineJoin: .round)
+                        )
+                }
+            }
+        }
+        .mapStyle(.standard(elevation: .flat))
+        .allowsHitTesting(false)
     }
 }
 

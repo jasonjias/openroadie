@@ -26,6 +26,7 @@ final class DriveSessionManager {
     private(set) var lastErrorDescription: String?
 
     private let locationService = LocationService()
+    private let roadService = RoadService()
     private let store: TripStore?
     private var tracker = TripTracker()
     private var updatesTask: Task<Void, Never>?
@@ -67,6 +68,7 @@ final class DriveSessionManager {
         updatesTask?.cancel()
         updatesTask = nil
         locationService.end()
+        roadService.cancel()
         tracker.stop()
         context = tracker.context
         if let trip = currentTrip {
@@ -95,9 +97,22 @@ final class DriveSessionManager {
             authorization = .authorized
             let result = tracker.process(LocationSample(location))
             context = tracker.context
+            attachRoadInfo()
             if case .accepted(movedFromLastPoint: true) = result, let trip = currentTrip {
                 store?.recordPoint(from: context, in: trip)
             }
         }
+    }
+
+    /// Road awareness rides on top of telemetry: match against the local road
+    /// cache each fix, refetching the cache as the drive moves. Optional and
+    /// best-effort — the drive works identically with it off or offline.
+    private func attachRoadInfo() {
+        guard RoadService.isEnabled, let coordinate = context.coordinate else {
+            context.road = nil
+            return
+        }
+        roadService.refreshIfNeeded(around: coordinate)
+        context.road = roadService.currentRoad(at: coordinate)
     }
 }

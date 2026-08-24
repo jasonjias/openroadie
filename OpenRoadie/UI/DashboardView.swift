@@ -6,19 +6,30 @@ struct DashboardView: View {
     let session: DriveSessionManager
 
     @Environment(\.openURL) private var openURL
+    @State private var showsSettings = false
 
     var body: some View {
         VStack(spacing: 24) {
-            Text("OPENROADIE")
-                .font(.caption.weight(.bold))
-                .tracking(4)
-                .foregroundStyle(.secondary)
-                .padding(.top, 8)
+            ZStack {
+                Text("OPENROADIE")
+                    .font(.caption.weight(.bold))
+                    .tracking(4)
+                    .foregroundStyle(.secondary)
+                Button {
+                    showsSettings = true
+                } label: {
+                    Image(systemName: "gearshape")
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .trailing)
+            }
+            .padding(.top, 8)
 
             Spacer()
 
             speedSection
             headingSection
+            roadSection
             positionSection
 
             Spacer()
@@ -28,6 +39,9 @@ struct DashboardView: View {
             driveButton
         }
         .padding()
+        .sheet(isPresented: $showsSettings) {
+            SettingsView()
+        }
         .onChange(of: session.isDriving) { _, driving in
             // Keep the screen awake while a drive is active — this is a
             // glanceable dashboard.
@@ -42,6 +56,7 @@ struct DashboardView: View {
                     .font(.system(size: 96, weight: .bold, design: .rounded))
                     .monospacedDigit()
                     .contentTransition(.numericText())
+                    .foregroundStyle(isOverLimit ? AnyShapeStyle(.red) : AnyShapeStyle(.primary))
             } else {
                 Text("—")
                     .font(.system(size: 96, weight: .bold, design: .rounded))
@@ -51,6 +66,14 @@ struct DashboardView: View {
                 .font(.headline)
                 .foregroundStyle(.secondary)
         }
+    }
+
+    /// Over the posted limit with a little grace (~2 mph) so GPS noise at
+    /// exactly the limit doesn't flicker the display.
+    private var isOverLimit: Bool {
+        guard let speed = session.context.speed,
+              let limit = session.context.road?.speedLimit else { return false }
+        return speed > limit + 0.9
     }
 
     private var speedUnitLine: String {
@@ -63,8 +86,10 @@ struct DashboardView: View {
 
     private var headingSection: some View {
         HStack(spacing: 10) {
+            if session.isDriving || session.context.course != nil {
+                CompassNeedle(course: session.context.course)
+            }
             if let course = session.context.course {
-                CompassNeedle(course: course)
                 Text("\(DriveFormatting.cardinal(fromCourse: course)) · \(Int(course.rounded()))°")
             } else {
                 Text("heading —")
@@ -72,6 +97,23 @@ struct DashboardView: View {
         }
         .font(.title3.weight(.medium))
         .foregroundStyle(.secondary)
+    }
+
+    @ViewBuilder
+    private var roadSection: some View {
+        if let road = session.context.road {
+            HStack(spacing: 12) {
+                Text(road.displayName ?? "Unnamed road")
+                    .font(.headline)
+                if let limit = road.speedLimit {
+                    SpeedLimitSign(mph: DriveFormatting.milesPerHour(fromMetersPerSecond: limit))
+                }
+            }
+        } else if session.isDriving && session.context.coordinate != nil && RoadService.isEnabled {
+            Text("looking up road…")
+                .font(.subheadline)
+                .foregroundStyle(.tertiary)
+        }
     }
 
     private var positionSection: some View {
@@ -169,8 +211,15 @@ struct DashboardView: View {
 }
 
 /// A needle that points in the direction of travel (screen-up = north).
+///
+/// It stays mounted for the whole drive — dimmed and holding its last
+/// direction while GPS course is unknown (e.g. stopped at a light) — and
+/// rotates via the shortest arc so 350°→10° sweeps 20°, not 340°.
 private struct CompassNeedle: View {
-    let course: Double
+    let course: Double?
+
+    /// Accumulated rotation; may exceed 0–360 so turns animate continuously.
+    @State private var needleAngle: Double = 0
 
     var body: some View {
         ZStack {
@@ -178,10 +227,43 @@ private struct CompassNeedle: View {
                 .stroke(.tertiary, lineWidth: 1.5)
             Image(systemName: "location.north.fill")
                 .font(.system(size: 13))
-                .rotationEffect(.degrees(course))
-                .animation(.smooth(duration: 0.5), value: course)
+                .rotationEffect(.degrees(needleAngle))
+                .opacity(course == nil ? 0.35 : 1)
         }
         .frame(width: 28, height: 28)
+        .onAppear {
+            needleAngle = course ?? 0
+        }
+        .onChange(of: course) { _, newCourse in
+            guard let newCourse else { return }
+            let current = needleAngle.truncatingRemainder(dividingBy: 360)
+            var delta = (newCourse - current).truncatingRemainder(dividingBy: 360)
+            if delta > 180 { delta -= 360 }
+            if delta < -180 { delta += 360 }
+            withAnimation(.smooth(duration: 0.6)) {
+                needleAngle += delta
+            }
+        }
+    }
+}
+
+/// A miniature US-style speed limit sign.
+private struct SpeedLimitSign: View {
+    let mph: Int
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Text("LIMIT")
+                .font(.system(size: 8, weight: .semibold))
+            Text("\(mph)")
+                .font(.system(size: 17, weight: .bold))
+                .monospacedDigit()
+        }
+        .foregroundStyle(.black)
+        .padding(.horizontal, 7)
+        .padding(.vertical, 3)
+        .background(RoundedRectangle(cornerRadius: 5).fill(.white))
+        .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(.black, lineWidth: 1.5))
     }
 }
 

@@ -10,6 +10,20 @@ struct Coordinate: Equatable, Sendable {
     var longitude: Double
 }
 
+/// What OpenRoadie knows about the road currently being driven, resolved from
+/// OpenStreetMap data. All fields are `nil` when the source doesn't know.
+struct RoadInfo: Equatable, Sendable {
+    /// Street name, e.g. "El Camino Real".
+    var name: String?
+    /// Route reference, e.g. "US 101" or "CA 82".
+    var ref: String?
+    /// Posted speed limit in meters per second.
+    var speedLimit: Double?
+
+    /// The best human label available: name, else ref.
+    var displayName: String? { name ?? ref }
+}
+
 /// The canonical snapshot of what OpenRoadie currently knows about the drive.
 ///
 /// Telemetry (GPS today; road data, motion, and more later) produces it.
@@ -38,6 +52,10 @@ struct DrivingContext: Equatable, Sendable {
 
     /// Altitude above mean sea level, in meters. `nil` when unknown.
     var altitude: Double?
+
+    /// The road currently being driven, when road awareness is enabled and
+    /// OpenStreetMap knows it. Populated by `RoadService`, not by telemetry.
+    var road: RoadInfo?
 
     /// When the current (or most recently ended) drive started.
     var tripStart: Date?
