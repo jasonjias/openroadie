@@ -61,6 +61,39 @@ Initial development is focused on iOS using Core Location, Core Motion, OpenStre
 
 Android and additional integrations can follow as the core architecture develops.
 
+## Building and running
+
+Requirements: Xcode 26 or later, an iPhone running iOS 26 or later (or the iOS 26 simulator).
+
+1. Open `OpenRoadie.xcodeproj` in Xcode.
+2. Select the **OpenRoadie** target → *Signing & Capabilities* → choose your development team (any free Apple ID works).
+3. Select your iPhone as the run destination and press Run.
+4. Tap **Start Drive** and grant location access ("Allow While Using App") when prompted.
+
+Run the tests with **Product → Test**, or:
+
+```
+xcodebuild -project OpenRoadie.xcodeproj -scheme OpenRoadie \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' test
+```
+
+### Architecture (Milestone 1)
+
+```
+CoreLocation ─▶ LocationService ─▶ DriveSessionManager ─▶ DrivingContext ─▶ SwiftUI
+                                          │
+                                     TripTracker
+                              (deterministic, unit-tested)
+```
+
+- `Driving/DrivingContext.swift` — the canonical snapshot of what OpenRoadie knows about the drive. Unknown values are `nil`, never invented.
+- `Driving/TripTracker.swift` — pure logic that turns raw GPS fixes into a `DrivingContext`: filters poor-accuracy samples, ignores stationary drift and GPS glitches, accumulates distance.
+- `Driving/LocationService.swift` — thin wrapper over CoreLocation's session APIs (`CLServiceSession`, `CLBackgroundActivitySession`, `CLLocationUpdate.liveUpdates`). Telemetry continues while another app is foregrounded or the phone is locked during an active drive.
+- `Driving/DriveSessionManager.swift` — owns the Start Drive / Stop Drive lifecycle; the single object the UI observes.
+- `UI/` — a deliberately simple developer dashboard.
+
+Driving data never leaves the device. There is no backend, no account, and no API key.
+
 ## Contributing
 
 OpenRoadie is being built in the open.
