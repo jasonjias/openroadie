@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import os
 
 /// Orchestrates hands-free "Hey Roadie" during active drives:
 /// wake listener → (optional "Yes?" + question capture) → agent → spoken reply
@@ -42,13 +43,27 @@ final class WakeWordCoordinator {
     private let capture = SpeechRecognizer()
     private var manualSuspensions = 0
 
+    private let log = Logger(subsystem: "com.openroadie", category: "wake")
+
     init(drive: DriveSessionManager, agent: RoadieAgent, speaker: SpeechSpeaker) {
         self.drive = drive
         self.agent = agent
         self.speaker = speaker
+        Self.migrateLegacyToggle()
         listener.onWake = { [weak self] question in
             self?.handleWake(question)
         }
+    }
+
+    /// The pre-mode releases stored a bool under "heyRoadieEnabled"; carry an
+    /// enabled toggle forward as "during drives" rather than silently off.
+    private static func migrateLegacyToggle() {
+        let defaults = UserDefaults.standard
+        guard defaults.string(forKey: modeKey) == nil else { return }
+        if defaults.bool(forKey: "heyRoadieEnabled") {
+            defaults.set(Mode.duringDrives.rawValue, forKey: modeKey)
+        }
+        defaults.removeObject(forKey: "heyRoadieEnabled")
     }
 
     var mode: Mode {
@@ -67,6 +82,8 @@ final class WakeWordCoordinator {
     /// drive start/stop, mode changes, and app start.
     func refresh() {
         let shouldListen = wantsListening && manualSuspensions == 0
+
+        log.info("refresh: mode=\(self.mode.rawValue, privacy: .public) driving=\(self.drive.isDriving) suspensions=\(self.manualSuspensions) status=\(String(describing: self.status), privacy: .public)")
 
         switch (shouldListen, status) {
         case (true, .off):
@@ -93,16 +110,21 @@ final class WakeWordCoordinator {
 
     private func startListening() async {
         guard status == .off else { return }
-        guard await SpeechRecognizer.requestPermissions() else { return }
+        guard await SpeechRecognizer.requestPermissions() else {
+            log.error("wake listening blocked: speech/mic permission denied")
+            return
+        }
         // Conditions may have changed while permissions were pending.
         guard wantsListening, manualSuspensions == 0, status == .off else { return }
         status = .listening
         listener.start()
+        log.info("wake listening armed")
     }
 
     private func handleWake(_ inlineQuestion: String?) {
         guard status == .listening else { return }
         status = .handling
+        log.info("wake fired, inline question: \(inlineQuestion ?? "<none>", privacy: .public)")
 
         Task {
             var question = inlineQuestion
