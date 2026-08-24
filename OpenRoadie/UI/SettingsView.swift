@@ -1,8 +1,13 @@
+import AVFoundation
 import SwiftUI
 
 struct SettingsView: View {
     @AppStorage(RoadService.enabledKey) private var roadAwarenessEnabled = true
+    @AppStorage(SpeechSpeaker.voiceDefaultsKey) private var voiceIdentifier = ""
     @Environment(\.dismiss) private var dismiss
+    @State private var previewSpeaker = SpeechSpeaker()
+
+    private let voices = SpeechSpeaker.availableVoices()
 
     var body: some View {
         NavigationStack {
@@ -11,6 +16,22 @@ struct SettingsView: View {
                     Toggle("Road awareness", isOn: $roadAwarenessEnabled)
                 } footer: {
                     Text("Shows the current road and speed limit using OpenStreetMap. While driving, your approximate location is sent to the public Overpass API (overpass-api.de) about once every few hundred meters. Turn off for a fully offline drive — everything else works identically.")
+                }
+
+                Section {
+                    Picker("Roadie's voice", selection: $voiceIdentifier) {
+                        Text("Automatic (best installed)").tag("")
+                        ForEach(voices, id: \.identifier) { voice in
+                            Text("\(voice.name) — \(SpeechSpeaker.qualityLabel(for: voice))")
+                                .tag(voice.identifier)
+                        }
+                    }
+                    .pickerStyle(.navigationLink)
+                    .onChange(of: voiceIdentifier) { _, _ in
+                        previewSpeaker.speak("Hi, I'm Roadie. This is how I sound.")
+                    }
+                } footer: {
+                    Text("Download more voices in Settings → Accessibility → Spoken Content → Voices — they appear here automatically.")
                 }
 
                 Section {
