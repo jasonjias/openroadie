@@ -9,7 +9,10 @@ private func fix(
     lon: Double = -122.0,
     accuracy: Double = 5,
     speed: Double = 10,
+    speedAccuracy: Double = 0.5,
     course: Double = 90,
+    altitude: Double = 30,
+    verticalAccuracy: Double = 4,
     at seconds: TimeInterval = 0
 ) -> LocationSample {
     LocationSample(
@@ -17,7 +20,10 @@ private func fix(
         longitude: lon,
         horizontalAccuracy: accuracy,
         speed: speed,
+        speedAccuracy: speedAccuracy,
         course: course,
+        altitude: altitude,
+        verticalAccuracy: verticalAccuracy,
         timestamp: Date(timeIntervalSinceReferenceDate: seconds)
     )
 }
@@ -143,5 +149,42 @@ struct TripTrackerTests {
     @Test func durationIsNilBeforeFirstStart() {
         let context = DrivingContext()
         #expect(context.tripDuration() == nil)
+    }
+
+    @Test func tracksMaxSpeedAcrossDrive() {
+        var tracker = TripTracker()
+        tracker.start(at: Date(timeIntervalSinceReferenceDate: 0))
+
+        tracker.process(fix(speed: 10, at: 1))
+        tracker.process(fix(speed: 25, at: 2))
+        tracker.process(fix(speed: -1, at: 3))
+        tracker.process(fix(speed: 15, at: 4))
+
+        #expect(tracker.context.tripMaxSpeed == 25)
+    }
+
+    @Test func altitudeUnknownWhenVerticalAccuracyInvalid() {
+        var tracker = TripTracker()
+        tracker.start(at: Date(timeIntervalSinceReferenceDate: 0))
+
+        tracker.process(fix(altitude: 120, verticalAccuracy: -1, at: 1))
+        #expect(tracker.context.altitude == nil)
+
+        tracker.process(fix(altitude: 120, verticalAccuracy: 3, at: 2))
+        #expect(tracker.context.altitude == 120)
+    }
+
+    @Test func processReportsWhenPositionAdvances() {
+        var tracker = TripTracker()
+        tracker.start(at: Date(timeIntervalSinceReferenceDate: 0))
+
+        // Rejected sample.
+        #expect(tracker.process(fix(accuracy: 100, at: 0)) == .rejected)
+        // First accepted fix establishes the route start.
+        #expect(tracker.process(fix(lat: 37.0, at: 1)) == .accepted(movedFromLastPoint: true))
+        // Stationary jitter: accepted, but not a new route point.
+        #expect(tracker.process(fix(lat: 37.00002, at: 2)) == .accepted(movedFromLastPoint: false))
+        // Real movement (~100 m).
+        #expect(tracker.process(fix(lat: 37.0009, at: 12)) == .accepted(movedFromLastPoint: true))
     }
 }

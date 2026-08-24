@@ -47,15 +47,24 @@ struct DashboardView: View {
                     .font(.system(size: 96, weight: .bold, design: .rounded))
                     .foregroundStyle(.tertiary)
             }
-            Text("mph")
+            Text(speedUnitLine)
                 .font(.headline)
                 .foregroundStyle(.secondary)
         }
     }
 
+    private var speedUnitLine: String {
+        if let accuracy = session.context.speedAccuracy {
+            let mph = max(1, DriveFormatting.milesPerHour(fromMetersPerSecond: accuracy))
+            return "mph  ± \(mph)"
+        }
+        return "mph"
+    }
+
     private var headingSection: some View {
-        Group {
+        HStack(spacing: 10) {
             if let course = session.context.course {
+                CompassNeedle(course: course)
                 Text("\(DriveFormatting.cardinal(fromCourse: course)) · \(Int(course.rounded()))°")
             } else {
                 Text("heading —")
@@ -70,11 +79,16 @@ struct DashboardView: View {
             if let coordinate = session.context.coordinate {
                 Text(DriveFormatting.coordinate(coordinate))
                     .font(.body.monospaced())
-                if let accuracy = session.context.horizontalAccuracy {
-                    Text("± \(Int(accuracy.rounded())) m")
-                        .font(.caption.monospaced())
-                        .foregroundStyle(.secondary)
+                HStack(spacing: 10) {
+                    if let accuracy = session.context.horizontalAccuracy {
+                        Text("± \(Int(accuracy.rounded())) m")
+                    }
+                    if let altitude = session.context.altitude {
+                        Text("alt \(DriveFormatting.feet(fromMeters: altitude)) ft")
+                    }
                 }
+                .font(.caption.monospaced())
+                .foregroundStyle(.secondary)
             } else if session.isDriving {
                 Text("waiting for GPS…")
                     .font(.body)
@@ -151,6 +165,23 @@ struct DashboardView: View {
         }
         .buttonStyle(.borderedProminent)
         .tint(session.isDriving ? .red : .green)
+    }
+}
+
+/// A needle that points in the direction of travel (screen-up = north).
+private struct CompassNeedle: View {
+    let course: Double
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .stroke(.tertiary, lineWidth: 1.5)
+            Image(systemName: "location.north.fill")
+                .font(.system(size: 13))
+                .rotationEffect(.degrees(course))
+                .animation(.smooth(duration: 0.5), value: course)
+        }
+        .frame(width: 28, height: 28)
     }
 }
 

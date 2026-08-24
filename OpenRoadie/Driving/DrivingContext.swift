@@ -29,9 +29,15 @@ struct DrivingContext: Equatable, Sendable {
     /// Ground speed in meters per second. `nil` when GPS can't determine it.
     var speed: Double?
 
+    /// One-sigma uncertainty of `speed`, in meters per second.
+    var speedAccuracy: Double?
+
     /// Direction of travel in degrees from true north (0–360).
     /// `nil` when unknown — for example while stationary.
     var course: Double?
+
+    /// Altitude above mean sea level, in meters. `nil` when unknown.
+    var altitude: Double?
 
     /// When the current (or most recently ended) drive started.
     var tripStart: Date?
@@ -41,6 +47,9 @@ struct DrivingContext: Equatable, Sendable {
 
     /// Accumulated driving distance in meters for the current drive.
     var tripDistance: Double = 0
+
+    /// Highest valid GPS speed seen this drive, in meters per second.
+    var tripMaxSpeed: Double?
 
     /// Elapsed trip time. For an active drive, measured up to `date`;
     /// for an ended drive, frozen at `tripEnd`.

@@ -26,8 +26,15 @@ final class DriveSessionManager {
     private(set) var lastErrorDescription: String?
 
     private let locationService = LocationService()
+    private let store: TripStore?
     private var tracker = TripTracker()
     private var updatesTask: Task<Void, Never>?
+    private var currentTrip: Trip?
+
+    /// `store` is optional so previews and tests can run without persistence.
+    init(store: TripStore? = nil) {
+        self.store = store
+    }
 
     func startDrive() {
         guard !isDriving else { return }
@@ -36,6 +43,7 @@ final class DriveSessionManager {
         tracker.start()
         context = tracker.context
         isDriving = true
+        currentTrip = store?.beginTrip(at: tracker.context.tripStart ?? .now)
         locationService.begin()
 
         updatesTask = Task { [weak self] in
@@ -61,6 +69,15 @@ final class DriveSessionManager {
         locationService.end()
         tracker.stop()
         context = tracker.context
+        if let trip = currentTrip {
+            store?.endTrip(
+                trip,
+                at: context.tripEnd ?? .now,
+                distance: context.tripDistance,
+                maxSpeed: context.tripMaxSpeed
+            )
+            currentTrip = nil
+        }
     }
 
     private func handle(_ update: CLLocationUpdate) {
@@ -76,8 +93,11 @@ final class DriveSessionManager {
 
         if let location = update.location {
             authorization = .authorized
-            tracker.process(LocationSample(location))
+            let result = tracker.process(LocationSample(location))
             context = tracker.context
+            if case .accepted(movedFromLastPoint: true) = result, let trip = currentTrip {
+                store?.recordPoint(from: context, in: trip)
+            }
         }
     }
 }

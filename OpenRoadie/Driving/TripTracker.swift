@@ -10,8 +10,14 @@ struct LocationSample: Sendable {
     var horizontalAccuracy: Double
     /// Meters per second. Values `< 0` mean speed is unknown.
     var speed: Double
+    /// One-sigma speed uncertainty in m/s. Values `< 0` mean unknown.
+    var speedAccuracy: Double
     /// Degrees from true north. Values `< 0` mean course is unknown.
     var course: Double
+    /// Meters above sea level. Valid only when `verticalAccuracy > 0`.
+    var altitude: Double
+    /// Meters. Values `<= 0` mean `altitude` is invalid.
+    var verticalAccuracy: Double
     var timestamp: Date
 }
 
@@ -22,7 +28,10 @@ extension LocationSample {
             longitude: location.coordinate.longitude,
             horizontalAccuracy: location.horizontalAccuracy,
             speed: location.speed,
+            speedAccuracy: location.speedAccuracy,
             course: location.course,
+            altitude: location.altitude,
+            verticalAccuracy: location.verticalAccuracy,
             timestamp: location.timestamp
         )
     }
@@ -63,29 +72,50 @@ struct TripTracker {
         context.tripEnd = date
     }
 
-    mutating func process(_ sample: LocationSample) {
-        guard isActive else { return }
+    /// What `process` did with a sample, so callers (like a trip recorder)
+    /// can react without re-deriving the filtering rules.
+    enum ProcessResult: Equatable {
+        /// The sample failed quality filters (or no drive is active).
+        case rejected
+        /// The sample updated the context. `movedFromLastPoint` is true when
+        /// the position advanced meaningfully — the moments worth recording
+        /// as route points.
+        case accepted(movedFromLastPoint: Bool)
+    }
+
+    @discardableResult
+    mutating func process(_ sample: LocationSample) -> ProcessResult {
+        guard isActive else { return .rejected }
         guard sample.horizontalAccuracy > 0,
-              sample.horizontalAccuracy <= Self.maxHorizontalAccuracy else { return }
+              sample.horizontalAccuracy <= Self.maxHorizontalAccuracy else { return .rejected }
 
         let coordinate = Coordinate(latitude: sample.latitude, longitude: sample.longitude)
         context.timestamp = sample.timestamp
         context.coordinate = coordinate
         context.horizontalAccuracy = sample.horizontalAccuracy
         context.speed = sample.speed >= 0 ? sample.speed : nil
+        context.speedAccuracy = (sample.speed >= 0 && sample.speedAccuracy >= 0) ? sample.speedAccuracy : nil
         context.course = sample.course >= 0 ? sample.course : nil
+        context.altitude = sample.verticalAccuracy > 0 ? sample.altitude : nil
 
-        accumulateDistance(to: coordinate, at: sample.timestamp, accuracy: sample.horizontalAccuracy)
+        if let speed = context.speed, speed > (context.tripMaxSpeed ?? 0) {
+            context.tripMaxSpeed = speed
+        }
+
+        let moved = accumulateDistance(to: coordinate, at: sample.timestamp, accuracy: sample.horizontalAccuracy)
+        return .accepted(movedFromLastPoint: moved)
     }
 
-    private mutating func accumulateDistance(to coordinate: Coordinate, at timestamp: Date, accuracy: Double) {
+    /// Returns true when the anchor advanced (first fix, real movement, or a
+    /// glitch re-anchor) — i.e. the position is new enough to be worth keeping.
+    private mutating func accumulateDistance(to coordinate: Coordinate, at timestamp: Date, accuracy: Double) -> Bool {
         guard let anchor else {
             self.anchor = (coordinate, timestamp)
-            return
+            return true
         }
 
         let elapsed = timestamp.timeIntervalSince(anchor.timestamp)
-        guard elapsed > 0 else { return }
+        guard elapsed > 0 else { return false }
 
         let delta = Self.distance(from: anchor.coordinate, to: coordinate)
 
@@ -93,13 +123,15 @@ struct TripTracker {
         // later movement is measured from there, but count nothing for the jump.
         if delta / elapsed > Self.maxPlausibleSpeed {
             self.anchor = (coordinate, timestamp)
-            return
+            return true
         }
 
         if delta >= max(Self.minimumDistanceStep, accuracy) {
             context.tripDistance += delta
             self.anchor = (coordinate, timestamp)
+            return true
         }
+        return false
     }
 
     /// Great-circle distance in meters.

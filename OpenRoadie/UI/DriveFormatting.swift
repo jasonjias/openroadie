@@ -11,6 +11,10 @@ enum DriveFormatting {
         String(format: "%.1f mi", meters / 1609.344)
     }
 
+    static func feet(fromMeters meters: Double) -> Int {
+        Int((meters * 3.28084).rounded())
+    }
+
     /// 16-wind compass name for a course in degrees from true north.
     static func cardinal(fromCourse degrees: Double) -> String {
         let names = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
