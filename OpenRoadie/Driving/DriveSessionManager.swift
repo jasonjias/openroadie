@@ -41,6 +41,23 @@ final class DriveSessionManager {
     /// `store` is optional so previews and tests can run without persistence.
     init(store: TripStore? = nil) {
         self.store = store
+        // Alert rules apply live: whether changed in Settings or written by
+        // Roadie ("warn me at 80"), the engine reconfigures mid-drive.
+        NotificationCenter.default.addObserver(
+            forName: UserDefaults.didChangeNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.reloadAlertConfig()
+            }
+        }
+    }
+
+    private func reloadAlertConfig() {
+        guard isDriving else { return }
+        let fresh = AlertCenter.configFromDefaults()
+        if fresh != alertEngine.config {
+            alertEngine.config = fresh
+        }
     }
 
     func startDrive() {

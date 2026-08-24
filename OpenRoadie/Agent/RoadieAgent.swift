@@ -60,6 +60,12 @@ final class RoadieAgent {
     - Questions about the speed limit of a SPECIFIC named road or highway \
     ("what's the limit on 101?"): call speedLimitFor with that road name.
     - Questions about past drives: call tripHistory.
+    - Requests to create, change, or check speed alerts ("warn me if I go 10 \
+    over", "never let me go over 80", "turn off my speed alerts", "what are \
+    my alerts?"): call configureSpeedAlerts with ONLY the fields being \
+    changed, then confirm the resulting settings back. "Never let me go over \
+    X" means maxSpeedMph = X. You cannot create other kinds of rules yet — \
+    say so honestly if asked.
 
     Style: short and glanceable, one to three plain sentences. No markdown, \
     no emoji. US units (mph, miles, feet). If a tool says something is \
@@ -115,6 +121,7 @@ final class RoadieAgent {
             CurrentDriveTool(session: driveSession),
             FindNearbyTool(session: driveSession, places: placeService),
             RoadLimitTool(session: driveSession),
+            ConfigureAlertsTool(),
         ]
         if let store {
             tools.append(TripHistoryTool(store: store))

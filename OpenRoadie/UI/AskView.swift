@@ -18,7 +18,8 @@ struct AskView: View {
         "Any chargers nearby?",
         "Find me coffee",
         "How long have I been driving?",
-        "Tell me about my recent trips",
+        "Warn me if I go 5 over the limit",
+        "Never let me go over 80",
     ]
 
     var body: some View {

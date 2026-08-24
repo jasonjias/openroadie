@@ -112,6 +112,27 @@ enum RoadieToolFormatting {
         return "The posted limit on \(road) near the driver varies from \(low) to \(high) mph by stretch; most segments are \(typical) mph."
     }
 
+    /// The alert settings as the model should relay them back to the driver.
+    static func describeAlertSettings(
+        overLimit: Bool,
+        marginMph: Int,
+        maxSpeedMph: Int,
+        autoEnd: Bool,
+        changed: Bool
+    ) -> String {
+        var lines = [changed
+            ? "Settings updated. Confirm the current alerts to the user:"
+            : "Current speed alerts — tell the user:"]
+        lines.append("- Posted-limit alert: \(overLimit ? "on" : "off")")
+        lines.append("- Extra alert: \(marginMph > 0 ? "+\(marginMph) mph over the limit" : "off")")
+        lines.append("- Personal max speed: \(maxSpeedMph > 0 ? "\(maxSpeedMph) mph (warns within 3 mph and when over)" : "off")")
+        lines.append("- Auto-end drive when parked: \(autoEnd ? "on" : "off")")
+        if changed {
+            lines.append("These take effect immediately, including mid-drive.")
+        }
+        return lines.joined(separator: "\n")
+    }
+
     /// "4 min", "1 hr 5 min" — durations phrased for a spoken-style answer.
     static func spokenDuration(_ interval: TimeInterval) -> String {
         let totalMinutes = Int(interval) / 60
