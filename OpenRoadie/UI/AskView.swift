@@ -5,6 +5,8 @@ struct AskView: View {
     let agent: RoadieAgent
 
     @State private var input = ""
+    @State private var speech = SpeechRecognizer()
+    @State private var speaker = SpeechSpeaker()
     @FocusState private var inputFocused: Bool
 
     private static let suggestions = [
@@ -39,6 +41,20 @@ struct AskView: View {
             .navigationBarTitleDisplayMode(.inline)
         }
         .task { agent.start() }
+        .onAppear {
+            // Spoken questions get spoken answers; typed ones stay silent.
+            speech.onFinalTranscript = { question in
+                input = ""
+                Task {
+                    if let reply = await agent.ask(question) {
+                        speaker.speak(reply)
+                    }
+                }
+            }
+        }
+        .onChange(of: speech.transcript) { _, transcript in
+            if speech.isListening { input = transcript }
+        }
     }
 
     private var chat: some View {
@@ -117,21 +133,42 @@ struct AskView: View {
     }
 
     private var inputBar: some View {
-        HStack(spacing: 10) {
-            TextField("Ask Roadie…", text: $input)
-                .textFieldStyle(.plain)
-                .focused($inputFocused)
-                .onSubmit { send(input) }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 9)
-                .background(.fill.secondary, in: Capsule())
-            Button {
-                send(input)
-            } label: {
-                Image(systemName: "arrow.up.circle.fill")
-                    .font(.system(size: 30))
+        VStack(spacing: 6) {
+            if speech.state == .denied {
+                Text("Microphone or speech permission is off — enable both in Settings to talk to Roadie.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            } else if speech.state == .unavailable {
+                Text("On-device speech recognition isn't available right now.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
             }
-            .disabled(input.trimmingCharacters(in: .whitespaces).isEmpty || agent.isThinking)
+            HStack(spacing: 10) {
+                Button {
+                    speaker.stop()
+                    Task { await speech.toggle() }
+                } label: {
+                    Image(systemName: speech.isListening ? "waveform" : "mic.fill")
+                        .symbolEffect(.variableColor.iterative, isActive: speech.isListening)
+                        .font(.system(size: 21))
+                        .foregroundStyle(speech.isListening ? AnyShapeStyle(.red) : AnyShapeStyle(.tint))
+                        .frame(width: 34, height: 34)
+                }
+                TextField(speech.isListening ? "Listening…" : "Ask Roadie…", text: $input)
+                    .textFieldStyle(.plain)
+                    .focused($inputFocused)
+                    .onSubmit { send(input) }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 9)
+                    .background(.fill.secondary, in: Capsule())
+                Button {
+                    send(input)
+                } label: {
+                    Image(systemName: "arrow.up.circle.fill")
+                        .font(.system(size: 30))
+                }
+                .disabled(input.trimmingCharacters(in: .whitespaces).isEmpty || agent.isThinking || speech.isListening)
+            }
         }
         .padding(.horizontal)
         .padding(.vertical, 8)

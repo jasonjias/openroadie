@@ -77,9 +77,11 @@ final class RoadieAgent {
         }
     }
 
-    func ask(_ question: String) async {
+    /// Asks Roadie a question; returns the reply so callers can also speak it.
+    @discardableResult
+    func ask(_ question: String) async -> String? {
         let trimmed = question.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let session, !trimmed.isEmpty, !isThinking else { return }
+        guard let session, !trimmed.isEmpty, !isThinking else { return nil }
 
         messages.append(Message(role: .user, text: trimmed))
         isThinking = true
@@ -88,13 +90,16 @@ final class RoadieAgent {
         do {
             let response = try await session.respond(to: trimmed)
             messages.append(Message(role: .roadie, text: response.content))
+            return response.content
         } catch {
             // Most failures are cured by a fresh session; keep the app
             // usable and say honestly what happened.
             Logger(subsystem: "com.openroadie", category: "agent")
                 .error("Roadie respond failed: \(String(describing: error), privacy: .public)")
             resetSession()
-            messages.append(Message(role: .roadie, text: Self.explanation(for: error)))
+            let explanation = Self.explanation(for: error)
+            messages.append(Message(role: .roadie, text: explanation))
+            return explanation
         }
     }
 
