@@ -118,6 +118,17 @@ final class TripStore {
         try? context.save()
     }
 
+    /// Most recent completed trips, newest first — used by the agent's
+    /// trip-history tool. SwiftUI reads use `@Query` instead.
+    func recentTrips(limit: Int) -> [Trip] {
+        var descriptor = FetchDescriptor<Trip>(
+            predicate: #Predicate { $0.endDate != nil },
+            sortBy: [SortDescriptor(\.startDate, order: .reverse)]
+        )
+        descriptor.fetchLimit = limit
+        return (try? context.fetch(descriptor)) ?? []
+    }
+
     /// Recovers from an app death mid-drive: any trip still open from a prior
     /// launch is closed at its last recorded point (with distance rebuilt from
     /// the route), or discarded if it never really went anywhere.
