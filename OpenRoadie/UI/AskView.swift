@@ -3,10 +3,12 @@ import SwiftUI
 /// Talk to Roadie — the on-device AI with tools over the drive.
 struct AskView: View {
     let agent: RoadieAgent
+    let speaker: SpeechSpeaker
+    var wake: WakeWordCoordinator? = nil
 
     @State private var input = ""
     @State private var speech = SpeechRecognizer()
-    @State private var speaker = SpeechSpeaker()
+    @State private var voiceReplyPending = false
     @FocusState private var inputFocused: Bool
 
     private static let suggestions = [
@@ -45,15 +47,26 @@ struct AskView: View {
             // Spoken questions get spoken answers; typed ones stay silent.
             speech.onFinalTranscript = { question in
                 input = ""
+                voiceReplyPending = true
                 Task {
                     if let reply = await agent.ask(question) {
-                        speaker.speak(reply)
+                        await speaker.speakAndWait(reply)
                     }
+                    voiceReplyPending = false
+                    wake?.endManualVoice()
                 }
             }
         }
         .onChange(of: speech.transcript) { _, transcript in
             if speech.isListening { input = transcript }
+        }
+        .onChange(of: speech.isListening) { _, listening in
+            // Tap-to-talk and the wake listener must never record at once.
+            if listening {
+                wake?.beginManualVoice()
+            } else if !voiceReplyPending {
+                wake?.endManualVoice()
+            }
         }
     }
 

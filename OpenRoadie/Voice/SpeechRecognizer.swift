@@ -150,9 +150,14 @@ final class SpeechRecognizer {
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
 
-    private func requestPermissions() async -> Bool {
-        guard await Self.requestSpeechAuthorization() else { return false }
+    /// Shared by tap-to-talk and the "Hey Roadie" wake listener.
+    static func requestPermissions() async -> Bool {
+        guard await requestSpeechAuthorization() else { return false }
         return await AVAudioApplication.requestRecordPermission()
+    }
+
+    private func requestPermissions() async -> Bool {
+        await Self.requestPermissions()
     }
 
     /// nonisolated on purpose: TCC invokes the callback on a background

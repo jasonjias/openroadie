@@ -4,6 +4,7 @@ import SwiftUI
 struct SettingsView: View {
     @AppStorage(RoadService.enabledKey) private var roadAwarenessEnabled = true
     @AppStorage(SpeechSpeaker.voiceDefaultsKey) private var voiceIdentifier = ""
+    @AppStorage(WakeWordCoordinator.enabledKey) private var heyRoadieEnabled = false
     @Environment(\.dismiss) private var dismiss
     @State private var previewSpeaker = SpeechSpeaker()
 
@@ -16,6 +17,12 @@ struct SettingsView: View {
                     Toggle("Road awareness", isOn: $roadAwarenessEnabled)
                 } footer: {
                     Text("Shows the current road and speed limit using OpenStreetMap. While driving, your approximate location is sent to the public Overpass API (overpass-api.de) about once every few hundred meters. Turn off for a fully offline drive — everything else works identically.")
+                }
+
+                Section {
+                    Toggle("\u{201C}Hey Roadie\u{201D} during drives", isOn: $heyRoadieEnabled)
+                } footer: {
+                    Text("While a drive is active, OpenRoadie keeps the microphone on and listens on this device for \u{201C}Hey Roadie\u{201D} — ask anything hands-free. Your voice never leaves the phone and music keeps playing while it listens. Uses some extra battery; iOS shows the microphone indicator the whole time.")
                 }
 
                 Section {

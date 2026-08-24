@@ -4,6 +4,7 @@ import SwiftUI
 /// the drive, biased toward observability over polish.
 struct DashboardView: View {
     let session: DriveSessionManager
+    var wake: WakeWordCoordinator? = nil
 
     @Environment(\.openURL) private var openURL
     @State private var showsSettings = false
@@ -35,6 +36,12 @@ struct DashboardView: View {
             Spacer()
 
             tripSection
+            if wake?.status == .listening {
+                Label("Say \u{201C}Hey Roadie\u{201D}", systemImage: "waveform")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.tint)
+                    .symbolEffect(.variableColor.iterative, isActive: true)
+            }
             statusBanner
             driveButton
         }

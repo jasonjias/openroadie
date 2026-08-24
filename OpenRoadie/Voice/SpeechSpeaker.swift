@@ -74,12 +74,32 @@ final class SpeechSpeaker: NSObject, AVSpeechSynthesizerDelegate {
         synthesizer.stopSpeaking(at: .immediate)
     }
 
+    /// Speaks and suspends until the utterance finishes (or is cancelled) —
+    /// lets voice flows sequence speech and listening without overlap.
+    func speakAndWait(_ text: String) async {
+        guard !text.isEmpty else { return }
+        speak(text)
+        await withCheckedContinuation { continuation in
+            finishContinuation?.resume()
+            finishContinuation = continuation
+        }
+    }
+
+    private var finishContinuation: CheckedContinuation<Void, Never>?
+
+    private func utteranceEnded() {
+        finishContinuation?.resume()
+        finishContinuation = nil
+    }
+
     nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
         // Release the session so ducked audio returns to full volume.
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        Task { @MainActor in self.utteranceEnded() }
     }
 
     nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        Task { @MainActor in self.utteranceEnded() }
     }
 }
