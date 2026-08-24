@@ -72,8 +72,13 @@ final class SpeechRecognizer {
             let input = audioEngine.inputNode
             let format = input.outputFormat(forBus: 0)
             input.removeTap(onBus: 0)
-            input.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, _ in
-                request.append(buffer)
+            // The tap fires on the audio thread; the closure must NOT inherit
+            // main-actor isolation or the runtime isolation check traps.
+            // Appending buffers to a recognition request off-main is the
+            // documented pattern.
+            nonisolated(unsafe) let liveRequest = request
+            input.installTap(onBus: 0, bufferSize: 1024, format: format) { @Sendable buffer, _ in
+                liveRequest.append(buffer)
             }
             audioEngine.prepare()
             try audioEngine.start()
@@ -84,24 +89,30 @@ final class SpeechRecognizer {
         }
 
         state = .listening
-        task = recognizer.recognitionTask(with: request) { [weak self] result, error in
-            Task { @MainActor [weak self] in
-                self?.handle(result: result, error: error)
+        // The result handler runs on a speech-framework queue: keep the
+        // closure explicitly @Sendable (no inherited main-actor isolation),
+        // extract value types, then hop to the main actor.
+        task = recognizer.recognitionTask(with: request) { @Sendable [weak self] result, error in
+            let text = result?.bestTranscription.formattedString
+            let isFinal = result?.isFinal ?? false
+            let failed = error != nil
+            Task { @MainActor in
+                self?.handle(text: text, isFinal: isFinal, failed: failed)
             }
         }
     }
 
-    private func handle(result: SFSpeechRecognitionResult?, error: Error?) {
+    private func handle(text: String?, isFinal: Bool, failed: Bool) {
         guard state == .listening else { return }
-        if let result {
-            transcript = result.bestTranscription.formattedString
+        if let text {
+            transcript = text
             scheduleSilenceTimeout()
-            if result.isFinal {
+            if isFinal {
                 finish(sending: true)
                 return
             }
         }
-        if error != nil {
+        if failed {
             // Recognition ended on its own — send whatever was heard.
             finish(sending: !transcript.isEmpty)
         }
@@ -140,12 +151,18 @@ final class SpeechRecognizer {
     }
 
     private func requestPermissions() async -> Bool {
-        let speechAllowed = await withCheckedContinuation { continuation in
+        guard await Self.requestSpeechAuthorization() else { return false }
+        return await AVAudioApplication.requestRecordPermission()
+    }
+
+    /// nonisolated on purpose: TCC invokes the callback on a background
+    /// queue, so the closure must not carry main-actor isolation (it traps
+    /// the runtime isolation check on device otherwise).
+    private nonisolated static func requestSpeechAuthorization() async -> Bool {
+        await withCheckedContinuation { continuation in
             SFSpeechRecognizer.requestAuthorization { status in
                 continuation.resume(returning: status == .authorized)
             }
         }
-        guard speechAllowed else { return false }
-        return await AVAudioApplication.requestRecordPermission()
     }
 }
