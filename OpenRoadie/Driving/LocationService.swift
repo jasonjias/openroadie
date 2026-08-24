@@ -40,4 +40,29 @@ final class LocationService {
     nonisolated func updates() -> CLLocationUpdate.Updates {
         CLLocationUpdate.liveUpdates(.automotiveNavigation)
     }
+
+    /// One-shot position fix for features used while parked (e.g. Nearby).
+    /// Prompts for When-In-Use permission if needed; `nil` when denied or
+    /// no fix arrives promptly.
+    static func currentFix() async -> Coordinate? {
+        let session = CLServiceSession(authorization: .whenInUse)
+        defer { session.invalidate() }
+        var attempts = 0
+        do {
+            for try await update in CLLocationUpdate.liveUpdates() {
+                if let location = update.location {
+                    return Coordinate(
+                        latitude: location.coordinate.latitude,
+                        longitude: location.coordinate.longitude
+                    )
+                }
+                if update.authorizationDenied || update.authorizationDeniedGlobally { return nil }
+                attempts += 1
+                if attempts > 15 { return nil }
+            }
+        } catch {
+            return nil
+        }
+        return nil
+    }
 }

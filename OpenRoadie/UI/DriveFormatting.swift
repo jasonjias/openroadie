@@ -15,6 +15,14 @@ enum DriveFormatting {
         Int((meters * 3.28084).rounded())
     }
 
+    /// Walking-scale distances in feet, driving-scale in miles.
+    static func shortDistance(fromMeters meters: Double) -> String {
+        if meters < 160 { // under ~0.1 mi
+            return "\(feet(fromMeters: meters)) ft"
+        }
+        return miles(fromMeters: meters)
+    }
+
     /// 16-wind compass name for a course in degrees from true north.
     static func cardinal(fromCourse degrees: Double) -> String {
         let names = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",

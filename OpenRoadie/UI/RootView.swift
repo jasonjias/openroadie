@@ -8,6 +8,9 @@ struct RootView: View {
             Tab("Drive", systemImage: "car.fill") {
                 DashboardView(session: session)
             }
+            Tab("Nearby", systemImage: "mappin.and.ellipse") {
+                NearbyView(session: session)
+            }
             Tab("Trips", systemImage: "map") {
                 TripsListView()
             }
