@@ -56,7 +56,11 @@ struct ConfigureAlertsTool: Tool {
         var changed = false
 
         if let overLimit = alertOverPostedLimit {
-            defaults.set(overLimit, forKey: AlertCenter.overLimitKey)
+            // "Alert me at the limit" via Roadie means the chime tier; off is off.
+            defaults.set(
+                (overLimit ? AlertCenter.OverLimitStyle.chime : .off).rawValue,
+                forKey: AlertCenter.overLimitStyleKey
+            )
             changed = true
         }
         if let extra = extraAlertMphOverLimit {

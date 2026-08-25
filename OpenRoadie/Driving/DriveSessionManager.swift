@@ -29,6 +29,7 @@ final class DriveSessionManager {
     private let roadService = RoadService()
     private let motionService = MotionService()
     private let alerts = AlertCenter()
+    private let chime = ChimePlayer()
     private let watchLink = PhoneWatchLink()
     private let store: TripStore?
     private var tracker = TripTracker()
@@ -83,7 +84,7 @@ final class DriveSessionManager {
         stationarySince = nil
         alertEngine.config = AlertCenter.configFromDefaults()
         alertEngine.reset()
-        scoreRecorder.config = SpeedAlertEngine.Config(alertOverPostedLimit: true, postedMarginMph: 5)
+        scoreRecorder.config = SpeedAlertEngine.Config(alertOverPostedLimit: true, postedMarginIsAdaptive: true)
         scoreRecorder.reset()
         alertOccurrences = 0
         eventsThisDrive = 0
@@ -175,6 +176,14 @@ final class DriveSessionManager {
         if let mph = nowMph {
             recentSpeeds.append((.now, mph))
         }
+        // A g-spike while (near-)stationary is the phone being handled, a
+        // door slam, a pothole in a parking spot — not driving. Field data:
+        // "hard acceleration, 0 mph, 1.23 g" while walking into a restaurant.
+        let recentMax = recentSpeeds
+            .filter { Date.now.timeIntervalSince($0.0) <= 3 }
+            .map(\.1)
+            .max() ?? nowMph ?? 0
+        guard recentMax >= 8 else { return }
         let earlier = recentSpeeds.last { Date.now.timeIntervalSince($0.0) >= 1.5 }?.1
         let kind: String
         if let nowMph, let earlier {
@@ -199,16 +208,31 @@ final class DriveSessionManager {
         )
         if !events.isEmpty {
             let speedMphNow = context.speed.map { Int(($0 * 2.236936).rounded()) }
-            let coached = events.map { event -> (SpeedAlertEngine.Event, String) in
+            // Tiered response, Tesla-calibrated: crossing the posted limit
+            // is a chime (or nothing); the coaching voice is saved for
+            // genuinely-over (the margin tier) and the driver's own max.
+            var coached: [(SpeedAlertEngine.Event, String)] = []
+            for event in events {
+                if case .overPostedLimit = event {
+                    switch AlertCenter.overLimitStyle {
+                    case .off: continue
+                    case .chime:
+                        chime.play()
+                        continue
+                    case .coach: break // falls through to full coaching
+                    }
+                }
                 alertOccurrences += 1
-                return (event, Coach.fromSettings(
+                coached.append((event, Coach.fromSettings(
                     for: event, speedMph: speedMphNow, occurrence: alertOccurrences
-                ))
+                )))
             }
-            alerts.deliverCoached(coached)
-            watchLink.send(events)
-            if Coach.spokenEnabled, let nudge = coached.last?.1 {
-                speakCoaching?(nudge)
+            if !coached.isEmpty {
+                alerts.deliverCoached(coached)
+                watchLink.send(coached.map(\.0))
+                if Coach.spokenEnabled, let nudge = coached.last?.1 {
+                    speakCoaching?(nudge)
+                }
             }
         }
 

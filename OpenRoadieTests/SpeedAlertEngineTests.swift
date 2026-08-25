@@ -91,3 +91,30 @@ struct RoadLimitTests {
         #expect(text.contains("do not guess"))
     }
 }
+
+struct AdaptiveMarginTests {
+    @Test func adaptiveMarginScalesWithTheRoad() {
+        var config = SpeedAlertEngine.Config()
+        config.postedMarginIsAdaptive = true
+        // 25 zone: 15% is 3.75, floor wins → 5 (coach at 30+).
+        #expect(config.effectiveMarginMph(forLimit: 25) == 5)
+        // 65 zone: 15% → 9.75 (coach at ~75).
+        #expect(config.effectiveMarginMph(forLimit: 65) == 9.75)
+    }
+
+    @Test func adaptiveOverridesFixedMph() {
+        var config = SpeedAlertEngine.Config()
+        config.postedMarginMph = 5
+        config.postedMarginIsAdaptive = true
+        #expect(config.effectiveMarginMph(forLimit: 65) == 9.75)
+    }
+
+    @Test func adaptiveMarginFiresAtTheRightSpeed() {
+        var engine = SpeedAlertEngine()
+        engine.config = .init(alertOverPostedLimit: false, postedMarginIsAdaptive: true)
+        // 65 zone: nothing at 72 (needs ~74.75), fires at 76.
+        #expect(engine.process(speedMph: 72, postedLimitMph: 65).isEmpty)
+        let events = engine.process(speedMph: 76, postedLimitMph: 65)
+        #expect(events == [.overPostedMargin(limitMph: 65, marginMph: 10)])
+    }
+}

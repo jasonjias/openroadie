@@ -7,8 +7,8 @@ struct SettingsView: View {
     @AppStorage(RoadService.enabledKey) private var roadAwarenessEnabled = true
     @AppStorage(SpeechSpeaker.voiceDefaultsKey) private var voiceIdentifier = ""
     @AppStorage(WakeWordCoordinator.modeKey) private var heyRoadieMode = WakeWordCoordinator.Mode.off.rawValue
-    @AppStorage(AlertCenter.overLimitKey) private var alertOverLimit = false
-    @AppStorage(AlertCenter.marginKey) private var alertMargin = 0.0
+    @AppStorage(AlertCenter.overLimitStyleKey) private var overLimitStyle = AlertCenter.overLimitStyle.rawValue
+    @AppStorage(AlertCenter.marginKey) private var alertMargin = -1.0
     @AppStorage(AlertCenter.maxSpeedKey) private var alertMaxSpeed = 0.0
     @AppStorage(AlertCenter.autoEndKey) private var autoEndDrive = true
     @AppStorage(ModelProviderChoice.defaultsKey) private var modelProvider = ModelProviderChoice.apple.rawValue
@@ -94,9 +94,14 @@ struct SettingsView: View {
                 }
 
                 Section {
-                    Toggle("Alert over the posted limit", isOn: $alertOverLimit)
-                    Picker("Extra alert past the limit", selection: $alertMargin) {
+                    Picker("At the posted limit", selection: $overLimitStyle) {
+                        ForEach(AlertCenter.OverLimitStyle.allCases) { style in
+                            Text(style.title).tag(style.rawValue)
+                        }
+                    }
+                    Picker("Coach me when over by", selection: $alertMargin) {
                         Text("Off").tag(0.0)
+                        Text("15% of the limit").tag(-1.0)
                         ForEach([5.0, 10.0, 15.0], id: \.self) { margin in
                             Text("+\(Int(margin)) mph").tag(margin)
                         }
@@ -111,10 +116,10 @@ struct SettingsView: View {
                 } header: {
                     Text("Speed alerts")
                 } footer: {
-                    Text("Alerts fire once per crossing with a small grace band, take effect on your next drive, and buzz a paired Apple Watch automatically. \u{201C}My max speed\u{201D} also warns when you're within 3 mph of it. Parked for 10 minutes ends and saves the drive.")
+                    Text("Three tiers, calibrated like a car's: crossing the posted limit plays a soft chime (or a full coaching nudge — your pick). Real coaching waits for \u{201C}over by\u{201D} — 15% adapts to the road (~30 in a 25, ~75 in a 65) and is the recommended setting. \u{201C}My max speed\u{201D} warns as you approach it. Each fires once per crossing, with a grace band. Parked for 10 minutes ends and saves the drive.")
                 }
-                .onChange(of: alertOverLimit) { _, on in if on { AlertCenter.requestAuthorization() } }
-                .onChange(of: alertMargin) { _, value in if value > 0 { AlertCenter.requestAuthorization() } }
+                .onChange(of: overLimitStyle) { _, style in if style != AlertCenter.OverLimitStyle.off.rawValue { AlertCenter.requestAuthorization() } }
+                .onChange(of: alertMargin) { _, value in if value != 0 { AlertCenter.requestAuthorization() } }
                 .onChange(of: alertMaxSpeed) { _, value in if value > 0 { AlertCenter.requestAuthorization() } }
 
                 Section {

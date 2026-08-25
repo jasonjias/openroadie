@@ -16,13 +16,16 @@ struct DayStats: Equatable {
     /// Times speed went more than 5 mph past the posted limit.
     var wellOverCrossings: Int = 0
 
-    /// The Drive Score, 0–100 — actual vs expected, where expected is the
-    /// posted limit and smooth inputs. Deterministic and explainable:
-    /// start at 100; −8 per hard maneuver, −3 per limit crossing, −8 per
-    /// +5-over crossing. `nil` on days with no driving — no drive, no ring.
+    /// The Drive Score, 0–100 — Tesla-calibrated after field testing: an
+    /// afternoon of ordinary flow-of-traffic driving should score in the
+    /// 80s-90s, not single digits. Crossing the posted limit by a little is
+    /// informational (counted, shown, zero deduction — the chime tier);
+    /// the score reacts to genuinely-over crossings (−5, adaptive margin:
+    /// max of 5 mph and 15% of the limit) and hard maneuvers (−10).
+    /// `nil` on days with no driving — no drive, no ring.
     var score: Int? {
         guard tripCount > 0 else { return nil }
-        return max(0, 100 - hardEvents * 8 - overLimitCrossings * 3 - wellOverCrossings * 8)
+        return max(0, 100 - hardEvents * 10 - wellOverCrossings * 5)
     }
 
     static func compute(
@@ -43,11 +46,17 @@ struct DayStats: Equatable {
             }
         }
         for event in events where calendar.isDate(event.timestamp, inSameDayAs: day) {
+            // Retroactive false-positive filter: a g-spike recorded while
+            // (near-)stationary was the phone being handled, not driving.
+            // The recorder now gates these at capture; this cleans history.
+            let stationary = event.speedMph.map { $0 < 8 } ?? false
             switch event.kind {
             case "hardBraking":
+                guard !stationary else { break }
                 stats.hardBraking += 1
                 stats.hardEvents += 1
             case "hardAcceleration":
+                guard !stationary else { break }
                 stats.hardAcceleration += 1
                 stats.hardEvents += 1
             case "overLimit": stats.overLimitCrossings += 1

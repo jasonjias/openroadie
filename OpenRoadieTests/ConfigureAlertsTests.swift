@@ -56,7 +56,7 @@ struct ConfigureAlertsTests {
             alertOverPostedLimit: nil, extraAlertMphOverLimit: nil,
             maxSpeedMph: 75, autoEndDriveWhenParked: nil, defaults: defaults
         )
-        #expect(defaults.bool(forKey: AlertCenter.overLimitKey))
+        #expect(defaults.string(forKey: AlertCenter.overLimitStyleKey) == AlertCenter.OverLimitStyle.chime.rawValue)
         #expect(defaults.double(forKey: AlertCenter.marginKey) == 5)
         #expect(defaults.double(forKey: AlertCenter.maxSpeedKey) == 75)
     }

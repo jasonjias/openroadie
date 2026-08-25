@@ -35,7 +35,7 @@ struct DayStatsTests {
         #expect(stats.duration == 1800)
         #expect(stats.maxSpeedMph == 65)
         #expect(stats.hardEvents == 1)
-        #expect(stats.score == 92) // 100 - 8
+        #expect(stats.score == 90) // 100 - 10
     }
 
     @Test func noDrivingMeansNoScore() {
@@ -61,10 +61,37 @@ struct DayStatsTests {
     @Test func overspeedCrossingsCostPoints() {
         var stats = DayStats()
         stats.tripCount = 1
-        stats.overLimitCrossings = 2   // -6
-        stats.wellOverCrossings = 1    // -8
-        stats.hardEvents = 1           // -8
-        #expect(stats.score == 78)
+        stats.overLimitCrossings = 2   // informational — the chime tier costs nothing
+        stats.wellOverCrossings = 1    // -5
+        stats.hardEvents = 1           // -10
+        #expect(stats.score == 85)
+    }
+
+    @Test func ordinaryFlowOfTrafficDayScoresWell() {
+        // Field calibration: 13 small crossings + 4 genuinely-over in an
+        // afternoon of normal driving should read like Tesla's "fine",
+        // not a single-digit shame score.
+        var stats = DayStats()
+        stats.tripCount = 4
+        stats.overLimitCrossings = 13
+        stats.wellOverCrossings = 4
+        #expect(stats.score == 80)
+    }
+
+    @Test func stationaryGSpikesAreNotHardEvents() {
+        // "Hard acceleration, 0 mph, 1.23 g" = picking up the phone.
+        let day = Calendar.current.startOfDay(for: .now)
+        let trip = Trip(startDate: day.addingTimeInterval(3600))
+        trip.endDate = day.addingTimeInterval(4000)
+        trip.distance = 1609
+        let events = [
+            DriveEvent(kind: "hardAcceleration", peakG: 1.23, coordinate: nil, speedMph: 0, timestamp: day.addingTimeInterval(3700)),
+            DriveEvent(kind: "hardBraking", peakG: 0.5, coordinate: nil, speedMph: 3, timestamp: day.addingTimeInterval(3750)),
+            DriveEvent(kind: "hardBraking", peakG: 0.4, coordinate: nil, speedMph: 30, timestamp: day.addingTimeInterval(3800)),
+        ]
+        let stats = DayStats.compute(trips: [trip], events: events, on: day)
+        #expect(stats.hardEvents == 1)         // only the 30 mph one is real
+        #expect(stats.score == 90)
     }
 
     @Test func countsEventKindsSeparately() {
@@ -83,7 +110,7 @@ struct DayStatsTests {
         #expect(stats.hardEvents == 1)
         #expect(stats.hardBraking == 1)
         #expect(stats.hardAcceleration == 0)
-        #expect(stats.score == 100 - 3 - 8 - 8)
+        #expect(stats.score == 100 - 5 - 10)
     }
 }
 

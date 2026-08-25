@@ -11,12 +11,24 @@ struct SpeedAlertEngine {
         var alertOverPostedLimit = false
         /// Additionally alert this many mph over the posted limit (e.g. 5).
         var postedMarginMph: Double?
+        /// Adaptive margin: max(5 mph, 15% of the limit) — ~30 in a 25,
+        /// ~75 in a 65. Matches how speeding is actually treated: a fixed
+        /// mph is too loose in a school zone and too tight on a freeway.
+        /// When set, `postedMarginMph` is ignored.
+        var postedMarginIsAdaptive = false
         /// The driver's own top speed (mph); alerts on approach and crossing.
         var maxSpeedMph: Double?
         /// "Approaching" means within this many mph of the max.
         var maxSpeedApproachMph: Double = 3
 
         static let off = Config()
+
+        /// The margin that applies on a road with this limit, or nil if the
+        /// margin tier is off.
+        func effectiveMarginMph(forLimit limit: Double) -> Double? {
+            if postedMarginIsAdaptive { return max(5, limit * 0.15) }
+            return postedMarginMph
+        }
     }
 
     enum Event: Equatable {
@@ -47,7 +59,7 @@ struct SpeedAlertEngine {
             }
         }
 
-        if let margin = config.postedMarginMph, let limit = postedLimitMph {
+        if let limit = postedLimitMph, let margin = config.effectiveMarginMph(forLimit: limit) {
             if step(&overMarginArmed, speed: speed, threshold: limit + margin) {
                 events.append(.overPostedMargin(limitMph: Int(limit.rounded()), marginMph: Int(margin.rounded())))
             }
