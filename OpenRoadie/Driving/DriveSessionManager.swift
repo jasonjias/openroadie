@@ -29,6 +29,7 @@ final class DriveSessionManager {
     private let roadService = RoadService()
     private let motionService = MotionService()
     private let alerts = AlertCenter()
+    private let watchLink = PhoneWatchLink()
     private let store: TripStore?
     private var tracker = TripTracker()
     private var alertEngine = SpeedAlertEngine()
@@ -106,6 +107,7 @@ final class DriveSessionManager {
         motionService.stop()
         tracker.stop()
         context = tracker.context
+        watchLink.push(context: context, isDriving: false)
         if let trip = currentTrip {
             store?.endTrip(
                 trip,
@@ -137,6 +139,7 @@ final class DriveSessionManager {
                 store?.recordPoint(from: context, in: trip)
             }
             evaluateSpeedRules()
+            watchLink.push(context: context, isDriving: isDriving)
         }
 
         autoEndIfParked()
@@ -173,6 +176,7 @@ final class DriveSessionManager {
         )
         if !events.isEmpty {
             alerts.deliver(events)
+            watchLink.send(events)
         }
     }
 

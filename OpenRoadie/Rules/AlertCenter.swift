@@ -37,21 +37,34 @@ final class AlertCenter: NSObject, UNUserNotificationCenterDelegate {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
     }
 
+    /// Shared by notifications and the watch app's live alerts.
+    static func body(for event: SpeedAlertEngine.Event) -> String {
+        switch event {
+        case .overPostedLimit(let limit):
+            "Over the posted \(limit) mph limit."
+        case .overPostedMargin(let limit, let margin):
+            "More than \(margin) over the posted \(limit) mph limit."
+        case .approachingMaxSpeed(let max):
+            "Approaching your \(max) mph max."
+        case .overMaxSpeed(let max):
+            "Over your \(max) mph max."
+        }
+    }
+
+    /// True for crossings (urgent haptic); false for approach warnings.
+    static func isSevere(_ event: SpeedAlertEngine.Event) -> Bool {
+        switch event {
+        case .approachingMaxSpeed: false
+        default: true
+        }
+    }
+
     func deliver(_ events: [SpeedAlertEngine.Event]) {
         for event in events {
             let content = UNMutableNotificationContent()
             content.title = "Speed alert"
             content.sound = .default
-            switch event {
-            case .overPostedLimit(let limit):
-                content.body = "Over the posted \(limit) mph limit."
-            case .overPostedMargin(let limit, let margin):
-                content.body = "More than \(margin) over the posted \(limit) mph limit."
-            case .approachingMaxSpeed(let max):
-                content.body = "Approaching your \(max) mph max."
-            case .overMaxSpeed(let max):
-                content.body = "Over your \(max) mph max."
-            }
+            content.body = Self.body(for: event)
             post(content)
         }
     }

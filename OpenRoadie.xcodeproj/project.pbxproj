@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		0B00000000000000000000A8 /* OpenRoadieWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 0B00000000000000000000A3 /* OpenRoadieWatch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		0A0000000000000000000011 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -14,11 +18,33 @@
 			remoteGlobalIDString = 0A0000000000000000000002;
 			remoteInfo = OpenRoadie;
 		};
+		0B00000000000000000000A9 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 0A0000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 0B00000000000000000000A2;
+			remoteInfo = OpenRoadieWatch;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		0B00000000000000000000A7 /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				0B00000000000000000000A8 /* OpenRoadieWatch.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		0A0000000000000000000006 /* OpenRoadie.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OpenRoadie.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0A0000000000000000000007 /* OpenRoadieTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OpenRoadieTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		0B00000000000000000000A3 /* OpenRoadieWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OpenRoadieWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0A0000000000000000000020 /* Shared.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Shared.xcconfig; path = Config/Shared.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -46,6 +72,11 @@
 			path = OpenRoadieTests;
 			sourceTree = "<group>";
 		};
+		0B00000000000000000000A1 /* OpenRoadieWatch */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = OpenRoadieWatch;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -63,6 +94,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		0B00000000000000000000A5 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -72,6 +110,7 @@
 				0A0000000000000000000020 /* Shared.xcconfig */,
 				0A0000000000000000000008 /* OpenRoadie */,
 				0A0000000000000000000009 /* OpenRoadieTests */,
+				0B00000000000000000000A1 /* OpenRoadieWatch */,
 				0A0000000000000000000005 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -81,6 +120,7 @@
 			children = (
 				0A0000000000000000000006 /* OpenRoadie.app */,
 				0A0000000000000000000007 /* OpenRoadieTests.xctest */,
+				0B00000000000000000000A3 /* OpenRoadieWatch.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -95,10 +135,12 @@
 				0A000000000000000000000B /* Sources */,
 				0A000000000000000000000C /* Frameworks */,
 				0A000000000000000000000D /* Resources */,
+				0B00000000000000000000A7 /* Embed Watch Content */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				0B00000000000000000000AA /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				0A0000000000000000000008 /* OpenRoadie */,
@@ -133,6 +175,28 @@
 			productReference = 0A0000000000000000000007 /* OpenRoadieTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		0B00000000000000000000A2 /* OpenRoadieWatch */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0B00000000000000000000AB /* Build configuration list for PBXNativeTarget "OpenRoadieWatch" */;
+			buildPhases = (
+				0B00000000000000000000A4 /* Sources */,
+				0B00000000000000000000A5 /* Frameworks */,
+				0B00000000000000000000A6 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				0B00000000000000000000A1 /* OpenRoadieWatch */,
+			);
+			name = OpenRoadieWatch;
+			packageProductDependencies = (
+			);
+			productName = OpenRoadieWatch;
+			productReference = 0B00000000000000000000A3 /* OpenRoadieWatch.app */;
+			productType = "com.apple.product-type.application";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -164,6 +228,7 @@
 			targets = (
 				0A0000000000000000000002 /* OpenRoadie */,
 				0A0000000000000000000003 /* OpenRoadieTests */,
+				0B00000000000000000000A2 /* OpenRoadieWatch */,
 			);
 		};
 /* End PBXProject section */
@@ -177,6 +242,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		0A0000000000000000000010 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		0B00000000000000000000A6 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -200,6 +272,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		0B00000000000000000000A4 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -207,6 +286,11 @@
 			isa = PBXTargetDependency;
 			target = 0A0000000000000000000002 /* OpenRoadie */;
 			targetProxy = 0A0000000000000000000011 /* PBXContainerItemProxy */;
+		};
+		0B00000000000000000000AA /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 0B00000000000000000000A2 /* OpenRoadieWatch */;
+			targetProxy = 0B00000000000000000000A9 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -422,6 +506,58 @@
 			};
 			name = Release;
 		};
+		0B00000000000000000000AC /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 0A0000000000000000000020 /* Shared.xcconfig */;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = OpenRoadie;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.openroadie.OpenRoadie;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.openroadie.OpenRoadie.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = Debug;
+		};
+		0B00000000000000000000AD /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 0A0000000000000000000020 /* Shared.xcconfig */;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = OpenRoadie;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.openroadie.OpenRoadie;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.openroadie.OpenRoadie.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -448,6 +584,15 @@
 			buildConfigurations = (
 				0A000000000000000000001A /* Debug */,
 				0A000000000000000000001B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		0B00000000000000000000AB /* Build configuration list for PBXNativeTarget "OpenRoadieWatch" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0B00000000000000000000AC /* Debug */,
+				0B00000000000000000000AD /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
