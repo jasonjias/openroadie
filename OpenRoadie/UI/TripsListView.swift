@@ -65,7 +65,7 @@ struct TripsListView: View {
                         Button {
                             showsSettings = true
                         } label: {
-                            ProfileAvatar(size: 26)
+                            ProfileAvatar(size: 32)
                         }
                     }
                 }
@@ -216,10 +216,10 @@ struct TripsListView: View {
     private func metric(_ label: String, _ value: String, tint: Color) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(label)
-                .font(.caption2)
+                .font(AppFont.metricLabel)
                 .foregroundStyle(.secondary)
             Text(value)
-                .font(.headline)
+                .font(AppFont.metricValue)
                 .monospacedDigit()
                 .foregroundStyle(tint)
         }
@@ -229,7 +229,7 @@ struct TripsListView: View {
 
     @ViewBuilder
     private var daySection: some View {
-        Section("Drives") {
+        Section {
             if dayTrips.isEmpty {
                 Text(calendar.isDateInToday(selectedDay) ? "No drives yet today." : "No drives this day.")
                     .font(.subheadline)
@@ -246,13 +246,15 @@ struct TripsListView: View {
                 }
                 .onDelete(perform: deleteTrips)
             }
+        } header: {
+            SectionHeader("Drives")
         }
     }
 
     @ViewBuilder
     private var dayNotesSection: some View {
         if !dayNotes.isEmpty {
-            Section("Notes") {
+            Section {
                 ForEach(dayNotes) { note in
                     VStack(alignment: .leading, spacing: 3) {
                         Label(note.text, systemImage: "quote.bubble")
@@ -263,6 +265,8 @@ struct TripsListView: View {
                     }
                 }
                 .onDelete(perform: deleteNotes)
+            } header: {
+                SectionHeader("Notes")
             }
         }
     }

@@ -53,23 +53,32 @@ final class ProfileStore {
     }
 }
 
-/// The avatar shown on toolbars: the chosen photo, or the generic symbol.
+/// The avatar shown on toolbars: the chosen photo (or a placeholder) in a
+/// bordered circle, Fitness-style.
 struct ProfileAvatar: View {
-    var size: CGFloat = 28
+    var size: CGFloat = 34
 
     private let store = ProfileStore.shared
 
     var body: some View {
-        if let image = store.image {
-            Image(uiImage: image)
-                .resizable()
-                .scaledToFill()
-                .frame(width: size, height: size)
-                .clipShape(Circle())
-        } else {
-            Image(systemName: "person.crop.circle.fill")
-                .font(.system(size: size * 0.85))
-                .foregroundStyle(.secondary)
+        Group {
+            if let image = store.image {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                ZStack {
+                    Circle().fill(Color(.systemGray5))
+                    Image(systemName: "person.fill")
+                        .font(.system(size: size * 0.5))
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
+        .frame(width: size, height: size)
+        .clipShape(Circle())
+        .overlay(
+            Circle().strokeBorder(Color(.systemGray4), lineWidth: max(1.5, size / 28))
+        )
     }
 }

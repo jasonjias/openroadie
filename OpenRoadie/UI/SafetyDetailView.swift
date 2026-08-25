@@ -55,7 +55,7 @@ struct SafetyDetailView: View {
                     .listRowBackground(Color.clear)
                 }
 
-                Section("Factors") {
+                Section {
                     factorRow(
                         "Hard Braking",
                         description: "Sudden, forceful slowing — smooth, early braking keeps this at zero.",
@@ -76,10 +76,12 @@ struct SafetyDetailView: View {
                         description: "Times you went more than 5 mph past the posted limit.",
                         count: stats.wellOverCrossings
                     )
+                } header: {
+                    SectionHeader("Factors")
                 }
 
                 if !dayEvents.isEmpty {
-                    Section("Events") {
+                    Section {
                         ForEach(dayEvents) { event in
                             HStack(spacing: 10) {
                                 Image(systemName: icon(for: event.kind))
@@ -94,6 +96,8 @@ struct SafetyDetailView: View {
                                 }
                             }
                         }
+                    } header: {
+                        SectionHeader("Events")
                     }
                 }
             }
