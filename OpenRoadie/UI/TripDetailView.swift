@@ -24,6 +24,7 @@ struct TripDetailView: View {
     }
 
     @State private var colorMode: RouteColorMode = .speed
+    @State private var shareURL: URL?
 
     var body: some View {
         let route = trip.route
@@ -84,6 +85,18 @@ struct TripDetailView: View {
         }
         .navigationTitle(trip.startDate.formatted(.dateTime.month().day().hour().minute()))
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if let shareURL {
+                ToolbarItem(placement: .topBarTrailing) {
+                    // A speed-colored route card — the shape of the drive,
+                    // no map tiles, no street names.
+                    ShareLink(item: shareURL, preview: SharePreview("OpenRoadie Trip", image: Image(uiImage: UIImage(contentsOfFile: shareURL.path) ?? UIImage())))
+                }
+            }
+        }
+        .task {
+            shareURL = TripShareRenderer.pngURL(for: trip)
+        }
     }
 
     private var statsGrid: some View {
