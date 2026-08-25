@@ -39,6 +39,12 @@ final class DriveSessionManager {
     private var updatesTask: Task<Void, Never>?
     private var currentTrip: Trip?
     private var stationarySince: Date?
+    /// Alerts so far this drive — coaching escalates its tone politely.
+    private var alertOccurrences = 0
+
+    /// Set by the app layer: speaks a coaching nudge through the shared
+    /// voice pipeline (which pauses the wake listener around it).
+    var speakCoaching: ((String) -> Void)?
     /// Recent (timestamp, mph) samples for classifying hard maneuvers.
     private var recentSpeeds: [(Date, Double)] = []
 
@@ -76,6 +82,7 @@ final class DriveSessionManager {
         alertEngine.reset()
         scoreRecorder.config = SpeedAlertEngine.Config(alertOverPostedLimit: true, postedMarginMph: 5)
         scoreRecorder.reset()
+        alertOccurrences = 0
         tracker.start()
         context = tracker.context
         isDriving = true
@@ -180,8 +187,18 @@ final class DriveSessionManager {
             postedLimitMph: context.road?.speedLimit.map(mph) ?? nil
         )
         if !events.isEmpty {
-            alerts.deliver(events)
+            let speedMphNow = context.speed.map { Int(($0 * 2.236936).rounded()) }
+            let coached = events.map { event -> (SpeedAlertEngine.Event, String) in
+                alertOccurrences += 1
+                return (event, Coach.fromSettings(
+                    for: event, speedMph: speedMphNow, occurrence: alertOccurrences
+                ))
+            }
+            alerts.deliverCoached(coached)
             watchLink.send(events)
+            if Coach.spokenEnabled, let nudge = coached.last?.1 {
+                speakCoaching?(nudge)
+            }
         }
 
         // Silent score bookkeeping - never notifies, always records.

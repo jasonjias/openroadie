@@ -60,11 +60,17 @@ final class AlertCenter: NSObject, UNUserNotificationCenterDelegate {
     }
 
     func deliver(_ events: [SpeedAlertEngine.Event]) {
-        for event in events {
+        deliverCoached(events.map { ($0, Self.body(for: $0)) })
+    }
+
+    /// Coaching-style delivery: the notification says what the driver chose
+    /// to hear ("Hey Jason, 78 is past 65…"), not a robot's incident report.
+    func deliverCoached(_ items: [(event: SpeedAlertEngine.Event, message: String)]) {
+        for item in items {
             let content = UNMutableNotificationContent()
-            content.title = "Speed alert"
+            content.title = "Roadie"
             content.sound = .default
-            content.body = Self.body(for: event)
+            content.body = item.message
             post(content)
         }
     }

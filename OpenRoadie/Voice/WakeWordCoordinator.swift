@@ -96,6 +96,16 @@ final class WakeWordCoordinator {
         }
     }
 
+    /// Speaks a coaching nudge, pausing the wake listener around it so the
+    /// mic engine and TTS never fight over the audio session.
+    func announce(_ text: String) {
+        Task {
+            beginManualVoice()
+            await speaker.speakAndWait(text)
+            endManualVoice()
+        }
+    }
+
     /// The tap-to-talk mic suspends wake listening so two audio engines
     /// never record at once.
     func beginManualVoice() {

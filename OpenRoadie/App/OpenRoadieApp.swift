@@ -17,10 +17,15 @@ struct OpenRoadieApp: App {
         let session = DriveSessionManager(store: store)
         let agent = RoadieAgent(driveSession: session, store: store)
         let speaker = SpeechSpeaker()
+        let wake = WakeWordCoordinator(drive: session, agent: agent, speaker: speaker)
+        // Coaching nudges speak through the shared voice pipeline.
+        session.speakCoaching = { [weak wake] text in
+            wake?.announce(text)
+        }
         _session = State(initialValue: session)
         _agent = State(initialValue: agent)
         _speaker = State(initialValue: speaker)
-        _wake = State(initialValue: WakeWordCoordinator(drive: session, agent: agent, speaker: speaker))
+        _wake = State(initialValue: wake)
     }
 
     var body: some Scene {

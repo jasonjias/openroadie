@@ -20,6 +20,10 @@ struct SettingsView: View {
     @AppStorage(DrivingBackground.defaultsKey) private var drivingBackground = DrivingBackground.green.rawValue
     @AppStorage("showGPSDetails") private var showGPSDetails = false
     @AppStorage("showHeading") private var showHeading = false
+    @AppStorage(Coach.nameKey) private var driverName = ""
+    @AppStorage(Coach.spokenKey) private var coachingSpoken = false
+    @AppStorage(Coach.styleKey) private var coachingStyle = CoachStyle.gentle.rawValue
+    @AppStorage(Coach.customTemplateKey) private var coachingTemplate = ""
     @State private var photoSelection: PhotosPickerItem?
     private let profile = ProfileStore.shared
     @Environment(\.modelContext) private var modelContext
@@ -93,6 +97,26 @@ struct SettingsView: View {
                 .onChange(of: alertOverLimit) { _, on in if on { AlertCenter.requestAuthorization() } }
                 .onChange(of: alertMargin) { _, value in if value > 0 { AlertCenter.requestAuthorization() } }
                 .onChange(of: alertMaxSpeed) { _, value in if value > 0 { AlertCenter.requestAuthorization() } }
+
+                Section {
+                    TextField("Your name (for nudges)", text: $driverName)
+                    Toggle("Speak nudges aloud", isOn: $coachingSpoken)
+                    Picker("Nudge style", selection: $coachingStyle) {
+                        ForEach(CoachStyle.allCases) { style in
+                            Text(style.title).tag(style.rawValue)
+                        }
+                    }
+                    if coachingStyle == CoachStyle.custom.rawValue {
+                        TextField("Custom message", text: $coachingTemplate, axis: .vertical)
+                            .lineLimit(2...3)
+                    }
+                } header: {
+                    Text("Coaching")
+                } footer: {
+                    Text(coachingStyle == CoachStyle.custom.rawValue
+                        ? "Tokens: {name}, {speed}, {limit} — e.g. \u{201C}Hey {name}, you were going {speed}. Please consider slowing down.\u{201D}"
+                        : "When a speed alert fires, the notification (and Roadie's voice, if enabled) uses this tone instead of a robotic report. Example: \u{201C}Hey Jason, 78 mph is past 65. Let's bring it back down.\u{201D}")
+                }
 
                 Section {
                     Picker("\u{201C}Hey Roadie\u{201D}", selection: $heyRoadieMode) {
