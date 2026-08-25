@@ -204,8 +204,9 @@ struct DriveSceneView: View {
             var targetZ: Float
 
             static let parked = Pose(yaw: -2.6, pitch: 0.28, radius: 6.8, targetY: 0.35, targetZ: 0)
-            /// Driving sits farther back — the Tesla drive view zooms out.
-            static let driving = Pose(yaw: 0, pitch: 0.43, radius: 8.4, targetY: 0.2, targetZ: -8)
+            /// Driving sits farther back and higher — the Tesla drive view's
+            /// zoomed-out, top-down lean.
+            static let driving = Pose(yaw: 0, pitch: 0.62, radius: 8.4, targetY: 0.2, targetZ: -6)
 
             static func mix(_ a: Pose, _ b: Pose, _ t: Float) -> Pose {
                 Pose(
@@ -251,19 +252,10 @@ struct DriveSceneView: View {
             if let from = transitionFrom {
                 let raw = Float(Date.now.timeIntervalSince(transitionStart) / transitionDuration)
                 let t = min(1, max(0, raw))
+                // One continuous ease for every parameter — the earlier
+                // two-phase gaze choreography put a visible kink mid-move.
                 let eased = t * t * (3 - 2 * t) // smoothstep
                 pose = Pose.mix(from, transitionTo, eased)
-                // Tesla-style center pivot: the gaze stays PINNED on the car
-                // while the view rotates and zooms, and only slides out to
-                // the road ahead in the final stretch (or back from it in
-                // the first stretch, when parking).
-                let toDriving = transitionTo.targetZ != 0
-                let slide = toDriving
-                    ? max(0, (eased - 0.6) / 0.4)
-                    : min(1, eased / 0.4)
-                let slideEased = slide * slide * (3 - 2 * slide)
-                pose.targetY = from.targetY + (transitionTo.targetY - from.targetY) * slideEased
-                pose.targetZ = from.targetZ + (transitionTo.targetZ - from.targetZ) * slideEased
                 if t >= 1 { transitionFrom = nil }
                 applyCamera()
             }
