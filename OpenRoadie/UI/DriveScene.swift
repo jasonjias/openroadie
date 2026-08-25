@@ -238,6 +238,8 @@ struct DriveSceneView: View {
         private var chaseYaw: Float = 0
         private var chasePitch: Float = 0
         private var chaseReturnAt: Date = .distantPast
+        /// Showroom drags also drift home after a beat of stillness.
+        private var parkedReturnAt: Date = .distantPast
 
         func applyPose(driving: Bool) {
             pose = driving ? .driving : .parked
@@ -280,6 +282,19 @@ struct DriveSceneView: View {
                 }
             }
 
+            // Parked: after ~1.5s without touches, ease the showroom stance
+            // back to the default front three-quarter — same manner as the
+            // driving look-around's return.
+            if !isDriving, transitionFrom == nil, Date.now > parkedReturnAt {
+                let home = Pose.parked
+                if abs(pose.yaw - home.yaw) > 0.002 || abs(pose.pitch - home.pitch) > 0.002 {
+                    let k = Float(1 - exp(-4 * deltaTime))
+                    pose.yaw += (home.yaw - pose.yaw) * k
+                    pose.pitch += (home.pitch - pose.pitch) * k
+                    applyCamera()
+                }
+            }
+
             guard isDriving, let road else { return }
             // Slide the textured ribbon toward the camera at true speed;
             // wrapping by one texture period is invisible.
@@ -313,6 +328,7 @@ struct DriveSceneView: View {
             } else {
                 pose.yaw -= dx * 0.012
                 pose.pitch = min(1.25, max(0.08, pose.pitch + dy * 0.008))
+                parkedReturnAt = .distantFuture
             }
             applyCamera()
         }
@@ -321,6 +337,8 @@ struct DriveSceneView: View {
             lastDrag = nil
             if isDriving {
                 chaseReturnAt = .now.addingTimeInterval(1.3)
+            } else {
+                parkedReturnAt = .now.addingTimeInterval(1.5)
             }
         }
 
@@ -336,7 +354,11 @@ struct DriveSceneView: View {
                 sin(pitch) * radius + 0.35,
                 cos(yaw) * radius * cos(pitch),
             ]
-            let offset = min(1, (abs(chaseYaw) + abs(chasePitch)) / 0.5)
+            // Any deliberate drag pins the gaze to the CAR — the vehicle is
+            // the center point of the orbit, top/down/left/right. The tight
+            // ramp (0.12 rad) means the pin engages almost immediately
+            // without a hard jump.
+            let offset = min(1, (abs(chaseYaw) + abs(chasePitch)) / 0.12)
             let at: SIMD3<Float> = [0, pose.targetY + 0.15 * offset, pose.targetZ * (1 - offset)]
             camera.look(at: at, from: from, relativeTo: nil)
         }
