@@ -11,6 +11,7 @@ final class RoadieToolbox {
     let store: TripStore?
     let places = PlaceService()
     private let overpass = OverpassClient()
+    private let music = MusicController()
 
     init(drive: DriveSessionManager, store: TripStore?) {
         self.drive = drive
@@ -120,6 +121,10 @@ final class RoadieToolbox {
             return RoadieToolFormatting.describeNotes(store.notes(near: origin, radiusMeters: 1_000), origin: origin)
         }
         return RoadieToolFormatting.describeNotes(store.recentNotes(limit: 8), origin: await resolveOrigin())
+    }
+
+    func controlMusic(action: String, query: String?) async -> String {
+        await music.handle(action: action, query: query)
     }
 
     // MARK: - Shared

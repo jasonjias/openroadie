@@ -167,6 +167,11 @@ final class OpenAICompatibleProvider: RoadieModelProvider {
             return await toolbox.remember(note: args["note"] as? String ?? "")
         case "recallNotes":
             return await toolbox.recallNotes(scope: args["scope"] as? String ?? "recent")
+        case "controlMusic":
+            return await toolbox.controlMusic(
+                action: args["action"] as? String ?? "nowplaying",
+                query: args["query"] as? String
+            )
         case "configureSpeedAlerts":
             return toolbox.configureAlerts(
                 alertOverPostedLimit: args["alertOverPostedLimit"] as? Bool,
@@ -224,6 +229,15 @@ final class OpenAICompatibleProvider: RoadieModelProvider {
             description: "Get the driver's saved notes: scope \"here\" for notes near the current spot, \"recent\" for the latest anywhere.",
             properties: ["scope": ["type": "string", "description": "here or recent"]],
             required: ["scope"]
+        ),
+        functionSpec(
+            name: "controlMusic",
+            description: "Control the Music app: play, pause, next, previous, nowplaying; play accepts an optional library search query.",
+            properties: [
+                "action": ["type": "string", "description": "play, pause, next, previous, or nowplaying"],
+                "query": ["type": "string", "description": "Optional song/artist/album to search the library for"],
+            ],
+            required: ["action"]
         ),
         functionSpec(
             name: "configureSpeedAlerts",

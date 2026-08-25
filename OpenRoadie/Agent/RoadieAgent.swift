@@ -60,6 +60,8 @@ final class RoadieAgent {
     - Any other kind of place — pharmacies, boba, ATMs, parks, or a specific \
     business name: call searchPlaces with the query, then name the results.
     - Questions about past drives: call tripHistory.
+    - Music: "play some music", "pause", "skip this", "what's playing", \
+    "play <artist or song>" — call controlMusic. Confirm in a few words.
     - "Remember this spot", "note that down", "remember that idea": call \
     rememberNote with the note text. "What did I note here / what were my \
     notes": call recallNotes with scope "here" or "recent".

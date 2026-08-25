@@ -170,6 +170,35 @@ struct RecallNotesTool: Tool {
     }
 }
 
+/// DJ Roadie: control the Music app hands-free.
+struct ControlMusicTool: Tool {
+    let name = "controlMusic"
+    let description = """
+    Control music playback in the Music app: play, pause, next, previous, \
+    nowplaying, or play with a query to queue songs from the driver's \
+    library matching a title, artist, or album.
+    """
+
+    private let toolbox: RoadieToolbox
+
+    init(toolbox: RoadieToolbox) {
+        self.toolbox = toolbox
+    }
+
+    @Generable
+    struct Arguments {
+        @Guide(description: "One of: play, pause, next, previous, nowplaying")
+        var action: String
+
+        @Guide(description: "For play: optional song, artist, or album to search the library for")
+        var query: String?
+    }
+
+    func call(arguments: Arguments) async throws -> String {
+        await toolbox.controlMusic(action: arguments.action, query: arguments.query)
+    }
+}
+
 /// The agent's view of local trip history.
 struct TripHistoryTool: Tool {
     let name = "tripHistory"
