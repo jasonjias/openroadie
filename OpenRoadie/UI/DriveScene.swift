@@ -13,6 +13,9 @@ enum Vehicle: String, CaseIterable, Identifiable {
     case bulldozer
     case boat
     case train
+    case skateboard
+    case pirateShip
+    case speeder
 
     var id: String { rawValue }
 
@@ -23,12 +26,15 @@ enum Vehicle: String, CaseIterable, Identifiable {
         case .sportsCar: "Sports Car"
         case .toyRacer: "Toy Racer"
         case .bulldozer: "Bulldozer"
-        case .boat: "Boat"
-        case .train: "Train"
+        case .boat: "Speedboat"
+        case .train: "Bullet Train"
+        case .skateboard: "Skateboard"
+        case .pirateShip: "Pirate Ship"
+        case .speeder: "Hover Speeder"
         }
     }
 
-    /// Bundled model resource name (Vehicles/<name>.usdc), nil for classic.
+    /// Bundled model resource name (Vehicles/<name>.usda), nil for classic.
     var modelName: String? {
         switch self {
         case .classic: nil
@@ -38,6 +44,9 @@ enum Vehicle: String, CaseIterable, Identifiable {
         case .bulldozer: "vehicle-bulldozer"
         case .boat: "vehicle-boat"
         case .train: "vehicle-train"
+        case .skateboard: "vehicle-skateboard"
+        case .pirateShip: "vehicle-pirate"
+        case .speeder: "vehicle-speeder"
         }
     }
 
@@ -51,7 +60,7 @@ enum Vehicle: String, CaseIterable, Identifiable {
     /// it as coming soon and the scene falls back to classic.
     var isAvailable: Bool {
         guard let modelName else { return true }
-        return Bundle.main.url(forResource: modelName, withExtension: "usdc") != nil
+        return Bundle.main.url(forResource: modelName, withExtension: "usda") != nil
     }
 
     /// Loads the chosen vehicle, scaled and grounded; primitive car when
@@ -59,7 +68,7 @@ enum Vehicle: String, CaseIterable, Identifiable {
     @MainActor
     func makeEntity() -> Entity {
         if let modelName,
-           let url = Bundle.main.url(forResource: modelName, withExtension: "usdc"),
+           let url = Bundle.main.url(forResource: modelName, withExtension: "usda"),
            let model = try? Entity.load(contentsOf: url) {
             // Normalize: Kenney models vary in native size; scale so the
             // longest side is ~3.4m (our chase camera's frame of reference).
