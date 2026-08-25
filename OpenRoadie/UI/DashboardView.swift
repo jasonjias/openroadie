@@ -10,6 +10,7 @@ struct DashboardView: View {
     @State private var showsSettings = false
     @AppStorage(DrivingBackground.defaultsKey) private var drivingBackground = DrivingBackground.green.rawValue
     @AppStorage(Vehicle.defaultsKey) private var sceneVehicle = Vehicle.classic.rawValue
+    @State private var selectedFace = ""
 
     var body: some View {
         ZStack {
@@ -81,7 +82,7 @@ struct DashboardView: View {
         let speedMph = session.context.speed.map { DriveFormatting.milesPerHour(fromMetersPerSecond: $0) }
         let accuracyMph = session.context.speedAccuracy.map { max(1, DriveFormatting.milesPerHour(fromMetersPerSecond: $0)) }
 
-        return TabView {
+        return TabView(selection: $selectedFace) {
             ForEach(styles) { style in
                 OdometerView(
                     style: style,
@@ -98,7 +99,13 @@ struct DashboardView: View {
         }
         .tabViewStyle(.page(indexDisplayMode: styles.count > 1 ? .automatic : .never))
         .indexViewStyle(.page(backgroundDisplayMode: .never))
-        .frame(height: 205)
+        // The 3D scene face runs taller: more world, and enough room that
+        // orbit swipes have somewhere to land.
+        .frame(height: selectedFace == OdometerStyle.rainbowRoad.rawValue ? 320 : 205)
+        .animation(.easeInOut(duration: 0.25), value: selectedFace)
+        .onAppear {
+            if selectedFace.isEmpty { selectedFace = styles.first?.rawValue ?? "" }
+        }
     }
 
     /// Over the posted limit with a little grace (~2 mph) so GPS noise at
@@ -131,7 +138,7 @@ struct DashboardView: View {
                 Text(road.displayName ?? "Unnamed road")
                     .font(.headline)
                 if let limit = road.speedLimit {
-                    SpeedLimitSign(mph: DriveFormatting.milesPerHour(fromMetersPerSecond: limit))
+                    SpeedLimitSign(limitMph: DriveFormatting.milesPerHour(fromMetersPerSecond: limit))
                 }
             }
         } else if session.isDriving && session.context.coordinate != nil && RoadService.isEnabled {
@@ -276,26 +283,6 @@ private struct CompassNeedle: View {
                 needleAngle += delta
             }
         }
-    }
-}
-
-/// A miniature US-style speed limit sign.
-private struct SpeedLimitSign: View {
-    let mph: Int
-
-    var body: some View {
-        VStack(spacing: 0) {
-            Text("LIMIT")
-                .font(.system(size: 8, weight: .semibold))
-            Text("\(mph)")
-                .font(.system(size: 17, weight: .bold))
-                .monospacedDigit()
-        }
-        .foregroundStyle(.black)
-        .padding(.horizontal, 7)
-        .padding(.vertical, 3)
-        .background(RoundedRectangle(cornerRadius: 5).fill(.white))
-        .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(.black, lineWidth: 1.5))
     }
 }
 

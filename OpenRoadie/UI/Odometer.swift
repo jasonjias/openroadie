@@ -106,17 +106,21 @@ struct OdometerView: View {
                             .font(.system(size: 40, weight: .bold, design: .rounded))
                             .monospacedDigit()
                             .contentTransition(.numericText())
-                            .foregroundStyle(isOverLimit ? .red : .white)
-                            .shadow(color: .black.opacity(0.5), radius: 3)
+                            .foregroundStyle(isOverLimit ? .red : .primary)
                         Text("mph")
                             .font(.caption2.weight(.semibold))
-                            .foregroundStyle(.white.opacity(0.8))
-                            .shadow(color: .black.opacity(0.5), radius: 2)
+                            .foregroundStyle(.secondary)
                     }
                     .padding(.leading, 14)
                     .padding(.top, 6)
                 }
-                .clipShape(RoundedRectangle(cornerRadius: 20))
+                .overlay(alignment: .topTrailing) {
+                    if let limitMph {
+                        SpeedLimitSign(limitMph: limitMph)
+                            .padding(.trailing, 14)
+                            .padding(.top, 6)
+                    }
+                }
                 .padding(.horizontal, 12)
         }
     }
@@ -261,6 +265,33 @@ struct OdometerView: View {
             }
         }
         .frame(width: 310)
+    }
+}
+
+/// A little MUTCD speed-limit sign — white panel, black border, the works.
+struct SpeedLimitSign: View {
+    let limitMph: Int
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Text("SPEED")
+                .font(.system(size: 9, weight: .bold))
+            Text("LIMIT")
+                .font(.system(size: 9, weight: .bold))
+            Text("\(limitMph)")
+                .font(.system(size: 22, weight: .heavy))
+                .monospacedDigit()
+                .contentTransition(.numericText())
+        }
+        .foregroundStyle(.black)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(.white)
+                .strokeBorder(.black, lineWidth: 2)
+        )
+        .shadow(color: .black.opacity(0.25), radius: 2, y: 1)
     }
 }
 

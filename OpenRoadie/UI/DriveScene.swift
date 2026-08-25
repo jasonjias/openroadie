@@ -148,6 +148,7 @@ struct DriveSceneView: View {
             if coordinator.isDriving != isDriving {
                 coordinator.isDriving = isDriving
                 coordinator.road?.isEnabled = isDriving
+                if !isDriving { coordinator.resetStance() }
                 if let camera = coordinator.camera {
                     Self.place(camera: camera, driving: isDriving, animated: true)
                 }
@@ -159,7 +160,7 @@ struct DriveSceneView: View {
             DragGesture(minimumDistance: 2)
                 .onChanged { value in
                     guard !isDriving else { return }
-                    coordinator.applyManualOrbit(dragX: value.translation.width)
+                    coordinator.applyManualOrbit(drag: value.translation)
                 }
                 .onEnded { _ in
                     coordinator.endManualOrbit()
@@ -184,51 +185,53 @@ struct DriveSceneView: View {
         var camera: PerspectiveCamera?
         var road: Entity?
         var subscription: EventSubscription?
-        /// Parked-orbit angle, radians (0 = the front three-quarter hero).
-        private var orbit: Float = 0
-        private var lastDragX: CGFloat?
-        private var manualUntil: Date = .distantPast
+        /// Showroom camera: locked to the front three-quarter stance until
+        /// the driver swipes — horizontal drags orbit around, vertical drags
+        /// raise or lower the eye. No auto-drift; it stays where you put it.
+        private var yaw: Float = -2.6
+        private var pitch: Float = 0.28
+        private var lastDrag: CGSize?
 
         func tick(deltaTime: TimeInterval) {
-            guard let road else { return }
-            if isDriving {
-                // Move stripes toward the camera at true speed; recycle.
-                let dz = Float(speedMps * deltaTime)
-                for stripe in road.children {
-                    stripe.position.z += dz
-                    if stripe.position.z > DriveSceneView.stripeRecycleZ {
-                        stripe.position.z -= DriveSceneView.roadLength
-                    }
+            guard isDriving, let road else { return }
+            // Move stripes toward the camera at true speed; recycle.
+            let dz = Float(speedMps * deltaTime)
+            for stripe in road.children {
+                stripe.position.z += dz
+                if stripe.position.z > DriveSceneView.stripeRecycleZ {
+                    stripe.position.z -= DriveSceneView.roadLength
                 }
-            } else {
-                // Showroom: drift slowly unless the driver is spinning it.
-                if Date.now > manualUntil {
-                    orbit += Float(deltaTime) * 0.12
-                }
-                pointCamera()
             }
         }
 
-        func applyManualOrbit(dragX: CGFloat) {
-            let delta = dragX - (lastDragX ?? dragX)
-            lastDragX = dragX
-            orbit -= Float(delta) * 0.012
-            manualUntil = .distantFuture
+        func applyManualOrbit(drag: CGSize) {
+            let last = lastDrag ?? drag
+            lastDrag = drag
+            yaw -= Float(drag.width - last.width) * 0.012
+            pitch = min(1.25, max(0.08, pitch + Float(drag.height - last.height) * 0.008))
             pointCamera()
         }
 
         func endManualOrbit() {
-            lastDragX = nil
-            manualUntil = .now.addingTimeInterval(3) // linger, then drift again
+            lastDrag = nil
         }
 
-        private func pointCamera() {
-            guard let camera else { return }
+        /// Back to the locked front three-quarter stance (after a drive).
+        func resetStance() {
+            yaw = -2.6
+            pitch = 0.28
+        }
+
+        func pointCamera() {
+            guard let camera, !isDriving else { return }
             let radius: Float = 6.8
-            let angle = orbit - 2.6 // 0 = front three-quarter
             camera.look(
                 at: [0, 0.35, 0],
-                from: [sin(angle) * radius, 1.9, cos(angle) * radius],
+                from: [
+                    sin(yaw) * radius * cos(pitch),
+                    sin(pitch) * radius + 0.35,
+                    cos(yaw) * radius * cos(pitch),
+                ],
                 relativeTo: nil
             )
         }
@@ -242,7 +245,13 @@ struct DriveSceneView: View {
             // Chase cam: above and behind, looking down the road.
             transform = Transform(matrix: float4x4.look(at: [0, 0.2, -8], from: [0, 3.2, 6.2]))
         } else {
-            transform = Transform(matrix: float4x4.look(at: [0, 0.35, 0], from: [sin(-2.6) * 6.8, 1.9, cos(-2.6) * 6.8]))
+            // The locked front three-quarter stance (yaw -2.6, pitch 0.28) —
+            // must match Coordinator's defaults so the first swipe doesn't jump.
+            let yaw: Float = -2.6, pitch: Float = 0.28, radius: Float = 6.8
+            transform = Transform(matrix: float4x4.look(
+                at: [0, 0.35, 0],
+                from: [sin(yaw) * radius * cos(pitch), sin(pitch) * radius + 0.35, cos(yaw) * radius * cos(pitch)]
+            ))
         }
         if animated {
             camera.move(to: transform, relativeTo: nil, duration: 1.4, timingFunction: .easeInOut)
@@ -325,13 +334,17 @@ struct DriveSceneView: View {
         return road
     }
 
+    /// No gray world — just a soft round shadow so the vehicle doesn't
+    /// float. The app background is the sky.
     static func makeGround() -> Entity {
-        let ground = ModelEntity(
-            mesh: .generatePlane(width: 80, depth: 80),
-            materials: [SimpleMaterial(color: UIColor(white: 0.45, alpha: 1), roughness: 0.95, isMetallic: false)]
+        var shadow = UnlitMaterial(color: UIColor(white: 0, alpha: 0.22))
+        shadow.blending = .transparent(opacity: 0.22)
+        let disc = ModelEntity(
+            mesh: .generateCylinder(height: 0.004, radius: 2.3),
+            materials: [shadow]
         )
-        ground.position = [0, -0.02, 0]
-        return ground
+        disc.position = [0, -0.01, 0]
+        return disc
     }
 
     static func makeLights() -> Entity {
