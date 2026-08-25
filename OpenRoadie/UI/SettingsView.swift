@@ -28,6 +28,7 @@ struct SettingsView: View {
     @State private var chipOrder = NearbyChip.ordered
     @State private var editingCustom: CustomCategory?
     @State private var photoSelection: PhotosPickerItem?
+    @State private var showsPhotoActions = false
     private let profile = ProfileStore.shared
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
@@ -38,21 +39,42 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
-                // Fitness Account-style header: your photo, chosen by you.
+                // Contacts-style photo editing: tap the photo to reveal
+                // Change Photo and a "−" badge; no photo means Add Photo.
+                // Deleting is a quiet minus, not a red warning.
                 Section {
                     VStack(spacing: 10) {
                         ProfileAvatar(size: 84)
-                        PhotosPicker(
-                            profile.image == nil ? "Choose Profile Photo" : "Change Photo",
-                            selection: $photoSelection,
-                            matching: .images
-                        )
-                        .font(.subheadline.weight(.medium))
-                        if profile.image != nil {
-                            Button("Remove Photo", role: .destructive) {
-                                profile.clear()
+                            .overlay(alignment: .topTrailing) {
+                                if showsPhotoActions && profile.image != nil {
+                                    Button {
+                                        withAnimation {
+                                            profile.clear()
+                                            showsPhotoActions = false
+                                        }
+                                    } label: {
+                                        Image(systemName: "minus")
+                                            .font(.subheadline.weight(.bold))
+                                            .foregroundStyle(.white)
+                                            .frame(width: 26, height: 26)
+                                            .background(Circle().fill(.gray.opacity(0.85)))
+                                    }
+                                    .buttonStyle(.plain)
+                                    .offset(x: 5, y: -3)
+                                }
                             }
-                            .font(.caption)
+                            .contentShape(Circle())
+                            .onTapGesture {
+                                guard profile.image != nil else { return }
+                                withAnimation { showsPhotoActions.toggle() }
+                            }
+
+                        if profile.image == nil {
+                            PhotosPicker("Add Photo", selection: $photoSelection, matching: .images)
+                                .font(.subheadline.weight(.medium))
+                        } else if showsPhotoActions {
+                            PhotosPicker("Change Photo", selection: $photoSelection, matching: .images)
+                                .font(.subheadline.weight(.medium))
                         }
                     }
                     .frame(maxWidth: .infinity)
@@ -64,8 +86,11 @@ struct SettingsView: View {
                 .onChange(of: photoSelection) { _, item in
                     guard let item else { return }
                     Task {
+                        // The current photo stays until the new one actually
+                        // loads — cancelling the picker changes nothing.
                         if let data = try? await item.loadTransferable(type: Data.self) {
                             profile.set(imageData: data)
+                            withAnimation { showsPhotoActions = false }
                         }
                         photoSelection = nil
                     }
