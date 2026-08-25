@@ -220,7 +220,7 @@ struct DriveSceneView: View {
         private var transitionFrom: Pose?
         private var transitionTo = Pose.parked
         private var transitionStart = Date.distantPast
-        private let transitionDuration: TimeInterval = 1.4
+        private let transitionDuration: TimeInterval = 1.05
         private var lastDrag: CGSize?
 
         /// Ribbon scroll position, meters into the current rainbow cycle.
@@ -252,6 +252,10 @@ struct DriveSceneView: View {
                 let t = min(1, max(0, raw))
                 let eased = t * t * (3 - 2 * t) // smoothstep
                 pose = Pose.mix(from, transitionTo, eased)
+                // Crane, don't carousel: a mid-transition lift shortens the
+                // perceived arc — the camera rises over the car instead of
+                // sweeping a long half-circle around it.
+                pose.pitch += sin(.pi * eased) * 0.28
                 if t >= 1 { transitionFrom = nil }
                 applyCamera()
             }

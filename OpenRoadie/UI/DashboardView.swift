@@ -102,10 +102,11 @@ struct DashboardView: View {
         }
         .tabViewStyle(.page(indexDisplayMode: styles.count > 1 ? .automatic : .never))
         .indexViewStyle(.page(backgroundDisplayMode: .never))
-        // The 3D scene face runs tall — down to just above the trip stats —
-        // so the camera transition has headroom and orbit swipes have space.
-        .frame(height: selectedFace == OdometerStyle.rainbowRoad.rawValue ? 430 : 205)
-        .animation(.easeInOut(duration: 0.25), value: selectedFace)
+        // Constant height per enabled set — tall when the 3D scene face is
+        // in the rotation, standard otherwise. A fixed height keeps the page
+        // dots (and everything below) at the same vertical position no
+        // matter which face is showing.
+        .frame(height: styles.contains(.rainbowRoad) ? 430 : 205)
         .onAppear {
             if selectedFace.isEmpty { selectedFace = styles.first?.rawValue ?? "" }
         }
