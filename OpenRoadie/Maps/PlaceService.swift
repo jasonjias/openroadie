@@ -84,6 +84,20 @@ enum PlaceCategory: String, CaseIterable, Identifiable, Sendable, Codable {
     static func isHidden(_ category: PlaceCategory) -> Bool {
         (UserDefaults.standard.stringArray(forKey: hiddenDefaultsKey) ?? []).contains(category.rawValue)
     }
+
+    /// Forgiving lookup for spoken/model input: raw values plus the words
+    /// people (and tool descriptions) actually use — "gas" is not "fuel".
+    init?(alias: String) {
+        switch alias.trimmingCharacters(in: .whitespaces).lowercased() {
+        case "food", "restaurant", "restaurants", "fast food": self = .food
+        case "coffee", "cafe", "cafes": self = .coffee
+        case "fuel", "gas", "gas station", "gas stations": self = .fuel
+        case "charger", "chargers", "charging", "ev charger": self = .charger
+        case "supercharger", "superchargers", "tesla supercharger": self = .supercharger
+        case "landmark", "landmarks", "attraction", "attractions": self = .landmark
+        default: return nil
+        }
+    }
 }
 
 /// One point of interest near the drive.

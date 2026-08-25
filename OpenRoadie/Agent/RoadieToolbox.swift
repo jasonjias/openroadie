@@ -25,11 +25,27 @@ final class RoadieToolbox {
     }
 
     func findNearby(category rawCategory: String, brandOrName: String?) async -> String {
-        let category = PlaceCategory(rawValue: rawCategory.lowercased()) ?? .food
+        let raw = rawCategory.trimmingCharacters(in: .whitespaces).lowercased()
 
         guard let origin = await resolveOrigin() else {
             return "The driver's location is unavailable right now."
         }
+
+        // The driver's own categories win over built-ins: "find my landmarks
+        // (real)" or a bare term like "chipotle" hits their Apple Maps search.
+        if let custom = CustomCategory.matching(raw) {
+            do {
+                let found = try await places.places(near: origin, custom: custom)
+                let sorted = PlaceGeometry.sortedByDistance(found, from: origin)
+                return RoadieToolFormatting.describePlaces(
+                    sorted, label: custom.title, searchRadius: custom.searchRadius, origin: origin
+                )
+            } catch {
+                return "The place search didn't respond — possibly offline. Suggest trying again."
+            }
+        }
+
+        let category = PlaceCategory(alias: raw) ?? .food
 
         do {
             let found = try await places.places(near: origin, category: category)

@@ -40,6 +40,22 @@ struct CustomCategory: Identifiable, Codable, Equatable, Hashable, Sendable {
         }
     }
 
+    /// The custom category a spoken request refers to, if any — matched by
+    /// title ("landmarks (real)") or by one of its terms ("chipotle").
+    static func matching(_ query: String) -> CustomCategory? {
+        let q = query.trimmingCharacters(in: .whitespaces).lowercased()
+        guard !q.isEmpty else { return nil }
+        let all = load()
+        if let byTitle = all.first(where: { $0.title.lowercased() == q }) { return byTitle }
+        if let byTerm = all.first(where: { custom in
+            custom.terms.contains { $0.lowercased() == q }
+        }) { return byTerm }
+        // Loose title match ("my landmarks" → "Landmarks (real)") needs a
+        // word long enough to not swallow built-ins like "food".
+        guard q.count >= 4 else { return nil }
+        return all.first { $0.title.lowercased().contains(q) || q.contains($0.title.lowercased()) }
+    }
+
     /// Symbols offered by the editor — enough range without a symbol browser.
     static let symbolChoices = [
         "star.fill", "heart.fill", "takeoutbag.and.cup.and.straw.fill",

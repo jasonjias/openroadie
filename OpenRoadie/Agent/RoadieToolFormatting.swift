@@ -58,8 +58,18 @@ enum RoadieToolFormatting {
         origin: Coordinate,
         limit: Int = 6
     ) -> String {
+        describePlaces(results, label: category.title, searchRadius: category.searchRadius, origin: origin, limit: limit)
+    }
+
+    static func describePlaces(
+        _ results: [(place: Place, distance: Double)],
+        label: String,
+        searchRadius: Double,
+        origin: Coordinate,
+        limit: Int = 6
+    ) -> String {
         guard !results.isEmpty else {
-            return "No \(category.title.lowercased()) found within \(Int((category.searchRadius / 1609.344).rounded())) miles."
+            return "No \(label.lowercased()) found within \(Int((searchRadius / 1609.344).rounded())) miles."
         }
         let lines = results.prefix(limit).enumerated().map { index, result in
             let direction = DriveFormatting.cardinal(
@@ -73,7 +83,7 @@ enum RoadieToolFormatting {
         }
         // The header is an instruction to the model, not just data: small
         // on-device models tend to summarize lists into a count otherwise.
-        return "Nearest \(category.title.lowercased()) — tell the user these names with distances. "
+        return "Nearest \(label.lowercased()) — tell the user these names with distances. "
             + "Addresses are ONLY known where shown; never invent one:\n"
             + lines.joined(separator: "\n")
     }

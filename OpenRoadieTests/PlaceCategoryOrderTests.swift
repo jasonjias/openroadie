@@ -64,6 +64,20 @@ struct NearbyChipOrderTests {
         clearState()
     }
 
+    // Defaults-touching tests live in this serialized suite — parallel
+    // suites sharing UserDefaults wipe each other's state.
+    @Test func matchingFindsCustomsByTitleTermAndLoosely() {
+        clearState()
+        let chipotle = CustomCategory(title: "Landmarks (real)", terms: ["chipotle", "in-n-out"])
+        CustomCategory.save([chipotle])
+        #expect(CustomCategory.matching("landmarks (real)") == chipotle)
+        #expect(CustomCategory.matching("chipotle") == chipotle)
+        #expect(CustomCategory.matching("my landmarks (real)") == chipotle)
+        #expect(CustomCategory.matching("food") == nil)     // built-ins stay built-in
+        #expect(CustomCategory.matching("gas") == nil)      // too short for loose match
+        clearState()
+    }
+
     // In this suite (not CustomCategoryTests) because it touches the shared
     // UserDefaults key — suites run in parallel; only this one is serialized.
     @Test func customCategoriesRoundTripThroughDefaults() {
@@ -72,6 +86,24 @@ struct NearbyChipOrderTests {
         CustomCategory.save([custom])
         #expect(CustomCategory.load() == [custom])
         clearState()
+    }
+}
+
+struct PlaceCategoryAliasTests {
+    @Test func gasMeansFuel() {
+        #expect(PlaceCategory(alias: "gas") == .fuel)
+        #expect(PlaceCategory(alias: "Gas Stations") == .fuel)
+    }
+
+    @Test func rawValuesAndPluralsResolve() {
+        #expect(PlaceCategory(alias: "food") == .food)
+        #expect(PlaceCategory(alias: "chargers") == .charger)
+        #expect(PlaceCategory(alias: "Landmarks") == .landmark)
+        #expect(PlaceCategory(alias: "supercharger") == .supercharger)
+    }
+
+    @Test func unknownAliasIsNil() {
+        #expect(PlaceCategory(alias: "heliport") == nil)
     }
 }
 

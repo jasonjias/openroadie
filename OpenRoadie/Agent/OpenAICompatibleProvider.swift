@@ -194,9 +194,9 @@ final class OpenAICompatibleProvider: RoadieModelProvider {
         ),
         functionSpec(
             name: "findNearby",
-            description: "Find nearby places by category (food, coffee, gas, charger, supercharger, landmark), optionally filtered by brand or name.",
+            description: "Find nearby places by category (food, coffee, gas, charger, supercharger, landmark — or one of the driver's custom categories by its exact name), optionally filtered by brand or name.",
             properties: [
-                "category": ["type": "string", "description": "One of: food, coffee, gas, charger, supercharger, landmark"],
+                "category": ["type": "string", "description": "One of: food, coffee, gas, charger, supercharger, landmark — or a custom category's name"],
                 "brandOrName": ["type": "string", "description": "Optional brand or name filter, like Tesla or Chipotle"],
             ],
             required: ["category"]

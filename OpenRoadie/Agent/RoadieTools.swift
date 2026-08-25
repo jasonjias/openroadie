@@ -29,17 +29,24 @@ struct CurrentDriveTool: Tool {
 /// Nearby search over OpenStreetMap by category, optionally brand-filtered.
 struct FindNearbyTool: Tool {
     let name = "findNearby"
-    let description = """
-    Find nearby places by category. Valid categories: food, coffee, gas, \
-    charger, supercharger, landmark. Optionally filter by a brand or name like "Tesla", \
-    "Chipotle", or "Shell". Returns the closest matches with distance and \
-    compass direction from the driver.
-    """
+    let description: String
 
     private let toolbox: RoadieToolbox
 
     init(toolbox: RoadieToolbox) {
         self.toolbox = toolbox
+        // The driver's own categories are first-class: name them so the
+        // model passes them through instead of guessing a built-in.
+        let customs = CustomCategory.load().map(\.title)
+        let customsClause = customs.isEmpty
+            ? ""
+            : " The driver also has custom categories, pass their exact name: \(customs.joined(separator: ", "))."
+        description = """
+        Find nearby places by category. Valid categories: food, coffee, gas, \
+        charger, supercharger, landmark.\(customsClause) Optionally filter by a brand or name like "Tesla", \
+        "Chipotle", or "Shell". Returns the closest matches with distance and \
+        compass direction from the driver.
+        """
     }
 
     @Generable
