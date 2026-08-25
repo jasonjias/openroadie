@@ -206,14 +206,12 @@ struct SettingsView: View {
                 }
 
                 Section {
+                    // One flat, ordered list — the "Type - Variant" titles
+                    // carry the grouping, so section headers would repeat it.
                     Picker("Vehicle", selection: $sceneVehicle) {
-                        ForEach(Vehicle.groups, id: \.self) { group in
-                            Section(group) {
-                                ForEach(Vehicle.all.filter { $0.group == group }) { vehicle in
-                                    Text(vehicle.isAvailable ? vehicle.title : "\(vehicle.title) — soon")
-                                        .tag(vehicle.id)
-                                }
-                            }
+                        ForEach(Vehicle.all) { vehicle in
+                            Text(vehicle.isAvailable ? vehicle.title : "\(vehicle.title) — soon")
+                                .tag(vehicle.id)
                         }
                     }
                     .pickerStyle(.navigationLink)

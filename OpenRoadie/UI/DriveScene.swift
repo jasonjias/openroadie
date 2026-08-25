@@ -20,23 +20,23 @@ struct Vehicle: Identifiable, Equatable, Hashable {
     static var classic: Vehicle { all[0] }
 
     static let all: [Vehicle] = [
-        Vehicle(id: "classic", title: "Classic Car", group: "Cars", modelName: nil),
-        Vehicle(id: "sportsCar", title: "Sports Car", group: "Cars", modelName: "vehicle-sports"),
+        Vehicle(id: "classic", title: "Car - Classic", group: "Cars", modelName: nil),
+        Vehicle(id: "sportsCar", title: "Car - Sports", group: "Cars", modelName: "vehicle-sports"),
+        Vehicle(id: "carTaxi", title: "Car - Taxi", group: "Cars", modelName: "vehicle-car-taxi"),
+        Vehicle(id: "carPolice", title: "Car - Police", group: "Cars", modelName: "vehicle-car-police"),
+        Vehicle(id: "carFiretruck", title: "Car - Firetruck", group: "Cars", modelName: "vehicle-car-firetruck"),
+        Vehicle(id: "carGarbageTruck", title: "Car - Garbage Truck", group: "Cars", modelName: "vehicle-car-garbage-truck"),
         Vehicle(id: "bulldozer", title: "Bulldozer", group: "Cars", modelName: "vehicle-bulldozer"),
         Vehicle(id: "skateboard", title: "Skateboard", group: "Cars", modelName: "vehicle-skateboard"),
-        Vehicle(id: "lightRail", title: "Light Rail (3-car)", group: "Trains", modelName: "vehicle-train-tram-modern", chain: 3, targetLength: 6.5),
-        Vehicle(id: "pirateShip", title: "Pirate Ship", group: "Pirate Ships", modelName: "vehicle-pirate"),
+        Vehicle(id: "trainLocomotiveB", title: "Train - Classic Red", group: "Trains", modelName: "vehicle-train-locomotive-b"),
+        Vehicle(id: "trainLocomotiveA", title: "Train - Classic Green", group: "Trains", modelName: "vehicle-train-locomotive-a"),
+        Vehicle(id: "trainLocomotiveC", title: "Train - Classic Blue", group: "Trains", modelName: "vehicle-train-locomotive-c"),
+        Vehicle(id: "lightRail", title: "Train - Light Rail (3-car)", group: "Trains", modelName: "vehicle-train-tram-modern", chain: 3, targetLength: 6.5),
+        Vehicle(id: "waterBoatSailA", title: "Boat - Sail", group: "Watercraft", modelName: "vehicle-water-boat-sail-a"),
+        Vehicle(id: "waterBoatTugA", title: "Boat - Tug", group: "Watercraft", modelName: "vehicle-water-boat-tug-a"),
+        Vehicle(id: "waterBoatHouseA", title: "Boat - House", group: "Watercraft", modelName: "vehicle-water-boat-house-a"),
+        Vehicle(id: "pirateShip", title: "Ship - Pirate", group: "Watercraft", modelName: "vehicle-pirate"),
         Vehicle(id: "speeder", title: "Hover Speeder", group: "Spacecraft", modelName: "vehicle-speeder"),
-        Vehicle(id: "carFiretruck", title: "Firetruck", group: "Cars", modelName: "vehicle-car-firetruck"),
-        Vehicle(id: "carGarbageTruck", title: "Garbage Truck", group: "Cars", modelName: "vehicle-car-garbage-truck"),
-        Vehicle(id: "carPolice", title: "Police", group: "Cars", modelName: "vehicle-car-police"),
-        Vehicle(id: "carTaxi", title: "Taxi", group: "Cars", modelName: "vehicle-car-taxi"),
-        Vehicle(id: "trainLocomotiveA", title: "Classic Train A", group: "Trains", modelName: "vehicle-train-locomotive-a"),
-        Vehicle(id: "trainLocomotiveB", title: "Classic Train B", group: "Trains", modelName: "vehicle-train-locomotive-b"),
-        Vehicle(id: "trainLocomotiveC", title: "Classic Train C", group: "Trains", modelName: "vehicle-train-locomotive-c"),
-        Vehicle(id: "waterBoatHouseA", title: "Houseboat", group: "Watercraft", modelName: "vehicle-water-boat-house-a"),
-        Vehicle(id: "waterBoatSailA", title: "Sailboat", group: "Watercraft", modelName: "vehicle-water-boat-sail-a"),
-        Vehicle(id: "waterBoatTugA", title: "Tugboat", group: "Watercraft", modelName: "vehicle-water-boat-tug-a"),
     ]
 
     /// Groups in display order, derived from the catalog.
