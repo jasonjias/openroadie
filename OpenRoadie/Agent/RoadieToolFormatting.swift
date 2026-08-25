@@ -112,6 +112,30 @@ enum RoadieToolFormatting {
         return "The posted limit on \(road) near the driver varies from \(low) to \(high) mph by stretch; most segments are \(typical) mph."
     }
 
+    /// Free-text search results for the model to relay.
+    static func describeSearchResults(
+        query: String,
+        results: [(place: FoundPlace, distance: Double)],
+        origin: Coordinate,
+        limit: Int = 5
+    ) -> String {
+        guard !results.isEmpty else {
+            return "Nothing found for \"\(query)\" nearby. Say so — do not invent places."
+        }
+        let lines = results.prefix(limit).enumerated().map { index, result in
+            let direction = DriveFormatting.cardinal(
+                fromCourse: PlaceGeometry.bearing(from: origin, to: result.place.coordinate)
+            )
+            var line = "\(index + 1). \(result.place.name) (\(DriveFormatting.shortDistance(fromMeters: result.distance)) \(direction))"
+            if let address = result.place.address {
+                line += " — \(address)"
+            }
+            return line
+        }
+        return "Results for \"\(query)\" — tell the user these names with distances:\n"
+            + lines.joined(separator: "\n")
+    }
+
     /// The alert settings as the model should relay them back to the driver.
     static func describeAlertSettings(
         overLimit: Bool,

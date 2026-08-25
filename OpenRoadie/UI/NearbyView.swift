@@ -13,6 +13,8 @@ struct NearbyView: View {
     @State private var errorText: String?
     @State private var service = PlaceService()
     @State private var camera: MapCameraPosition = .automatic
+    @State private var searchText = ""
+    @State private var searchResults: [(place: FoundPlace, distance: Double)]?
 
     var body: some View {
         NavigationStack {
@@ -23,9 +25,44 @@ struct NearbyView: View {
             }
             .navigationTitle("Nearby")
             .navigationBarTitleDisplayMode(.inline)
+            .searchable(text: $searchText, prompt: "Search anything — boba, pharmacy…")
+            .onSubmit(of: .search) {
+                Task { await runSearch() }
+            }
+            .onChange(of: searchText) { _, text in
+                if text.isEmpty { searchResults = nil; camera = .automatic }
+            }
         }
         .task(id: category) { await load() }
         .refreshable { await load(force: true) }
+    }
+
+    private func runSearch() async {
+        let query = searchText.trimmingCharacters(in: .whitespaces)
+        guard !query.isEmpty else { return }
+        errorText = nil
+        isLoading = true
+        defer { isLoading = false }
+
+        let coordinate: Coordinate?
+        if let driving = session.context.coordinate {
+            coordinate = driving
+        } else {
+            coordinate = await LocationService.currentFix()
+        }
+        guard let coordinate else {
+            errorText = "Location unavailable. Check location permission in Settings."
+            return
+        }
+        origin = coordinate
+        do {
+            let found = try await PlaceSearch.search(query, near: coordinate)
+            searchResults = PlaceSearch.sortedByDistance(found, from: coordinate)
+            camera = .automatic
+        } catch {
+            errorText = "Search didn't respond. Try again in a moment."
+            searchResults = []
+        }
     }
 
     private var map: some View {
@@ -38,16 +75,30 @@ struct NearbyView: View {
                     }
                 }
             }
-            ForEach(results.prefix(25), id: \.place.id) { result in
-                Marker(
-                    result.place.displayName,
-                    systemImage: category.systemImage,
-                    coordinate: CLLocationCoordinate2D(
-                        latitude: result.place.coordinate.latitude,
-                        longitude: result.place.coordinate.longitude
+            if let searchResults {
+                ForEach(searchResults.prefix(25), id: \.place.id) { result in
+                    Marker(
+                        result.place.name,
+                        systemImage: "magnifyingglass",
+                        coordinate: CLLocationCoordinate2D(
+                            latitude: result.place.coordinate.latitude,
+                            longitude: result.place.coordinate.longitude
+                        )
                     )
-                )
-                .tint(.orange)
+                    .tint(.purple)
+                }
+            } else {
+                ForEach(results.prefix(25), id: \.place.id) { result in
+                    Marker(
+                        result.place.displayName,
+                        systemImage: category.systemImage,
+                        coordinate: CLLocationCoordinate2D(
+                            latitude: result.place.coordinate.latitude,
+                            longitude: result.place.coordinate.longitude
+                        )
+                    )
+                    .tint(.orange)
+                }
             }
         }
         .mapStyle(.standard(elevation: .flat))
@@ -80,7 +131,37 @@ struct NearbyView: View {
 
     @ViewBuilder
     private var list: some View {
-        if isLoading && results.isEmpty {
+        if let searchResults {
+            if searchResults.isEmpty && !isLoading {
+                Spacer()
+                ContentUnavailableView.search(text: searchText)
+                Spacer()
+            } else {
+                List(searchResults.prefix(40), id: \.place.id) { result in
+                    HStack {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundStyle(.purple)
+                            .frame(width: 28)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(result.place.name)
+                                .font(.body.weight(.medium))
+                            if let origin {
+                                Text("\(DriveFormatting.shortDistance(fromMeters: result.distance)) \(DriveFormatting.cardinal(fromCourse: PlaceGeometry.bearing(from: origin, to: result.place.coordinate)))")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            if let address = result.place.address {
+                                Text(address)
+                                    .font(.caption2)
+                                    .foregroundStyle(.tertiary)
+                                    .lineLimit(1)
+                            }
+                        }
+                    }
+                }
+                .listStyle(.plain)
+            }
+        } else if isLoading && results.isEmpty {
             Spacer()
             ProgressView("Searching OpenStreetMap…")
             Spacer()

@@ -92,6 +92,32 @@ struct RoadLimitTool: Tool {
     }
 }
 
+/// Free-text search for anything the fixed categories don't cover.
+struct SearchPlacesTool: Tool {
+    let name = "searchPlaces"
+    let description = """
+    Search for any kind of place near the driver by free text — pharmacies, \
+    boba, ATMs, car washes, parks, specific business names. Use findNearby \
+    instead for the plain categories food, coffee, gas, charger, landmark.
+    """
+
+    private let toolbox: RoadieToolbox
+
+    init(toolbox: RoadieToolbox) {
+        self.toolbox = toolbox
+    }
+
+    @Generable
+    struct Arguments {
+        @Guide(description: "What to search for, e.g. pharmacy, boba, Trader Joe's")
+        var query: String
+    }
+
+    func call(arguments: Arguments) async throws -> String {
+        await toolbox.searchPlaces(query: arguments.query)
+    }
+}
+
 /// The agent's view of local trip history.
 struct TripHistoryTool: Tool {
     let name = "tripHistory"

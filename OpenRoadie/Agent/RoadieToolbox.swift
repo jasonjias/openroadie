@@ -85,6 +85,21 @@ final class RoadieToolbox {
         )
     }
 
+    func searchPlaces(query: String) async -> String {
+        let trimmed = query.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return "The search needs a query." }
+        guard let origin = await resolveOrigin() else {
+            return "The driver's location is unavailable right now."
+        }
+        do {
+            let found = try await PlaceSearch.search(trimmed, near: origin)
+            let sorted = PlaceSearch.sortedByDistance(found, from: origin)
+            return RoadieToolFormatting.describeSearchResults(query: trimmed, results: sorted, origin: origin)
+        } catch {
+            return "The search didn't respond — possibly offline."
+        }
+    }
+
     // MARK: - Shared
 
     /// Live drive position, else a one-shot fix for parked use.

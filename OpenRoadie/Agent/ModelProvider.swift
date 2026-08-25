@@ -44,6 +44,7 @@ final class AppleFoundationProvider: RoadieModelProvider {
             CurrentDriveTool(toolbox: toolbox),
             FindNearbyTool(toolbox: toolbox),
             RoadLimitTool(toolbox: toolbox),
+            SearchPlacesTool(toolbox: toolbox),
             TripHistoryTool(toolbox: toolbox),
             ConfigureAlertsTool(toolbox: toolbox),
         ]

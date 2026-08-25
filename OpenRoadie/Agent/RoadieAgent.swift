@@ -57,6 +57,8 @@ final class RoadieAgent {
     a brand or place ("Tesla charger", "Chipotle"), pass it as brandOrName.
     - Questions about the speed limit of a SPECIFIC named road or highway \
     ("what's the limit on 101?"): call speedLimitFor with that road name.
+    - Any other kind of place — pharmacies, boba, ATMs, parks, or a specific \
+    business name: call searchPlaces with the query, then name the results.
     - Questions about past drives: call tripHistory.
     - Requests to create, change, or check speed alerts ("warn me if I go 10 \
     over", "never let me go over 80", "turn off my speed alerts", "what are \

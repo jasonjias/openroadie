@@ -159,6 +159,8 @@ final class OpenAICompatibleProvider: RoadieModelProvider {
             )
         case "speedLimitFor":
             return await toolbox.speedLimitFor(road: args["road"] as? String ?? "")
+        case "searchPlaces":
+            return await toolbox.searchPlaces(query: args["query"] as? String ?? "")
         case "tripHistory":
             return toolbox.tripHistory()
         case "configureSpeedAlerts":
@@ -195,6 +197,12 @@ final class OpenAICompatibleProvider: RoadieModelProvider {
             description: "Get the posted speed limit of a specific named road or highway near the driver.",
             properties: ["road": ["type": "string", "description": "Road name or highway number, e.g. 101, I-280"]],
             required: ["road"]
+        ),
+        functionSpec(
+            name: "searchPlaces",
+            description: "Free-text search for any kind of place near the driver (pharmacy, boba, specific business names). Use findNearby for the plain categories.",
+            properties: ["query": ["type": "string", "description": "What to search for"]],
+            required: ["query"]
         ),
         functionSpec(
             name: "tripHistory",

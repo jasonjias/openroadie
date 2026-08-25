@@ -116,3 +116,25 @@ struct PlaceGeometryTests {
         #expect(abs(sorted[0].distance - 111) < 5)
     }
 }
+
+@MainActor
+struct SearchFormattingTests {
+    @Test func describesSearchResultsWithAddresses() {
+        let origin = Coordinate(latitude: 37.0, longitude: -122.0)
+        let results = [
+            (FoundPlace(id: "1", name: "Walgreens", address: "300 University Ave, Palo Alto",
+                        coordinate: Coordinate(latitude: 37.001, longitude: -122.0)), 111.0),
+        ]
+        let text = RoadieToolFormatting.describeSearchResults(query: "pharmacy", results: results, origin: origin)
+        #expect(text.contains("Walgreens"))
+        #expect(text.contains("300 University Ave"))
+        #expect(text.contains("pharmacy"))
+    }
+
+    @Test func emptySearchForbidsInvention() {
+        let text = RoadieToolFormatting.describeSearchResults(
+            query: "unicorn stables", results: [], origin: Coordinate(latitude: 0, longitude: 0)
+        )
+        #expect(text.contains("do not invent"))
+    }
+}
