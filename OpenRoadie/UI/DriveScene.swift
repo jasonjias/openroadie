@@ -378,35 +378,25 @@ struct DriveSceneView: View {
         UserDefaults.standard.bool(forKey: "debugRainbowParked")
     }
 
-    /// The rainbow the way Tesla actually does it: flat ribbon, scrolling
-    /// texture — plus the trick their bloom pass does for free, faked here
-    /// as a second, wider ribbon carrying a Gaussian-blurred copy of the
-    /// texture. Sharp bands on top, glow bleeding outward underneath.
+    /// The rainbow, field-approved: a single flat ribbon carrying a
+    /// Gaussian-blurred copy of the band texture — soft watercolor bands
+    /// bleeding wide past the vehicle. (An earlier build layered sharp
+    /// bands on top; the blur alone looked better and won.)
     static func makeRoad() -> Entity {
         let road = Entity()
         let depth = roadLength + rainbowPeriod // slack so the wrap never shows
         let tiles = depth / rainbowPeriod
 
-        if let sharp = rainbowBandImage() {
-            // Halo first (underneath): wider, blurred, translucent.
-            if let haloImage = blurred(sharp, radius: 22),
-               let haloTexture = try? TextureResource(image: haloImage, options: .init(semantic: .color)) {
-                var halo = UnlitMaterial()
-                halo.color = .init(tint: UIColor(white: 1, alpha: 0.55), texture: .init(haloTexture))
-                halo.blending = .transparent(opacity: 0.55)
-                halo.textureCoordinateTransform.scale = SIMD2(1, tiles)
-                let plane = ModelEntity(mesh: .generatePlane(width: ribbonWidth * 1.6, depth: depth), materials: [halo])
-                plane.position = [0, 0.012, stripeRecycleZ - depth / 2]
-                road.addChild(plane)
-            }
-            if let texture = try? TextureResource(image: sharp, options: .init(semantic: .color)) {
-                var material = UnlitMaterial()
-                material.color = .init(texture: .init(texture))
-                material.textureCoordinateTransform.scale = SIMD2(1, tiles)
-                let ribbon = ModelEntity(mesh: .generatePlane(width: ribbonWidth, depth: depth), materials: [material])
-                ribbon.position = [0, 0.024, stripeRecycleZ - depth / 2]
-                road.addChild(ribbon)
-            }
+        if let sharp = rainbowBandImage(),
+           let haloImage = blurred(sharp, radius: 22),
+           let haloTexture = try? TextureResource(image: haloImage, options: .init(semantic: .color)) {
+            var halo = UnlitMaterial()
+            halo.color = .init(tint: UIColor(white: 1, alpha: 0.55), texture: .init(haloTexture))
+            halo.blending = .transparent(opacity: 0.55)
+            halo.textureCoordinateTransform.scale = SIMD2(1, tiles)
+            let ribbon = ModelEntity(mesh: .generatePlane(width: ribbonWidth * 1.6, depth: depth), materials: [halo])
+            ribbon.position = [0, 0.012, stripeRecycleZ - depth / 2]
+            road.addChild(ribbon)
         }
         return road
     }

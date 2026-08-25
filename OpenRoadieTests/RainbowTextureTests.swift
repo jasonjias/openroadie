@@ -36,8 +36,8 @@ struct RainbowTextureTests {
         }
     }
 
-    @Test func roadHasBothLayers() {
+    @Test func roadHasTheBlurRibbon() {
         let road = DriveSceneView.makeRoad()
-        #expect(road.children.count == 2)
+        #expect(road.children.count == 1)
     }
 }
