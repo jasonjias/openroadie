@@ -321,21 +321,19 @@ struct DriveSceneView: View {
     static let roadLength: Float = 60
     static let stripeRecycleZ: Float = 8
 
+    /// The rainbow as a soft glowing gradient, not hard tiles: each slab's
+    /// hue steps a little further around the wheel, so adjacent slabs blend
+    /// into a Mario-Kart-style sweep. Exactly one full rainbow per road
+    /// length, so a recycled slab rejoins the gradient seamlessly. Unlit
+    /// material = it glows instead of catching shadows.
     static func makeRoad() -> Entity {
         let road = Entity()
-        let colors: [UIColor] = [
-            UIColor(red: 0.94, green: 0.31, blue: 0.30, alpha: 1),
-            UIColor(red: 0.98, green: 0.60, blue: 0.22, alpha: 1),
-            UIColor(red: 0.99, green: 0.86, blue: 0.30, alpha: 1),
-            UIColor(red: 0.42, green: 0.80, blue: 0.40, alpha: 1),
-            UIColor(red: 0.31, green: 0.66, blue: 0.94, alpha: 1),
-            UIColor(red: 0.46, green: 0.44, blue: 0.90, alpha: 1),
-            UIColor(red: 0.72, green: 0.42, blue: 0.90, alpha: 1),
-        ]
-        let stripeDepth: Float = 1.5
+        let stripeDepth: Float = 1.2
         let count = Int(roadLength / stripeDepth)
         for i in 0..<count {
-            let material = SimpleMaterial(color: colors[i % colors.count], roughness: 0.6, isMetallic: false)
+            let hue = CGFloat(i) / CGFloat(count) // one cycle per roadLength
+            let color = UIColor(hue: hue, saturation: 0.65, brightness: 1.0, alpha: 1)
+            let material = UnlitMaterial(color: color)
             let stripe = ModelEntity(mesh: .generateBox(size: [3.4, 0.04, stripeDepth]), materials: [material])
             stripe.position = [0, 0.02, stripeRecycleZ - Float(i) * stripeDepth]
             road.addChild(stripe)
