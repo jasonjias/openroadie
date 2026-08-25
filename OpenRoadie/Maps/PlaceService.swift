@@ -2,7 +2,7 @@ import Foundation
 
 /// The POI categories OpenRoadie knows how to find, each mapped to the
 /// OpenStreetMap tags that define it.
-enum PlaceCategory: String, CaseIterable, Identifiable, Sendable {
+enum PlaceCategory: String, CaseIterable, Identifiable, Sendable, Codable {
     case food
     case coffee
     case fuel
@@ -64,7 +64,7 @@ enum PlaceCategory: String, CaseIterable, Identifiable, Sendable {
 }
 
 /// One point of interest near the drive.
-struct Place: Identifiable, Equatable, Sendable {
+struct Place: Identifiable, Equatable, Sendable, Codable {
     /// OSM element id, e.g. "node/123456".
     var id: String
     var name: String?
@@ -111,24 +111,82 @@ enum PlaceGeometry {
     }
 }
 
-/// Fetches nearby places with a small per-category cache, so flipping
-/// between category tabs doesn't hammer the free Overpass API.
+/// Fetches nearby places with a per-category cache persisted to disk, so
+/// tab-flipping, relaunching, and free-server rate limits don't produce
+/// errors. Gas stations and chargers don't move: cache them accordingly.
 @MainActor
 final class PlaceService {
-    private static let cacheMaxAge: TimeInterval = 300
+    struct CacheEntry: Codable {
+        var center: Coordinate
+        var fetchedAt: Date
+        var places: [Place]
+    }
+
     private static let cacheMaxDrift: Double = 500
 
     private let client = OverpassClient()
-    private var cache: [PlaceCategory: (center: Coordinate, fetchedAt: Date, places: [Place])] = [:]
+    private var cache: [PlaceCategory: CacheEntry] = [:]
+    private var loaded = false
 
-    func places(near coordinate: Coordinate, category: PlaceCategory) async throws -> [Place] {
-        if let cached = cache[category],
-           Date.now.timeIntervalSince(cached.fetchedAt) < Self.cacheMaxAge,
-           TripTracker.distance(from: cached.center, to: coordinate) < Self.cacheMaxDrift {
-            return cached.places
+    /// How long a cached answer stays fresh. Static infrastructure barely
+    /// changes; food churns a little faster.
+    static func timeToLive(for category: PlaceCategory) -> TimeInterval {
+        switch category {
+        case .food, .coffee: 3 * 3600
+        case .fuel, .charger, .landmark: 24 * 3600
         }
-        let places = try await client.places(near: coordinate, radius: category.searchRadius, category: category)
-        cache[category] = (coordinate, .now, places)
-        return places
+    }
+
+    func places(near coordinate: Coordinate, category: PlaceCategory, forceRefresh: Bool = false) async throws -> [Place] {
+        loadIfNeeded()
+
+        if !forceRefresh,
+           let entry = cache[category],
+           Date.now.timeIntervalSince(entry.fetchedAt) < Self.timeToLive(for: category),
+           TripTracker.distance(from: entry.center, to: coordinate) < Self.cacheMaxDrift {
+            return entry.places
+        }
+
+        do {
+            let places = try await client.places(near: coordinate, radius: category.searchRadius, category: category)
+            cache[category] = CacheEntry(center: coordinate, fetchedAt: .now, places: places)
+            persist()
+            return places
+        } catch {
+            // The free Overpass servers rate-limit. A stale answer beats an
+            // error — serve it as long as the user is still inside its area.
+            if let entry = cache[category],
+               TripTracker.distance(from: entry.center, to: coordinate) < category.searchRadius / 2 {
+                return entry.places
+            }
+            throw error
+        }
+    }
+
+    // MARK: - Disk persistence
+
+    private static var cacheURL: URL {
+        let directory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        return directory.appendingPathComponent("openroadie-places.json")
+    }
+
+    private func loadIfNeeded() {
+        guard !loaded else { return }
+        loaded = true
+        guard let data = try? Data(contentsOf: Self.cacheURL),
+              let decoded = try? JSONDecoder().decode([String: CacheEntry].self, from: data) else { return }
+        for (key, entry) in decoded {
+            if let category = PlaceCategory(rawValue: key) {
+                cache[category] = entry
+            }
+        }
+    }
+
+    private func persist() {
+        let keyed = Dictionary(uniqueKeysWithValues: cache.map { ($0.key.rawValue, $0.value) })
+        if let data = try? JSONEncoder().encode(keyed) {
+            try? data.write(to: Self.cacheURL)
+        }
     }
 }

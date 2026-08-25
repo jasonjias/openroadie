@@ -37,6 +37,19 @@ struct NearbyView: View {
         .refreshable { await load(force: true) }
     }
 
+    /// The standard tap pattern: hand off to the navigation app. OpenRoadie
+    /// informs; Apple Maps navigates.
+    private func openDirections(name: String, to coordinate: Coordinate) {
+        let placemark = MKPlacemark(coordinate: CLLocationCoordinate2D(
+            latitude: coordinate.latitude, longitude: coordinate.longitude
+        ))
+        let item = MKMapItem(placemark: placemark)
+        item.name = name
+        item.openInMaps(launchOptions: [
+            MKLaunchOptionsDirectionsModeKey: MKLaunchOptionsDirectionsModeDriving,
+        ])
+    }
+
     private func runSearch() async {
         let query = searchText.trimmingCharacters(in: .whitespaces)
         guard !query.isEmpty else { return }
@@ -138,26 +151,34 @@ struct NearbyView: View {
                 Spacer()
             } else {
                 List(searchResults.prefix(40), id: \.place.id) { result in
-                    HStack {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundStyle(.purple)
-                            .frame(width: 28)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(result.place.name)
-                                .font(.body.weight(.medium))
-                            if let origin {
-                                Text("\(DriveFormatting.shortDistance(fromMeters: result.distance)) \(DriveFormatting.cardinal(fromCourse: PlaceGeometry.bearing(from: origin, to: result.place.coordinate)))")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                    Button {
+                        openDirections(name: result.place.name, to: result.place.coordinate)
+                    } label: {
+                        HStack {
+                            Image(systemName: "magnifyingglass")
+                                .foregroundStyle(.purple)
+                                .frame(width: 28)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(result.place.name)
+                                    .font(.body.weight(.medium))
+                                if let origin {
+                                    Text("\(DriveFormatting.shortDistance(fromMeters: result.distance)) \(DriveFormatting.cardinal(fromCourse: PlaceGeometry.bearing(from: origin, to: result.place.coordinate)))")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                if let address = result.place.address {
+                                    Text(address)
+                                        .font(.caption2)
+                                        .foregroundStyle(.tertiary)
+                                        .lineLimit(1)
+                                }
                             }
-                            if let address = result.place.address {
-                                Text(address)
-                                    .font(.caption2)
-                                    .foregroundStyle(.tertiary)
-                                    .lineLimit(1)
-                            }
+                            Spacer()
+                            Image(systemName: "arrow.triangle.turn.up.right.circle")
+                                .foregroundStyle(.tertiary)
                         }
                     }
+                    .buttonStyle(.plain)
                 }
                 .listStyle(.plain)
             }
@@ -179,20 +200,33 @@ struct NearbyView: View {
             Spacer()
         } else {
             List(results.prefix(40), id: \.place.id) { result in
-                HStack {
-                    Image(systemName: category.systemImage)
-                        .foregroundStyle(.tint)
-                        .frame(width: 28)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(result.place.displayName)
-                            .font(.body.weight(.medium))
-                        if let origin {
-                            Text("\(DriveFormatting.shortDistance(fromMeters: result.distance)) \(DriveFormatting.cardinal(fromCourse: PlaceGeometry.bearing(from: origin, to: result.place.coordinate)))")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                Button {
+                    openDirections(name: result.place.displayName, to: result.place.coordinate)
+                } label: {
+                    HStack {
+                        Image(systemName: category.systemImage)
+                            .foregroundStyle(.tint)
+                            .frame(width: 28)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(result.place.displayName)
+                                .font(.body.weight(.medium))
+                            HStack(spacing: 6) {
+                                if let origin {
+                                    Text("\(DriveFormatting.shortDistance(fromMeters: result.distance)) \(DriveFormatting.cardinal(fromCourse: PlaceGeometry.bearing(from: origin, to: result.place.coordinate)))")
+                                }
+                                if let address = result.place.address {
+                                    Text(address).lineLimit(1)
+                                }
+                            }
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                         }
+                        Spacer()
+                        Image(systemName: "arrow.triangle.turn.up.right.circle")
+                            .foregroundStyle(.tertiary)
                     }
                 }
+                .buttonStyle(.plain)
             }
             .listStyle(.plain)
         }
@@ -217,11 +251,8 @@ struct NearbyView: View {
         }
         origin = coordinate
 
-        if force {
-            service = PlaceService() // drop the cache
-        }
         do {
-            let places = try await service.places(near: coordinate, category: category)
+            let places = try await service.places(near: coordinate, category: category, forceRefresh: force)
             results = PlaceGeometry.sortedByDistance(places, from: coordinate)
             camera = .automatic // re-frame the map around the fresh pins
         } catch {

@@ -44,8 +44,8 @@
 /* Begin PBXFileReference section */
 		0A0000000000000000000006 /* OpenRoadie.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OpenRoadie.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0A0000000000000000000007 /* OpenRoadieTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OpenRoadieTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		0B00000000000000000000A3 /* OpenRoadieWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OpenRoadieWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0A0000000000000000000020 /* Shared.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Shared.xcconfig; path = Config/Shared.xcconfig; sourceTree = "<group>"; };
+		0B00000000000000000000A3 /* OpenRoadieWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OpenRoadieWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */

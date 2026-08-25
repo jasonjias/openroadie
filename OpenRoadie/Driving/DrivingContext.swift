@@ -5,7 +5,7 @@ import Foundation
 /// CoreLocation's `CLLocationCoordinate2D` isn't `Equatable` or `Codable`;
 /// keeping the canonical driving state free of framework types makes it easy
 /// to test, and later to persist or hand to an agent.
-struct Coordinate: Equatable, Sendable {
+struct Coordinate: Equatable, Sendable, Codable {
     var latitude: Double
     var longitude: Double
 }

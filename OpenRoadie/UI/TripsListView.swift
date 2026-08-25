@@ -2,81 +2,345 @@ import MapKit
 import SwiftData
 import SwiftUI
 
-/// Local driving history. Everything shown here lives only on this device.
+/// The Fitness-style driving log: a week strip of Drive Score rings, one
+/// day's metrics and drives, and a month calendar for time travel.
+/// Everything shown here lives only on this device.
 struct TripsListView: View {
     @Query(sort: \Trip.startDate, order: .reverse) private var trips: [Trip]
     @Query(sort: \DriveNote.timestamp, order: .reverse) private var notes: [DriveNote]
+    @Query private var events: [DriveEvent]
     @Environment(\.modelContext) private var modelContext
+
+    @State private var selectedDay = Calendar.current.startOfDay(for: .now)
+    @State private var showsCalendar = false
+
+    private var calendar: Calendar { .current }
 
     var body: some View {
         NavigationStack {
-            Group {
-                if trips.isEmpty {
-                    ContentUnavailableView(
-                        "No trips yet",
-                        systemImage: "car",
-                        description: Text("Drives you record will show up here. Everything stays on this device.")
-                    )
-                } else {
-                    List {
-                        Section {
-                            AllDrivesMap(trips: trips)
-                                .frame(height: 220)
-                                .listRowInsets(EdgeInsets())
-                        }
-                        Section {
-                            ForEach(trips) { trip in
-                                if trip.endDate == nil {
-                                    TripRow(trip: trip)
-                                } else {
-                                    NavigationLink(value: trip.persistentModelID) {
-                                        TripRow(trip: trip)
-                                    }
-                                }
-                            }
-                            .onDelete(perform: deleteTrips)
-                        }
-                        if !notes.isEmpty {
-                            Section("Notes") {
-                                ForEach(notes) { note in
-                                    VStack(alignment: .leading, spacing: 3) {
-                                        Label(note.text, systemImage: "quote.bubble")
-                                            .font(.subheadline)
-                                        Text(note.timestamp, format: .dateTime.month().day().hour().minute())
-                                            .font(.caption2)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                }
-                                .onDelete(perform: deleteNotes)
-                            }
-                        }
-                    }
-                    .navigationDestination(for: PersistentIdentifier.self) { id in
-                        if let trip = modelContext.model(for: id) as? Trip {
-                            TripDetailView(trip: trip)
-                        }
+            List {
+                Section {
+                    weekStrip
+                        .listRowInsets(EdgeInsets(top: 8, leading: 8, bottom: 8, trailing: 8))
+                }
+
+                Section {
+                    dayCard
+                }
+
+                daySection
+
+                dayNotesSection
+
+                Section {
+                    NavigationLink {
+                        AllDrivesMap(trips: trips)
+                            .navigationTitle("All drives")
+                            .navigationBarTitleDisplayMode(.inline)
+                            .ignoresSafeArea(edges: .bottom)
+                    } label: {
+                        Label("All drives map", systemImage: "map")
                     }
                 }
             }
-            .navigationTitle("Trips")
+            .navigationTitle(dayTitle)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showsCalendar = true
+                    } label: {
+                        Image(systemName: "calendar")
+                    }
+                }
+            }
+            .sheet(isPresented: $showsCalendar) {
+                MonthCalendarView(selectedDay: $selectedDay, statsFor: stats(on:))
+            }
+            .navigationDestination(for: PersistentIdentifier.self) { id in
+                if let trip = modelContext.model(for: id) as? Trip {
+                    TripDetailView(trip: trip)
+                }
+            }
+        }
+    }
+
+    // MARK: - Data
+
+    private func stats(on day: Date) -> DayStats {
+        DayStats.compute(trips: trips, events: events, on: day, calendar: calendar)
+    }
+
+    private var dayTrips: [Trip] {
+        trips.filter { calendar.isDate($0.startDate, inSameDayAs: selectedDay) }
+    }
+
+    private var dayNotes: [DriveNote] {
+        notes.filter { calendar.isDate($0.timestamp, inSameDayAs: selectedDay) }
+    }
+
+    private var dayTitle: String {
+        if calendar.isDateInToday(selectedDay) { return "Today" }
+        if calendar.isDateInYesterday(selectedDay) { return "Yesterday" }
+        return selectedDay.formatted(.dateTime.weekday(.abbreviated).month().day())
+    }
+
+    // MARK: - Week strip
+
+    private var weekStrip: some View {
+        let week = calendar.dateInterval(of: .weekOfYear, for: selectedDay) ?? .init(start: selectedDay, duration: 0)
+        let days = (0..<7).compactMap { calendar.date(byAdding: .day, value: $0, to: week.start) }
+
+        return HStack(spacing: 0) {
+            ForEach(days, id: \.self) { day in
+                let isSelected = calendar.isDate(day, inSameDayAs: selectedDay)
+                let isFuture = day > .now
+                VStack(spacing: 5) {
+                    Text(day.formatted(.dateTime.weekday(.narrow)))
+                        .font(.caption2.weight(isSelected ? .bold : .regular))
+                        .foregroundStyle(isSelected ? .primary : .secondary)
+                    ScoreRing(score: isFuture ? nil : stats(on: day).score, lineWidth: 4)
+                        .frame(width: 30, height: 30)
+                        .overlay {
+                            if calendar.isDateInToday(day) {
+                                Circle().fill(.tint).frame(width: 5, height: 5)
+                            }
+                        }
+                        .padding(3)
+                        .background(
+                            Circle().stroke(isSelected ? AnyShapeStyle(.tint) : AnyShapeStyle(.clear), lineWidth: 1.5)
+                        )
+                }
+                .frame(maxWidth: .infinity)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    if !isFuture { selectedDay = calendar.startOfDay(for: day) }
+                }
+            }
+        }
+    }
+
+    // MARK: - Day card
+
+    private var dayCard: some View {
+        let stats = stats(on: selectedDay)
+        return HStack(spacing: 16) {
+            VStack(alignment: .leading, spacing: 10) {
+                metric("Miles", stats.tripCount > 0 ? String(format: "%.1f", stats.miles) : "—", tint: .blue)
+                metric("Time", stats.tripCount > 0 ? DriveFormatting.duration(stats.duration) : "—", tint: .green)
+                metric("Max speed", stats.maxSpeedMph.map { "\($0) mph" } ?? "—", tint: .orange)
+                metric("Hard events", stats.tripCount > 0 ? "\(stats.hardEvents)" : "—", tint: .red)
+            }
+            Spacer()
+            VStack(spacing: 4) {
+                ScoreRing(score: stats.score, lineWidth: 9)
+                    .frame(width: 92, height: 92)
+                    .overlay {
+                        if let score = stats.score {
+                            Text("\(score)")
+                                .font(.title2.bold())
+                                .monospacedDigit()
+                        } else {
+                            Text("—").font(.title3).foregroundStyle(.tertiary)
+                        }
+                    }
+                Text("Drive Score")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.vertical, 6)
+    }
+
+    private func metric(_ label: String, _ value: String, tint: Color) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(.headline)
+                .monospacedDigit()
+                .foregroundStyle(tint)
+        }
+    }
+
+    // MARK: - Day drives & notes
+
+    @ViewBuilder
+    private var daySection: some View {
+        Section("Drives") {
+            if dayTrips.isEmpty {
+                Text(calendar.isDateInToday(selectedDay) ? "No drives yet today." : "No drives this day.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(dayTrips) { trip in
+                    if trip.endDate == nil {
+                        TripRow(trip: trip)
+                    } else {
+                        NavigationLink(value: trip.persistentModelID) {
+                            TripRow(trip: trip)
+                        }
+                    }
+                }
+                .onDelete(perform: deleteTrips)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var dayNotesSection: some View {
+        if !dayNotes.isEmpty {
+            Section("Notes") {
+                ForEach(dayNotes) { note in
+                    VStack(alignment: .leading, spacing: 3) {
+                        Label(note.text, systemImage: "quote.bubble")
+                            .font(.subheadline)
+                        Text(note.timestamp, format: .dateTime.hour().minute())
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .onDelete(perform: deleteNotes)
+            }
         }
     }
 
     private func deleteTrips(at offsets: IndexSet) {
         for index in offsets {
-            modelContext.delete(trips[index])
+            modelContext.delete(dayTrips[index])
         }
     }
 
     private func deleteNotes(at offsets: IndexSet) {
         for index in offsets {
-            modelContext.delete(notes[index])
+            modelContext.delete(dayNotes[index])
+        }
+    }
+}
+
+/// The Drive Score as a ring: red → yellow → green, like it means something.
+struct ScoreRing: View {
+    let score: Int? // 0–100; nil = no driving that day
+    var lineWidth: CGFloat = 5
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .stroke(.quaternary, lineWidth: lineWidth)
+            if let score {
+                Circle()
+                    .trim(from: 0, to: max(0.03, CGFloat(score) / 100))
+                    .stroke(color(for: score), style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+            }
+        }
+    }
+
+    private func color(for score: Int) -> Color {
+        switch score {
+        case 90...: .green
+        case 70..<90: .yellow
+        default: .red
+        }
+    }
+}
+
+/// Month grid with a mini Drive Score ring per day — tap a day to jump to it.
+struct MonthCalendarView: View {
+    @Binding var selectedDay: Date
+    let statsFor: (Date) -> DayStats
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var displayedMonth = Calendar.current.startOfDay(for: .now)
+
+    private var calendar: Calendar { .current }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 14) {
+                    ForEach(weekdaySymbols, id: \.self) { symbol in
+                        Text(symbol)
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                    ForEach(0..<leadingBlanks, id: \.self) { _ in
+                        Color.clear.frame(height: 44)
+                    }
+                    ForEach(daysInMonth, id: \.self) { day in
+                        let isFuture = day > .now
+                        VStack(spacing: 3) {
+                            Text("\(calendar.component(.day, from: day))")
+                                .font(.caption2)
+                                .foregroundStyle(calendar.isDateInToday(day) ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+                            ScoreRing(score: isFuture ? nil : statsFor(day).score, lineWidth: 3.5)
+                                .frame(width: 26, height: 26)
+                        }
+                        .frame(height: 44)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            guard !isFuture else { return }
+                            selectedDay = calendar.startOfDay(for: day)
+                            dismiss()
+                        }
+                    }
+                }
+                .padding()
+            }
+            .navigationTitle(displayedMonth.formatted(.dateTime.month(.wide).year()))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        shiftMonth(-1)
+                    } label: {
+                        Image(systemName: "chevron.left")
+                    }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    HStack {
+                        Button {
+                            shiftMonth(1)
+                        } label: {
+                            Image(systemName: "chevron.right")
+                        }
+                        Button("Done") { dismiss() }
+                    }
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+    }
+
+    private var monthStart: Date {
+        calendar.dateInterval(of: .month, for: displayedMonth)?.start ?? displayedMonth
+    }
+
+    private var daysInMonth: [Date] {
+        guard let range = calendar.range(of: .day, in: .month, for: displayedMonth) else { return [] }
+        return range.compactMap { calendar.date(byAdding: .day, value: $0 - 1, to: monthStart) }
+    }
+
+    private var leadingBlanks: Int {
+        let weekday = calendar.component(.weekday, from: monthStart)
+        return (weekday - calendar.firstWeekday + 7) % 7
+    }
+
+    private var weekdaySymbols: [String] {
+        let symbols = calendar.veryShortStandaloneWeekdaySymbols
+        let first = calendar.firstWeekday - 1
+        return Array(symbols[first...] + symbols[..<first])
+    }
+
+    private func shiftMonth(_ delta: Int) {
+        if let shifted = calendar.date(byAdding: .month, value: delta, to: displayedMonth) {
+            displayedMonth = shifted
         }
     }
 }
 
 /// Every recorded drive overlaid on one map — the "everywhere I've driven" view.
-private struct AllDrivesMap: View {
+struct AllDrivesMap: View {
     let trips: [Trip]
 
     /// Cap the overlay work for very large histories; newest drives win.
@@ -98,7 +362,6 @@ private struct AllDrivesMap: View {
             }
         }
         .mapStyle(.standard(elevation: .flat))
-        .allowsHitTesting(false)
     }
 }
 
@@ -107,7 +370,7 @@ private struct TripRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(trip.startDate, format: .dateTime.weekday(.wide).month().day().hour().minute())
+            Text(trip.startDate, format: .dateTime.hour().minute())
                 .font(.headline)
             HStack(spacing: 12) {
                 if let duration = trip.duration {
