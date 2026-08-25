@@ -100,6 +100,28 @@ final class RoadieToolbox {
         }
     }
 
+    func remember(note: String) async -> String {
+        let trimmed = note.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return "There was nothing to remember." }
+        guard let store else { return "Notes are unavailable right now." }
+        let origin = await resolveOrigin()
+        store.saveNote(trimmed, at: origin)
+        return origin == nil
+            ? "Saved the note (no location fix, so it isn't pinned to a spot). Confirm briefly."
+            : "Saved the note, pinned to the current location. Confirm briefly."
+    }
+
+    func recallNotes(scope: String) async -> String {
+        guard let store else { return "Notes are unavailable right now." }
+        if scope.lowercased().contains("here") {
+            guard let origin = await resolveOrigin() else {
+                return "The driver's location is unavailable, so nearby notes can't be found."
+            }
+            return RoadieToolFormatting.describeNotes(store.notes(near: origin, radiusMeters: 1_000), origin: origin)
+        }
+        return RoadieToolFormatting.describeNotes(store.recentNotes(limit: 8), origin: await resolveOrigin())
+    }
+
     // MARK: - Shared
 
     /// Live drive position, else a one-shot fix for parked use.

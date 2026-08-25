@@ -118,6 +118,58 @@ struct SearchPlacesTool: Tool {
     }
 }
 
+/// Driving memory: save a geo-anchored note for the driver.
+struct RememberTool: Tool {
+    let name = "rememberNote"
+    let description = """
+    Save a note for the driver, pinned to the current location — a spot to \
+    come back to, an idea they had, something they saw. Use when the driver \
+    says things like "remember this spot" or "note that down".
+    """
+
+    private let toolbox: RoadieToolbox
+
+    init(toolbox: RoadieToolbox) {
+        self.toolbox = toolbox
+    }
+
+    @Generable
+    struct Arguments {
+        @Guide(description: "The note text to save, in the driver's words")
+        var note: String
+    }
+
+    func call(arguments: Arguments) async throws -> String {
+        await toolbox.remember(note: arguments.note)
+    }
+}
+
+/// Driving memory: recall saved notes, nearby or recent.
+struct RecallNotesTool: Tool {
+    let name = "recallNotes"
+    let description = """
+    Get the driver's saved notes. Scope "here" returns notes pinned within \
+    about a kilometer of the current position; scope "recent" returns the \
+    latest notes anywhere.
+    """
+
+    private let toolbox: RoadieToolbox
+
+    init(toolbox: RoadieToolbox) {
+        self.toolbox = toolbox
+    }
+
+    @Generable
+    struct Arguments {
+        @Guide(description: "Either \"here\" (notes near the current spot) or \"recent\" (latest notes)")
+        var scope: String
+    }
+
+    func call(arguments: Arguments) async throws -> String {
+        await toolbox.recallNotes(scope: arguments.scope)
+    }
+}
+
 /// The agent's view of local trip history.
 struct TripHistoryTool: Tool {
     let name = "tripHistory"

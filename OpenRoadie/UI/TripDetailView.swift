@@ -1,10 +1,23 @@
 import MapKit
+import SwiftData
 import SwiftUI
 
-/// One past drive: the recorded route drawn on a map, with trip stats.
+/// One past drive: the recorded route drawn on a map, with trip stats and
+/// any notes spoken during the drive as speech bubbles along the route.
 /// MapKit renders the tiles; the route itself never leaves the device.
 struct TripDetailView: View {
     let trip: Trip
+
+    @Query private var tripNotes: [DriveNote]
+
+    init(trip: Trip) {
+        self.trip = trip
+        let start = trip.startDate
+        let end = trip.endDate ?? .distantFuture
+        _tripNotes = Query(filter: #Predicate<DriveNote> {
+            $0.timestamp >= start && $0.timestamp <= end
+        })
+    }
 
     var body: some View {
         let route = trip.route
@@ -30,6 +43,17 @@ struct TripDetailView: View {
                 if let end = coordinates.last, coordinates.count >= 2 {
                     Marker("End", systemImage: "flag.checkered", coordinate: end)
                         .tint(.red)
+                }
+                // Notes spoken during this drive, as speech bubbles.
+                ForEach(tripNotes) { note in
+                    if let anchor = note.coordinate {
+                        Marker(
+                            note.text,
+                            systemImage: "quote.bubble.fill",
+                            coordinate: CLLocationCoordinate2D(latitude: anchor.latitude, longitude: anchor.longitude)
+                        )
+                        .tint(.indigo)
+                    }
                 }
             }
             .mapStyle(.standard(elevation: .flat))

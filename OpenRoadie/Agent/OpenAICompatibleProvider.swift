@@ -163,6 +163,10 @@ final class OpenAICompatibleProvider: RoadieModelProvider {
             return await toolbox.searchPlaces(query: args["query"] as? String ?? "")
         case "tripHistory":
             return toolbox.tripHistory()
+        case "rememberNote":
+            return await toolbox.remember(note: args["note"] as? String ?? "")
+        case "recallNotes":
+            return await toolbox.recallNotes(scope: args["scope"] as? String ?? "recent")
         case "configureSpeedAlerts":
             return toolbox.configureAlerts(
                 alertOverPostedLimit: args["alertOverPostedLimit"] as? Bool,
@@ -208,6 +212,18 @@ final class OpenAICompatibleProvider: RoadieModelProvider {
             name: "tripHistory",
             description: "Get the driver's recent recorded trips.",
             properties: [:], required: []
+        ),
+        functionSpec(
+            name: "rememberNote",
+            description: "Save a note for the driver, pinned to the current location.",
+            properties: ["note": ["type": "string", "description": "The note text"]],
+            required: ["note"]
+        ),
+        functionSpec(
+            name: "recallNotes",
+            description: "Get the driver's saved notes: scope \"here\" for notes near the current spot, \"recent\" for the latest anywhere.",
+            properties: ["scope": ["type": "string", "description": "here or recent"]],
+            required: ["scope"]
         ),
         functionSpec(
             name: "configureSpeedAlerts",

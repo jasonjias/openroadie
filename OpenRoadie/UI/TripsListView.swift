@@ -5,6 +5,7 @@ import SwiftUI
 /// Local driving history. Everything shown here lives only on this device.
 struct TripsListView: View {
     @Query(sort: \Trip.startDate, order: .reverse) private var trips: [Trip]
+    @Query(sort: \DriveNote.timestamp, order: .reverse) private var notes: [DriveNote]
     @Environment(\.modelContext) private var modelContext
 
     var body: some View {
@@ -35,6 +36,20 @@ struct TripsListView: View {
                             }
                             .onDelete(perform: deleteTrips)
                         }
+                        if !notes.isEmpty {
+                            Section("Notes") {
+                                ForEach(notes) { note in
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        Label(note.text, systemImage: "quote.bubble")
+                                            .font(.subheadline)
+                                        Text(note.timestamp, format: .dateTime.month().day().hour().minute())
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                                .onDelete(perform: deleteNotes)
+                            }
+                        }
                     }
                     .navigationDestination(for: PersistentIdentifier.self) { id in
                         if let trip = modelContext.model(for: id) as? Trip {
@@ -50,6 +65,12 @@ struct TripsListView: View {
     private func deleteTrips(at offsets: IndexSet) {
         for index in offsets {
             modelContext.delete(trips[index])
+        }
+    }
+
+    private func deleteNotes(at offsets: IndexSet) {
+        for index in offsets {
+            modelContext.delete(notes[index])
         }
     }
 }

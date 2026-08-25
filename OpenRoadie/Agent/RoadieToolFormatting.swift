@@ -136,6 +136,21 @@ enum RoadieToolFormatting {
             + lines.joined(separator: "\n")
     }
 
+    /// Saved notes for the model to relay, with where and when.
+    static func describeNotes(_ notes: [DriveNote], origin: Coordinate?) -> String {
+        guard !notes.isEmpty else { return "No saved notes." }
+        let lines = notes.enumerated().map { index, note in
+            var line = "\(index + 1). \"\(note.text)\" — \(note.timestamp.formatted(.dateTime.month().day().hour().minute()))"
+            if let origin, let anchor = note.coordinate {
+                let distance = TripTracker.distance(from: origin, to: anchor)
+                let direction = DriveFormatting.cardinal(fromCourse: PlaceGeometry.bearing(from: origin, to: anchor))
+                line += " (\(DriveFormatting.shortDistance(fromMeters: distance)) \(direction))"
+            }
+            return line
+        }
+        return "The driver's saved notes — relay the relevant ones:\n" + lines.joined(separator: "\n")
+    }
+
     /// The alert settings as the model should relay them back to the driver.
     static func describeAlertSettings(
         overLimit: Bool,

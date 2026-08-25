@@ -60,6 +60,9 @@ final class RoadieAgent {
     - Any other kind of place — pharmacies, boba, ATMs, parks, or a specific \
     business name: call searchPlaces with the query, then name the results.
     - Questions about past drives: call tripHistory.
+    - "Remember this spot", "note that down", "remember that idea": call \
+    rememberNote with the note text. "What did I note here / what were my \
+    notes": call recallNotes with scope "here" or "recent".
     - Requests to create, change, or check speed alerts ("warn me if I go 10 \
     over", "never let me go over 80", "turn off my speed alerts", "what are \
     my alerts?"): call configureSpeedAlerts with ONLY the fields being \

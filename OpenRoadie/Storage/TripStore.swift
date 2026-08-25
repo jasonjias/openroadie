@@ -75,12 +75,12 @@ final class TripStore {
     }
 
     static func persistent() throws -> TripStore {
-        TripStore(container: try ModelContainer(for: Trip.self, TripPoint.self))
+        TripStore(container: try ModelContainer(for: Trip.self, TripPoint.self, DriveNote.self))
     }
 
     static func inMemory() throws -> TripStore {
         let config = ModelConfiguration(isStoredInMemoryOnly: true)
-        return TripStore(container: try ModelContainer(for: Trip.self, TripPoint.self, configurations: config))
+        return TripStore(container: try ModelContainer(for: Trip.self, TripPoint.self, DriveNote.self, configurations: config))
     }
 
     func beginTrip(at date: Date = .now) -> Trip {
@@ -127,6 +127,38 @@ final class TripStore {
         )
         descriptor.fetchLimit = limit
         return (try? context.fetch(descriptor)) ?? []
+    }
+
+    // MARK: - Driving memory
+
+    @discardableResult
+    func saveNote(_ text: String, at coordinate: Coordinate?, timestamp: Date = .now) -> DriveNote {
+        let note = DriveNote(text: text, coordinate: coordinate, timestamp: timestamp)
+        context.insert(note)
+        try? context.save()
+        return note
+    }
+
+    func recentNotes(limit: Int) -> [DriveNote] {
+        var descriptor = FetchDescriptor<DriveNote>(
+            sortBy: [SortDescriptor(\.timestamp, order: .reverse)]
+        )
+        descriptor.fetchLimit = limit
+        return (try? context.fetch(descriptor)) ?? []
+    }
+
+    /// Notes anchored within `radiusMeters` of a position, nearest first.
+    /// Note counts stay small, so fetch-then-filter is fine.
+    func notes(near coordinate: Coordinate, radiusMeters: Double) -> [DriveNote] {
+        let all = (try? context.fetch(FetchDescriptor<DriveNote>())) ?? []
+        return all
+            .compactMap { note -> (DriveNote, Double)? in
+                guard let anchor = note.coordinate else { return nil }
+                let distance = TripTracker.distance(from: coordinate, to: anchor)
+                return distance <= radiusMeters ? (note, distance) : nil
+            }
+            .sorted { $0.1 < $1.1 }
+            .map(\.0)
     }
 
     /// Recovers from an app death mid-drive: any trip still open from a prior

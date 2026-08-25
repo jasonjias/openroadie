@@ -46,6 +46,8 @@ final class AppleFoundationProvider: RoadieModelProvider {
             RoadLimitTool(toolbox: toolbox),
             SearchPlacesTool(toolbox: toolbox),
             TripHistoryTool(toolbox: toolbox),
+            RememberTool(toolbox: toolbox),
+            RecallNotesTool(toolbox: toolbox),
             ConfigureAlertsTool(toolbox: toolbox),
         ]
         session = LanguageModelSession(tools: tools, instructions: instructions)
