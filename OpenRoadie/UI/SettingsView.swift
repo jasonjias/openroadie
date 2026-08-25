@@ -27,6 +27,7 @@ struct SettingsView: View {
     @AppStorage(Coach.styleKey) private var coachingStyle = CoachStyle.gentle.rawValue
     @AppStorage(Coach.customTemplateKey) private var coachingTemplate = ""
     @State private var chipOrder = NearbyChip.ordered
+    @State private var faceOrder = OdometerStyle.ordered
     @State private var editingCustom: CustomCategory?
     @State private var photoSelection: PhotosPickerItem?
     @State private var showsPhotoActions = false
@@ -188,21 +189,32 @@ struct SettingsView: View {
                 }
 
                 Section {
-                    Picker("Background while driving", selection: $drivingBackground) {
-                        ForEach(DrivingBackground.allCases) { choice in
-                            Text(choice.title).tag(choice.rawValue)
-                        }
-                    }
-                    ForEach(OdometerStyle.allCases) { style in
+                    ForEach(faceOrder) { style in
                         Toggle(style.title, isOn: Binding(
                             get: { OdometerStyle.isEnabled(style) },
                             set: { OdometerStyle.setEnabled(style, $0) }
                         ))
                     }
+                    .onMove { source, destination in
+                        faceOrder.move(fromOffsets: source, toOffset: destination)
+                        OdometerStyle.setOrder(faceOrder)
+                    }
+                } header: {
+                    Text("Odometer faces")
+                } footer: {
+                    Text("Swipe between the enabled faces on the Drive tab. Touch and hold to reorder — the top face is the first slide.")
+                }
+
+                Section {
                     Picker("Vehicle", selection: $sceneVehicle) {
                         ForEach(Vehicle.allCases) { vehicle in
                             Text(vehicle.isAvailable ? vehicle.title : "\(vehicle.title) — soon")
                                 .tag(vehicle.rawValue)
+                        }
+                    }
+                    Picker("Background while driving", selection: $drivingBackground) {
+                        ForEach(DrivingBackground.allCases) { choice in
+                            Text(choice.title).tag(choice.rawValue)
                         }
                     }
                     Toggle("Show heading", isOn: $showHeading)
@@ -210,7 +222,7 @@ struct SettingsView: View {
                 } header: {
                     Text("Dashboard")
                 } footer: {
-                    Text("Pick the odometer faces you like — swipe between them on the Drive tab. \u{201C}Vehicle\u{201D} is what appears on the Rainbow Road scene (models from Kenney's wonderful CC0 kits — kenney.nl); drag to spin it while parked. The background tints while a drive is live.")
+                    Text("\u{201C}Vehicle\u{201D} is what appears on the Rainbow Road scene (models from Kenney's wonderful CC0 kits — kenney.nl); drag to spin it while parked. The background tints while a drive is live.")
                 }
 
                 Section {

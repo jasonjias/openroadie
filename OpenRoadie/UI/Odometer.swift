@@ -59,10 +59,28 @@ enum OdometerStyle: String, CaseIterable, Identifiable, Codable {
     }
 
     static let enabledKey = "enabledOdometerStyles"
+    static let orderKey = "odometerFaceOrder"
+
+    /// The scene face leads by default — it's the one worth waking up to.
+    static let defaultOrder: [OdometerStyle] = [.rainbowRoad, .classic, .minimal, .digital, .gauge, .racing]
+
+    /// All faces in the user's priority order (touch and hold to reorder in
+    /// Settings); faces added in later releases keep their default slot.
+    static var ordered: [OdometerStyle] {
+        guard let stored = UserDefaults.standard.stringArray(forKey: orderKey) else {
+            return defaultOrder
+        }
+        let known = stored.compactMap(OdometerStyle.init(rawValue:))
+        return known + defaultOrder.filter { !known.contains($0) }
+    }
+
+    static func setOrder(_ styles: [OdometerStyle]) {
+        UserDefaults.standard.set(styles.map(\.rawValue), forKey: orderKey)
+    }
 
     static var enabled: [OdometerStyle] {
         let raw = UserDefaults.standard.stringArray(forKey: enabledKey) ?? []
-        let styles = allCases.filter { raw.contains($0.rawValue) }
+        let styles = ordered.filter { raw.contains($0.rawValue) }
         return styles.isEmpty ? [.classic] : styles
     }
 
@@ -81,7 +99,6 @@ enum OdometerStyle: String, CaseIterable, Identifiable, Codable {
 struct OdometerView: View {
     let style: OdometerStyle
     let speedMph: Int?
-    let accuracyMph: Int?
     let isOverLimit: Bool
     /// For the Rainbow Road and Racing faces.
     var speedMps: Double?
@@ -92,47 +109,42 @@ struct OdometerView: View {
     private var speedColor: Color { isOverLimit ? .red : .primary }
 
     var body: some View {
-        Group {
-            switch style {
-            case .classic: classic
-            case .minimal: minimal
-            case .digital: digital
-            case .gauge: gauge
-            case .racing: racing
-            case .rainbowRoad:
-                DriveSceneView(isDriving: isDriving, speedMps: speedMps, vehicle: sceneVehicle)
-                    .overlay(alignment: .topLeading) {
-                        VStack(alignment: .leading, spacing: 0) {
-                            Text(speedMph.map(String.init) ?? "—")
-                                .font(.system(size: 40, weight: .bold, design: .rounded))
-                                .monospacedDigit()
-                                .contentTransition(.numericText())
-                                .foregroundStyle(isOverLimit ? .red : .primary)
-                            Text("mph")
-                                .font(.caption2.weight(.semibold))
-                                .foregroundStyle(.secondary)
-                        }
-                        .padding(.leading, 14)
-                        .padding(.top, 6)
+        switch style {
+        case .classic: classic
+        case .minimal: minimal
+        case .digital: digital
+        case .gauge: gauge
+        case .racing: racing
+        case .rainbowRoad:
+            DriveSceneView(isDriving: isDriving, speedMps: speedMps, vehicle: sceneVehicle)
+                .overlay(alignment: .topLeading) {
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(speedMph.map(String.init) ?? "—")
+                            .font(.system(size: 40, weight: .bold, design: .rounded))
+                            .monospacedDigit()
+                            .contentTransition(.numericText())
+                            .foregroundStyle(isOverLimit ? .red : .primary)
+                        Text("mph")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.secondary)
                     }
-                    .padding(.horizontal, 12)
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        // Every face carries the road's posted limit in the top-right,
-        // like a windshield's corner.
-        .overlay(alignment: .topTrailing) {
-            if let limitMph {
-                SpeedLimitSign(limitMph: limitMph)
-                    .padding(.trailing, 26)
+                    .padding(.leading, 14)
                     .padding(.top, 6)
-            }
+                }
+                // The limit sign suits the scene (a windshield's corner);
+                // the flat faces stay clean.
+                .overlay(alignment: .topTrailing) {
+                    if let limitMph {
+                        SpeedLimitSign(limitMph: limitMph)
+                            .padding(.trailing, 14)
+                            .padding(.top, 6)
+                    }
+                }
+                .padding(.horizontal, 12)
         }
     }
 
-    private var unitLine: String {
-        if let accuracyMph { "mph  ± \(accuracyMph)" } else { "mph" }
-    }
+    private var unitLine: String { "mph" }
 
     private var classic: some View {
         VStack(spacing: 4) {

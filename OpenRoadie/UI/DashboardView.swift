@@ -80,14 +80,12 @@ struct DashboardView: View {
     private var speedSection: some View {
         let styles = OdometerStyle.enabled
         let speedMph = session.context.speed.map { DriveFormatting.milesPerHour(fromMetersPerSecond: $0) }
-        let accuracyMph = session.context.speedAccuracy.map { max(1, DriveFormatting.milesPerHour(fromMetersPerSecond: $0)) }
 
         return TabView(selection: $selectedFace) {
             ForEach(styles) { style in
                 OdometerView(
                     style: style,
                     speedMph: speedMph,
-                    accuracyMph: accuracyMph,
                     isOverLimit: isOverLimit,
                     speedMps: session.context.speed,
                     limitMph: session.context.road?.speedLimit.map { DriveFormatting.milesPerHour(fromMetersPerSecond: $0) },
