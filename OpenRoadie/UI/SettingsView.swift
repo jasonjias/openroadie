@@ -20,6 +20,7 @@ struct SettingsView: View {
     @AppStorage(DrivingBackground.defaultsKey) private var drivingBackground = DrivingBackground.green.rawValue
     @AppStorage("showGPSDetails") private var showGPSDetails = false
     @AppStorage("showHeading") private var showHeading = false
+    @AppStorage(AutoDriveMonitor.modeKey) private var autoStartMode = AutoDriveMonitor.Mode.off.rawValue
     @AppStorage(Coach.nameKey) private var driverName = ""
     @AppStorage(Coach.spokenKey) private var coachingSpoken = false
     @AppStorage(Coach.styleKey) private var coachingStyle = CoachStyle.gentle.rawValue
@@ -74,6 +75,22 @@ struct SettingsView: View {
                     Toggle("Road awareness", isOn: $roadAwarenessEnabled)
                 } footer: {
                     Text("Shows the current road and speed limit using OpenStreetMap. While driving, your approximate location is sent to the public Overpass API (overpass-api.de) about once every few hundred meters. Turn off for a fully offline drive — everything else works identically.")
+                }
+
+                Section {
+                    Picker("Detect drives", selection: $autoStartMode) {
+                        ForEach(AutoDriveMonitor.Mode.allCases) { mode in
+                            Text(mode.title).tag(mode.rawValue)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                } header: {
+                    Text("Drive detection")
+                } footer: {
+                    Text("OpenRoadie watches for sustained car motion, confirms road speed with a quick GPS check, then starts the drive (\u{201C}Automatic\u{201D}) or sends a notification (\u{201C}Suggest\u{201D}). Works while the app is open or recently used; \u{201C}End drive when parked\u{201D} completes the loop. Uses Motion & Fitness — iOS will ask once.")
+                }
+                .onChange(of: autoStartMode) { _, mode in
+                    if mode != AutoDriveMonitor.Mode.off.rawValue { AlertCenter.requestAuthorization() }
                 }
 
                 Section {

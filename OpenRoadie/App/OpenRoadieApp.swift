@@ -7,6 +7,7 @@ struct OpenRoadieApp: App {
     @State private var agent: RoadieAgent
     @State private var speaker: SpeechSpeaker
     @State private var wake: WakeWordCoordinator
+    @State private var autoDrive: AutoDriveMonitor
 
     init() {
         // Fall back to in-memory storage rather than crash if the store can't
@@ -26,11 +27,12 @@ struct OpenRoadieApp: App {
         _agent = State(initialValue: agent)
         _speaker = State(initialValue: speaker)
         _wake = State(initialValue: wake)
+        _autoDrive = State(initialValue: AutoDriveMonitor(session: session))
     }
 
     var body: some Scene {
         WindowGroup {
-            RootView(session: session, agent: agent, speaker: speaker, wake: wake)
+            RootView(session: session, agent: agent, speaker: speaker, wake: wake, autoDrive: autoDrive)
                 .modelContainer(store.container)
         }
     }

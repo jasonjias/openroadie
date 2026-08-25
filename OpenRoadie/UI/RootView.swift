@@ -5,6 +5,7 @@ struct RootView: View {
     let agent: RoadieAgent
     let speaker: SpeechSpeaker
     let wake: WakeWordCoordinator
+    let autoDrive: AutoDriveMonitor
 
     @AppStorage(WakeWordCoordinator.modeKey) private var heyRoadieMode = WakeWordCoordinator.Mode.off.rawValue
     @AppStorage(ModelProviderChoice.defaultsKey) private var modelProvider = ModelProviderChoice.apple.rawValue
@@ -26,8 +27,15 @@ struct RootView: View {
                 TripsListView()
             }
         }
-        .task { wake.refresh() }
-        .onChange(of: session.isDriving) { _, _ in wake.refresh() }
+        .task {
+            wake.refresh()
+            autoDrive.refresh()
+            autoDrive.checkRecentActivity()
+        }
+        .onChange(of: session.isDriving) { _, _ in
+            wake.refresh()
+            autoDrive.refresh()
+        }
         .onChange(of: heyRoadieMode) { _, _ in wake.refresh() }
         .onChange(of: modelProvider) { _, _ in agent.reconfigure() }
         .onChange(of: customModelURL) { _, _ in agent.reconfigure() }
