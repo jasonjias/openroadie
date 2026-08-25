@@ -92,7 +92,11 @@ struct TripsListView: View {
                 Section {
                     if !dayTrips.isEmpty {
                         NavigationLink {
-                            DayDrivesMap(trips: dayTrips, title: dayTitle)
+                            DayDrivesMap(
+                                trips: dayTrips,
+                                title: dayTitle,
+                                events: events.filter { calendar.isDate($0.timestamp, inSameDayAs: selectedDay) }
+                            )
                         } label: {
                             Label("Map for this day", systemImage: "point.topleft.down.to.point.bottomright.curvepath")
                         }
@@ -288,10 +292,10 @@ struct TripsListView: View {
             } else {
                 ForEach(dayTrips) { trip in
                     if trip.endDate == nil {
-                        TripRow(trip: trip)
+                        TripRow(trip: trip, events: events(in: trip))
                     } else {
                         NavigationLink(value: trip.persistentModelID) {
-                            TripRow(trip: trip)
+                            TripRow(trip: trip, events: events(in: trip))
                         }
                     }
                 }
@@ -320,6 +324,14 @@ struct TripsListView: View {
                 SectionHeader("Notes")
             }
         }
+    }
+
+    /// The score-affecting events recorded during one trip, in order.
+    private func events(in trip: Trip) -> [DriveEvent] {
+        let end = trip.endDate ?? .distantFuture
+        return events
+            .filter { $0.timestamp >= trip.startDate && $0.timestamp <= end && $0.isMapWorthy }
+            .sorted { $0.timestamp < $1.timestamp }
     }
 
     private func deleteTrips(at offsets: IndexSet) {
@@ -466,6 +478,7 @@ struct MonthCalendarView: View {
 struct DayDrivesMap: View {
     let trips: [Trip]
     let title: String
+    var events: [DriveEvent] = []
 
     @State private var colorMode: RouteColorMode = .vsLimit
 
@@ -477,6 +490,8 @@ struct DayDrivesMap: View {
                 ForEach(trips) { trip in
                     ColoredRoute(route: trip.route, mode: colorMode)
                 }
+                // The day's score-affecting mistakes, pinned where they happened.
+                EventMarkers(events: events)
             }
             .mapStyle(.standard(elevation: .flat))
 
@@ -525,6 +540,7 @@ struct AllDrivesMap: View {
 
 private struct TripRow: View {
     let trip: Trip
+    var events: [DriveEvent] = []
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -544,6 +560,17 @@ private struct TripRow: View {
             }
             .font(.caption)
             .foregroundStyle(.secondary)
+
+            // This trip's mistakes right on the row, so scrolling the day
+            // tells the whole story without opening every trip.
+            if !events.isEmpty {
+                VStack(alignment: .leading, spacing: 5) {
+                    ForEach(events) { event in
+                        EventRow(event: event, compact: true)
+                    }
+                }
+                .padding(.top, 4)
+            }
         }
         .padding(.vertical, 2)
     }

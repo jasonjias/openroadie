@@ -26,64 +26,47 @@ struct TripDetailView: View {
 
     @State private var colorMode: RouteColorMode = .speed
     @State private var shareURL: URL?
+    @State private var showsFullMap = false
 
     var body: some View {
         let route = trip.route
-        let coordinates = route.map {
-            CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude)
-        }
         let runs = RouteColoring.runs(for: route, mode: colorMode)
 
-        VStack(spacing: 0) {
-            Map(initialPosition: .automatic) {
-                ColoredRoute(route: route, mode: colorMode)
-                if let start = coordinates.first {
-                    Marker("Start", systemImage: "flag.fill", coordinate: start)
-                        .tint(.green)
+        ScrollView {
+            VStack(spacing: 0) {
+                // A non-interactive map preview, so the page scrolls freely
+                // past it — tap to open the full interactive map.
+                Map(initialPosition: .automatic, interactionModes: []) {
+                    routeContent
                 }
-                if let end = coordinates.last, coordinates.count >= 2 {
-                    Marker("End", systemImage: "flag.checkered", coordinate: end)
-                        .tint(.red)
+                .mapStyle(.standard(elevation: .flat))
+                .frame(height: 300)
+                .overlay(alignment: .bottomTrailing) {
+                    Label("Tap to explore", systemImage: "arrow.up.left.and.arrow.down.right")
+                        .font(.caption2.weight(.medium))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 5)
+                        .background(.thinMaterial, in: Capsule())
+                        .padding(10)
                 }
-                // Hard braking / acceleration moments along the route.
-                // (Overspeed crossings color the route itself in vs-Limit mode.)
-                ForEach(tripEvents.filter { $0.kind == "hardBraking" || $0.kind == "hardAcceleration" }) { event in
-                    if let anchor = event.coordinate {
-                        Marker(
-                            event.kind == "hardBraking" ? "Hard brake" : "Hard accel",
-                            systemImage: "exclamationmark.triangle.fill",
-                            coordinate: CLLocationCoordinate2D(latitude: anchor.latitude, longitude: anchor.longitude)
-                        )
-                        .tint(event.kind == "hardBraking" ? .red : .orange)
+                .contentShape(Rectangle())
+                .onTapGesture { showsFullMap = true }
+
+                Picker("Coloring", selection: $colorMode) {
+                    ForEach(RouteColorMode.allCases) { mode in
+                        Text(mode.title).tag(mode)
                     }
                 }
-                // Notes spoken during this drive, as speech bubbles.
-                ForEach(tripNotes) { note in
-                    if let anchor = note.coordinate {
-                        Marker(
-                            note.text,
-                            systemImage: "quote.bubble.fill",
-                            coordinate: CLLocationCoordinate2D(latitude: anchor.latitude, longitude: anchor.longitude)
-                        )
-                        .tint(.indigo)
-                    }
-                }
-            }
-            .mapStyle(.standard(elevation: .flat))
+                .pickerStyle(.segmented)
+                .padding(.horizontal)
+                .padding(.top, 8)
 
-            Picker("Coloring", selection: $colorMode) {
-                ForEach(RouteColorMode.allCases) { mode in
-                    Text(mode.title).tag(mode)
-                }
+                RouteLegend(runs: runs, mode: colorMode)
+                    .padding(.top, 6)
+                speedChart(route: route)
+                eventsSection
+                statsGrid
             }
-            .pickerStyle(.segmented)
-            .padding(.horizontal)
-            .padding(.top, 8)
-
-            RouteLegend(runs: runs, mode: colorMode)
-                .padding(.top, 6)
-            speedChart(route: route)
-            statsGrid
         }
         .navigationTitle(trip.startDate.formatted(.dateTime.month().day().hour().minute()))
         .navigationBarTitleDisplayMode(.inline)
@@ -98,6 +81,79 @@ struct TripDetailView: View {
         }
         .task {
             shareURL = TripShareRenderer.pngURL(for: trip)
+        }
+        .fullScreenCover(isPresented: $showsFullMap) {
+            fullMap
+        }
+    }
+
+    /// Everything drawn on the map — shared by the inline preview and the
+    /// full-screen interactive version so they always match.
+    @MapContentBuilder
+    private var routeContent: some MapContent {
+        let route = trip.route
+        let coordinates = route.map {
+            CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude)
+        }
+        ColoredRoute(route: route, mode: colorMode)
+        if let start = coordinates.first {
+            Marker("Start", systemImage: "flag.fill", coordinate: start)
+                .tint(.green)
+        }
+        if let end = coordinates.last, coordinates.count >= 2 {
+            Marker("End", systemImage: "flag.checkered", coordinate: end)
+                .tint(.red)
+        }
+        // Every score-affecting mistake with a recorded location.
+        EventMarkers(events: tripEvents)
+        // Notes spoken during this drive, as speech bubbles.
+        ForEach(tripNotes) { note in
+            if let anchor = note.coordinate {
+                Marker(
+                    note.text,
+                    systemImage: "quote.bubble.fill",
+                    coordinate: CLLocationCoordinate2D(latitude: anchor.latitude, longitude: anchor.longitude)
+                )
+                .tint(.indigo)
+            }
+        }
+    }
+
+    /// The tapped-open interactive map: same content, full screen, pannable.
+    private var fullMap: some View {
+        NavigationStack {
+            Map(initialPosition: .automatic) {
+                routeContent
+            }
+            .mapStyle(.standard(elevation: .flat))
+            .ignoresSafeArea(edges: .bottom)
+            .navigationTitle(trip.startDate.formatted(.dateTime.month().day().hour().minute()))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") { showsFullMap = false }
+                        .fontWeight(.semibold)
+                }
+            }
+        }
+    }
+
+    /// What happened on this drive, in order — same rows as the day's
+    /// safety sheet, scoped to just this trip.
+    @ViewBuilder
+    private var eventsSection: some View {
+        let events = tripEvents.sorted { $0.timestamp < $1.timestamp }
+        if !events.isEmpty {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Events")
+                    .font(.headline)
+                ForEach(events) { event in
+                    EventRow(event: event)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal)
+            .padding(.vertical, 12)
         }
     }
 

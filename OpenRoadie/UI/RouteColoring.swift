@@ -12,7 +12,7 @@ enum RouteColorMode: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .speed: "Speed"
-        case .vsLimit: "vs Limit"
+        case .vsLimit: "Speeding"
         }
     }
 }

@@ -103,18 +103,7 @@ struct SafetyDetailView: View {
                 if !dayEvents.isEmpty {
                     Section {
                         ForEach(dayEvents) { event in
-                            HStack(spacing: 10) {
-                                Image(systemName: icon(for: event.kind))
-                                    .foregroundStyle(color(for: event.kind))
-                                    .frame(width: 24)
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(label(for: event.kind))
-                                        .font(.subheadline.weight(.medium))
-                                    Text(detailLine(for: event))
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
+                            EventRow(event: event)
                         }
                     } header: {
                         SectionHeader("Events")
@@ -175,51 +164,6 @@ struct SafetyDetailView: View {
         .padding(.vertical, 2)
     }
 
-    private func icon(for kind: String) -> String {
-        switch kind {
-        case "hardBraking", "hardAcceleration": "exclamationmark.triangle.fill"
-        case "harshCornering": "arrow.turn.up.right"
-        case "phoneUse": "iphone.radiowaves.left.and.right"
-        default: "gauge.high"
-        }
-    }
-
-    private func color(for kind: String) -> Color {
-        switch kind {
-        case "hardBraking": .red
-        case "hardAcceleration": .orange
-        case "wellOverLimit": .red
-        case "harshCornering": .orange
-        case "phoneUse": .purple
-        default: .yellow
-        }
-    }
-
-    private func label(for kind: String) -> String {
-        switch kind {
-        case "hardBraking": "Hard braking"
-        case "hardAcceleration": "Hard acceleration"
-        case "overLimit": "Crossed the posted limit"
-        case "wellOverLimit": "More than 5 over the limit"
-        case "harshCornering": "Harsh cornering"
-        case "phoneUse": "Phone handled while driving"
-        default: kind
-        }
-    }
-
-    private func detailLine(for event: DriveEvent) -> String {
-        var parts = [event.timestamp.formatted(.dateTime.hour().minute())]
-        if let speed = event.speedMph {
-            parts.append("\(Int(speed.rounded())) mph")
-        }
-        if event.peakG > 0 {
-            // phoneUse stores the handling duration in the peakG slot.
-            parts.append(event.kind == "phoneUse"
-                ? String(format: "%.1fs in hand", event.peakG)
-                : String(format: "%.2f g", event.peakG))
-        }
-        return parts.joined(separator: " · ")
-    }
 }
 
 /// The Tesla-style explainer: what each factor is, how to keep it green,

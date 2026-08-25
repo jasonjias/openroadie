@@ -2,11 +2,17 @@ import SwiftUI
 
 /// A Tesla-style half gauge: gray track, colored fill, content in the middle.
 /// Real arc geometry — nothing gets clipped, round caps included.
-struct SemicircleGauge<Content: View>: View {
-    let fraction: Double // 0–1
+struct SemicircleGauge<Content: View>: View, @preconcurrency Animatable {
+    var fraction: Double // 0–1
     let color: Color
     var lineWidth: CGFloat = 14
     @ViewBuilder var content: Content
+
+    /// Animatable so speed changes sweep the arc instead of stepping it.
+    var animatableData: Double {
+        get { fraction }
+        set { fraction = newValue }
+    }
 
     var body: some View {
         GeometryReader { geo in
@@ -205,8 +211,36 @@ struct OdometerView: View {
     /// red zone isn't decoration, it starts at the road's actual posted
     /// limit (defaults to 65 where the limit is unknown).
     private var racing: some View {
+        RacingDial(
+            speed: Double(speedMph ?? 0),
+            hasSpeed: speedMph != nil,
+            redline: Double(limitMph ?? 65),
+            isOverLimit: isOverLimit
+        )
+        .animation(.easeOut(duration: 0.8), value: speedMph)
+        .aspectRatio(1, contentMode: .fit)
+    }
+}
+
+/// LapTimer-style round dial: needle, tick ring, digital inset — and the
+/// red zone isn't decoration, it starts at the road's actual posted
+/// limit (defaults to 65 where the limit is unknown).
+///
+/// Animatable on speed so the needle SWEEPS between GPS fixes instead of
+/// stepping — a Canvas only interpolates when the value itself does.
+private struct RacingDial: View, @preconcurrency Animatable {
+    var speed: Double
+    let hasSpeed: Bool
+    let redline: Double
+    let isOverLimit: Bool
+
+    var animatableData: Double {
+        get { speed }
+        set { speed = newValue }
+    }
+
+    var body: some View {
         let maxDial = 120.0
-        let redline = Double(limitMph ?? 65)
         let startAngle = 135.0 // degrees; dial sweeps 270° clockwise
         let sweep = 270.0
         func angle(for mph: Double) -> Double {
@@ -254,16 +288,17 @@ struct OdometerView: View {
             }
 
             // Needle.
-            let needleAngle = angle(for: Double(speedMph ?? 0))
+            let needleAngle = angle(for: speed)
             var needle = Path()
             needle.move(to: point(angleDegrees: needleAngle + 180, radius: 14))
             needle.addLine(to: point(angleDegrees: needleAngle, radius: radius - 24))
             context.stroke(needle, with: .color(.red), style: StrokeStyle(lineWidth: 3.5, lineCap: .round))
             context.fill(Path(ellipseIn: CGRect(x: center.x - 7, y: center.y - 7, width: 14, height: 14)), with: .color(.white.opacity(0.9)))
 
-            // Digital inset, seven-segment feel.
+            // Digital inset, seven-segment feel. Reads the animated speed
+            // so the digits roll with the needle.
             context.draw(
-                Text(speedMph.map(String.init) ?? "--")
+                Text(hasSpeed ? "\(Int(speed.rounded()))" : "--")
                     .font(.system(size: 26, weight: .bold, design: .monospaced))
                     .foregroundStyle(isOverLimit ? Color.red : .white),
                 at: CGPoint(x: center.x, y: center.y + radius * 0.48)
@@ -273,10 +308,10 @@ struct OdometerView: View {
                 at: CGPoint(x: center.x, y: center.y + radius * 0.48 + 20)
             )
         }
-        .animation(.easeOut(duration: 0.4), value: speedMph)
-        .aspectRatio(1, contentMode: .fit)
     }
+}
 
+extension OdometerView {
     private var gauge: some View {
         SemicircleGauge(
             fraction: Double(speedMph ?? 0) / 120,
@@ -294,6 +329,8 @@ struct OdometerView: View {
                     .foregroundStyle(.secondary)
             }
         }
+        // Sweep the arc between GPS fixes instead of stepping it.
+        .animation(.easeOut(duration: 0.8), value: speedMph)
         .frame(width: 310)
     }
 }
