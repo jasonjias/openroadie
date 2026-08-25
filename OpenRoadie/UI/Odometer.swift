@@ -42,6 +42,7 @@ enum OdometerStyle: String, CaseIterable, Identifiable, Codable {
     case minimal
     case digital
     case gauge
+    case rainbowRoad
 
     var id: String { rawValue }
 
@@ -51,6 +52,7 @@ enum OdometerStyle: String, CaseIterable, Identifiable, Codable {
         case .minimal: "Minimal"
         case .digital: "Digital"
         case .gauge: "Gauge"
+        case .rainbowRoad: "Rainbow Road"
         }
     }
 
@@ -79,6 +81,10 @@ struct OdometerView: View {
     let speedMph: Int?
     let accuracyMph: Int?
     let isOverLimit: Bool
+    /// For the Rainbow Road face: real motion drives the animation.
+    var speedMps: Double?
+    var tripDistanceMeters: Double = 0
+    var contextTimestamp: Date?
 
     private var speedColor: Color { isOverLimit ? .red : .primary }
 
@@ -88,6 +94,14 @@ struct OdometerView: View {
         case .minimal: minimal
         case .digital: digital
         case .gauge: gauge
+        case .rainbowRoad:
+            RainbowRoadView(
+                speedMph: speedMph,
+                speedMps: speedMps,
+                tripDistanceMeters: tripDistanceMeters,
+                contextTimestamp: contextTimestamp,
+                isOverLimit: isOverLimit
+            )
         }
     }
 

@@ -86,7 +86,10 @@ struct DashboardView: View {
                     style: style,
                     speedMph: speedMph,
                     accuracyMph: accuracyMph,
-                    isOverLimit: isOverLimit
+                    isOverLimit: isOverLimit,
+                    speedMps: session.context.speed,
+                    tripDistanceMeters: session.context.tripDistance,
+                    contextTimestamp: session.context.timestamp
                 )
                 .tag(style.id)
             }
