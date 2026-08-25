@@ -199,23 +199,24 @@ struct DriveSceneView: View {
         struct Pose {
             var yaw: Float
             var pitch: Float
+            var radius: Float
             var targetY: Float
             var targetZ: Float
 
-            static let parked = Pose(yaw: -2.6, pitch: 0.28, targetY: 0.35, targetZ: 0)
-            static let driving = Pose(yaw: 0, pitch: 0.43, targetY: 0.2, targetZ: -8)
+            static let parked = Pose(yaw: -2.6, pitch: 0.28, radius: 6.8, targetY: 0.35, targetZ: 0)
+            /// Driving sits farther back — the Tesla drive view zooms out.
+            static let driving = Pose(yaw: 0, pitch: 0.43, radius: 8.4, targetY: 0.2, targetZ: -8)
 
             static func mix(_ a: Pose, _ b: Pose, _ t: Float) -> Pose {
                 Pose(
                     yaw: a.yaw + (b.yaw - a.yaw) * t,
                     pitch: a.pitch + (b.pitch - a.pitch) * t,
+                    radius: a.radius + (b.radius - a.radius) * t,
                     targetY: a.targetY + (b.targetY - a.targetY) * t,
                     targetZ: a.targetZ + (b.targetZ - a.targetZ) * t
                 )
             }
         }
-
-        private let radius: Float = 6.8
         private var pose = Pose.parked
         private var transitionFrom: Pose?
         private var transitionTo = Pose.parked
@@ -252,10 +253,17 @@ struct DriveSceneView: View {
                 let t = min(1, max(0, raw))
                 let eased = t * t * (3 - 2 * t) // smoothstep
                 pose = Pose.mix(from, transitionTo, eased)
-                // Crane, don't carousel: a mid-transition lift shortens the
-                // perceived arc — the camera rises over the car instead of
-                // sweeping a long half-circle around it.
-                pose.pitch += sin(.pi * eased) * 0.28
+                // Tesla-style center pivot: the gaze stays PINNED on the car
+                // while the view rotates and zooms, and only slides out to
+                // the road ahead in the final stretch (or back from it in
+                // the first stretch, when parking).
+                let toDriving = transitionTo.targetZ != 0
+                let slide = toDriving
+                    ? max(0, (eased - 0.6) / 0.4)
+                    : min(1, eased / 0.4)
+                let slideEased = slide * slide * (3 - 2 * slide)
+                pose.targetY = from.targetY + (transitionTo.targetY - from.targetY) * slideEased
+                pose.targetZ = from.targetZ + (transitionTo.targetZ - from.targetZ) * slideEased
                 if t >= 1 { transitionFrom = nil }
                 applyCamera()
             }
@@ -310,6 +318,7 @@ struct DriveSceneView: View {
             guard let camera else { return }
             let yaw = pose.yaw + chaseYaw
             let pitch = min(1.3, max(0.05, pose.pitch + chasePitch))
+            let radius = pose.radius
             let from: SIMD3<Float> = [
                 sin(yaw) * radius * cos(pitch),
                 sin(pitch) * radius + 0.35,
