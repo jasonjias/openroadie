@@ -1,4 +1,5 @@
 import AVFoundation
+import PhotosUI
 import SwiftData
 import SwiftUI
 
@@ -19,6 +20,8 @@ struct SettingsView: View {
     @AppStorage(DrivingBackground.defaultsKey) private var drivingBackground = DrivingBackground.green.rawValue
     @AppStorage("showGPSDetails") private var showGPSDetails = false
     @AppStorage("showHeading") private var showHeading = false
+    @State private var photoSelection: PhotosPickerItem?
+    private let profile = ProfileStore.shared
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @State private var previewSpeaker = SpeechSpeaker()
@@ -28,6 +31,39 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
+                // Fitness Account-style header: your photo, chosen by you.
+                Section {
+                    VStack(spacing: 10) {
+                        ProfileAvatar(size: 84)
+                        PhotosPicker(
+                            profile.image == nil ? "Choose Profile Photo" : "Change Photo",
+                            selection: $photoSelection,
+                            matching: .images
+                        )
+                        .font(.subheadline.weight(.medium))
+                        if profile.image != nil {
+                            Button("Remove Photo", role: .destructive) {
+                                profile.clear()
+                            }
+                            .font(.caption)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 6)
+                    .listRowBackground(Color.clear)
+                } footer: {
+                    Text("Stored on this device only. (Apple doesn't let apps read your Apple ID picture — that one's first-party only.)")
+                }
+                .onChange(of: photoSelection) { _, item in
+                    guard let item else { return }
+                    Task {
+                        if let data = try? await item.loadTransferable(type: Data.self) {
+                            profile.set(imageData: data)
+                        }
+                        photoSelection = nil
+                    }
+                }
+
                 Section {
                     Toggle("Road awareness", isOn: $roadAwarenessEnabled)
                 } footer: {

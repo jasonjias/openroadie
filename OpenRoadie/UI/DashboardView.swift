@@ -37,9 +37,7 @@ struct DashboardView: View {
                 Button {
                     showsSettings = true
                 } label: {
-                    Image(systemName: "person.crop.circle.fill")
-                        .font(.title2)
-                        .foregroundStyle(.secondary)
+                    ProfileAvatar(size: 30)
                 }
                 .frame(maxWidth: .infinity, alignment: .trailing)
             }

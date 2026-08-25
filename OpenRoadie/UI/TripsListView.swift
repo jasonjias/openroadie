@@ -65,8 +65,7 @@ struct TripsListView: View {
                         Button {
                             showsSettings = true
                         } label: {
-                            Image(systemName: "person.crop.circle.fill")
-                                .font(.title3)
+                            ProfileAvatar(size: 26)
                         }
                     }
                 }
