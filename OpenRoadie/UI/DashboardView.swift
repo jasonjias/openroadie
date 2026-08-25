@@ -93,7 +93,8 @@ struct DashboardView: View {
                     limitMph: session.context.road?.speedLimit.map { DriveFormatting.milesPerHour(fromMetersPerSecond: $0) },
                     isDriving: session.isDriving,
                     sceneVehicle: Vehicle.find(sceneVehicle),
-                    roadName: session.context.road?.displayName
+                    roadName: session.context.road?.displayName,
+                    yawProvider: { [weak session] in session?.latestYawRate ?? 0 }
                 )
                 .tag(style.id)
             }

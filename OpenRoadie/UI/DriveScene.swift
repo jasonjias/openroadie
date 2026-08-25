@@ -117,6 +117,9 @@ struct DriveSceneView: View {
     let isDriving: Bool
     let speedMps: Double?
     var vehicle: Vehicle = .classic
+    /// Live yaw rate (rad/s) from the gyroscope — polled per frame for
+    /// turn lean, so it never churns SwiftUI.
+    var yawProvider: (() -> Double)? = nil
 
     /// Bridges live values into the per-frame update closure without
     /// re-subscribing, and retains the scene-update subscription.
@@ -161,6 +164,7 @@ struct DriveSceneView: View {
             }
         } update: { _ in
             coordinator.speedMps = max(0, speedMps ?? 0)
+            coordinator.yawProvider = yawProvider
             if coordinator.vehicle != vehicle {
                 coordinator.vehicle = vehicle
             coordinator.sizeScale = max(1, vehicle.targetLength / 3.4)
@@ -208,6 +212,9 @@ struct DriveSceneView: View {
         var speedMps: Double = 0
         var isDriving = false
         var vehicle: Vehicle = .classic
+        var yawProvider: (() -> Double)?
+        /// Smoothed turn signal driving the car's lean and the road's bend.
+        private var smoothedYaw: Float = 0
         var root: Entity?
         var car: Entity?
         var camera: PerspectiveCamera?
@@ -276,6 +283,10 @@ struct DriveSceneView: View {
             transitionStart = .now
             chaseYaw = 0
             chasePitch = 0
+            // Straighten out: no leftover turn lean in the showroom.
+            smoothedYaw = 0
+            car?.orientation = simd_quatf(angle: .pi, axis: [0, 1, 0])
+            road?.orientation = simd_quatf(angle: 0, axis: [0, 1, 0])
         }
 
         func tick(deltaTime: TimeInterval) {
@@ -324,6 +335,19 @@ struct DriveSceneView: View {
             phase = (phase + Float(speedMps * deltaTime))
                 .truncatingRemainder(dividingBy: DriveSceneView.rainbowPeriod)
             road.position.z = phase
+
+            // Turn lean (#22 v1): the gyroscope's yaw rate banks the car
+            // into real turns and swings the road toward them — the scene
+            // visibly steers with the actual vehicle.
+            let rawYaw = Float(yawProvider?() ?? 0)
+            smoothedYaw += (rawYaw - smoothedYaw) * Float(min(1, deltaTime * 6))
+            if let car {
+                let lean = max(-0.22, min(0.22, -smoothedYaw * 0.5))
+                car.orientation = simd_quatf(angle: .pi, axis: [0, 1, 0])
+                    * simd_quatf(angle: lean, axis: [0, 0, 1])
+            }
+            let bend = max(-0.35, min(0.35, smoothedYaw * 0.8))
+            road.orientation = simd_quatf(angle: bend, axis: [0, 1, 0])
 
             if chaseYaw != 0 || chasePitch != 0 {
                 if Date.now > chaseReturnAt {
