@@ -68,31 +68,12 @@ enum PlaceCategory: String, CaseIterable, Identifiable, Sendable, Codable {
         }
     }
 
-    // MARK: - User-chosen visibility and order (Nearby chips)
+    // MARK: - User-chosen visibility (Nearby chips)
+    // Ordering (built-ins interleaved with custom categories) lives in
+    // `NearbyChip`; both share `orderDefaultsKey`.
 
     static let hiddenDefaultsKey = "hiddenPlaceCategories"
     static let orderDefaultsKey = "placeCategoryOrder"
-
-    /// All categories in the user's chosen order — a Tesla driver puts
-    /// Superchargers first. Categories the stored order doesn't know
-    /// (added in a later release) keep their default position.
-    static var ordered: [PlaceCategory] {
-        guard let stored = UserDefaults.standard.stringArray(forKey: orderDefaultsKey) else {
-            return allCases
-        }
-        let known = stored.compactMap(PlaceCategory.init(rawValue:))
-        return known + allCases.filter { !known.contains($0) }
-    }
-
-    static func setOrder(_ categories: [PlaceCategory]) {
-        UserDefaults.standard.set(categories.map(\.rawValue), forKey: orderDefaultsKey)
-    }
-
-    static var visible: [PlaceCategory] {
-        let hidden = Set(UserDefaults.standard.stringArray(forKey: hiddenDefaultsKey) ?? [])
-        let shown = ordered.filter { !hidden.contains($0.rawValue) }
-        return shown.isEmpty ? ordered : shown
-    }
 
     static func setHidden(_ category: PlaceCategory, _ hidden: Bool) {
         var set = Set(UserDefaults.standard.stringArray(forKey: hiddenDefaultsKey) ?? [])
@@ -167,7 +148,7 @@ final class PlaceService {
     private static let cacheMaxDrift: Double = 500
 
     private let client = OverpassClient()
-    private var cache: [PlaceCategory: CacheEntry] = [:]
+    private var cache: [String: CacheEntry] = [:]
     private var loaded = false
 
     /// How long a cached answer stays fresh. Static infrastructure barely
@@ -180,25 +161,57 @@ final class PlaceService {
     }
 
     func places(near coordinate: Coordinate, category: PlaceCategory, forceRefresh: Bool = false) async throws -> [Place] {
+        try await cached(
+            key: category.rawValue,
+            near: coordinate,
+            timeToLive: Self.timeToLive(for: category),
+            radius: category.searchRadius,
+            forceRefresh: forceRefresh
+        ) {
+            try await self.client.places(near: $0, radius: category.searchRadius, category: category)
+        }
+    }
+
+    /// Brand locations don't move: custom categories cache like infrastructure.
+    func places(near coordinate: Coordinate, custom: CustomCategory, forceRefresh: Bool = false) async throws -> [Place] {
+        try await cached(
+            key: custom.key,
+            near: coordinate,
+            timeToLive: 24 * 3600,
+            radius: custom.searchRadius,
+            forceRefresh: forceRefresh
+        ) {
+            try await self.client.places(near: $0, radius: custom.searchRadius, matching: custom.overpassRegex)
+        }
+    }
+
+    private func cached(
+        key: String,
+        near coordinate: Coordinate,
+        timeToLive: TimeInterval,
+        radius: Double,
+        forceRefresh: Bool,
+        fetch: (Coordinate) async throws -> [Place]
+    ) async throws -> [Place] {
         loadIfNeeded()
 
         if !forceRefresh,
-           let entry = cache[category],
-           Date.now.timeIntervalSince(entry.fetchedAt) < Self.timeToLive(for: category),
+           let entry = cache[key],
+           Date.now.timeIntervalSince(entry.fetchedAt) < timeToLive,
            TripTracker.distance(from: entry.center, to: coordinate) < Self.cacheMaxDrift {
             return entry.places
         }
 
         do {
-            let places = try await client.places(near: coordinate, radius: category.searchRadius, category: category)
-            cache[category] = CacheEntry(center: coordinate, fetchedAt: .now, places: places)
+            let places = try await fetch(coordinate)
+            cache[key] = CacheEntry(center: coordinate, fetchedAt: .now, places: places)
             persist()
             return places
         } catch {
             // The free Overpass servers rate-limit. A stale answer beats an
             // error — serve it as long as the user is still inside its area.
-            if let entry = cache[category],
-               TripTracker.distance(from: entry.center, to: coordinate) < category.searchRadius / 2 {
+            if let entry = cache[key],
+               TripTracker.distance(from: entry.center, to: coordinate) < radius / 2 {
                 return entry.places
             }
             throw error
@@ -218,16 +231,11 @@ final class PlaceService {
         loaded = true
         guard let data = try? Data(contentsOf: Self.cacheURL),
               let decoded = try? JSONDecoder().decode([String: CacheEntry].self, from: data) else { return }
-        for (key, entry) in decoded {
-            if let category = PlaceCategory(rawValue: key) {
-                cache[category] = entry
-            }
-        }
+        cache = decoded
     }
 
     private func persist() {
-        let keyed = Dictionary(uniqueKeysWithValues: cache.map { ($0.key.rawValue, $0.value) })
-        if let data = try? JSONEncoder().encode(keyed) {
+        if let data = try? JSONEncoder().encode(cache) {
             try? data.write(to: Self.cacheURL)
         }
     }

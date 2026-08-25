@@ -6,7 +6,7 @@ import SwiftUI
 struct NearbyView: View {
     let session: DriveSessionManager
 
-    @State private var category: PlaceCategory = .food
+    @State private var chip: NearbyChip = .builtin(.food)
     @State private var results: [(place: Place, distance: Double)] = []
     @State private var origin: Coordinate?
     @State private var isLoading = false
@@ -34,7 +34,7 @@ struct NearbyView: View {
                 if text.isEmpty { searchResults = nil; camera = .automatic }
             }
         }
-        .task(id: category) { await load() }
+        .task(id: chip) { await load() }
         .refreshable { await load(force: true) }
     }
 
@@ -106,7 +106,7 @@ struct NearbyView: View {
                 ForEach(results.prefix(25), id: \.place.id) { result in
                     Marker(
                         result.place.displayName,
-                        systemImage: category.systemImage,
+                        systemImage: chip.systemImage,
                         coordinate: CLLocationCoordinate2D(
                             latitude: result.place.coordinate.latitude,
                             longitude: result.place.coordinate.longitude
@@ -134,18 +134,18 @@ struct NearbyView: View {
     private var categoryPicker: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                ForEach(PlaceCategory.visible) { candidate in
+                ForEach(NearbyChip.visible) { candidate in
                     Button {
-                        category = candidate
+                        chip = candidate
                     } label: {
                         Label(candidate.title, systemImage: candidate.systemImage)
                             .font(.subheadline.weight(.medium))
                             .padding(.horizontal, 12)
                             .padding(.vertical, 7)
                             .background(
-                                Capsule().fill(candidate == category ? AnyShapeStyle(.tint) : AnyShapeStyle(.fill.secondary))
+                                Capsule().fill(candidate == chip ? AnyShapeStyle(.tint) : AnyShapeStyle(.fill.secondary))
                             )
-                            .foregroundStyle(candidate == category ? .white : .primary)
+                            .foregroundStyle(candidate == chip ? .white : .primary)
                     }
                     .buttonStyle(.plain)
                 }
@@ -158,8 +158,10 @@ struct NearbyView: View {
         .frame(height: 52)
         .scrollBounceBehavior(.basedOnSize)
         .onAppear {
-            if PlaceCategory.isHidden(category), let first = PlaceCategory.visible.first {
-                category = first
+            // The selected chip may have been hidden or deleted in Settings.
+            let visible = NearbyChip.visible
+            if !visible.contains(chip), let first = visible.first {
+                chip = first
             }
         }
     }
@@ -216,8 +218,8 @@ struct NearbyView: View {
             Spacer()
             ContentUnavailableView(
                 "Nothing mapped nearby",
-                systemImage: category.systemImage,
-                description: Text("No \(category.title.lowercased()) within ~\(Int((category.searchRadius / 1609.344).rounded())) miles in OpenStreetMap.")
+                systemImage: chip.systemImage,
+                description: Text("No \(chip.title.lowercased()) within ~\(Int((chip.searchRadius / 1609.344).rounded())) miles in OpenStreetMap.")
             )
             Spacer()
         } else {
@@ -226,7 +228,7 @@ struct NearbyView: View {
                     openDirections(name: result.place.displayName, to: result.place.coordinate)
                 } label: {
                     HStack {
-                        Image(systemName: category.systemImage)
+                        Image(systemName: chip.systemImage)
                             .foregroundStyle(.tint)
                             .frame(width: 28)
                         VStack(alignment: .leading, spacing: 2) {
@@ -274,7 +276,12 @@ struct NearbyView: View {
         origin = coordinate
 
         do {
-            let places = try await service.places(near: coordinate, category: category, forceRefresh: force)
+            let places = switch chip {
+            case .builtin(let category):
+                try await service.places(near: coordinate, category: category, forceRefresh: force)
+            case .custom(let custom):
+                try await service.places(near: coordinate, custom: custom, forceRefresh: force)
+            }
             results = PlaceGeometry.sortedByDistance(places, from: coordinate)
             camera = .automatic // re-frame the map around the fresh pins
         } catch {

@@ -24,7 +24,8 @@ struct SettingsView: View {
     @AppStorage(Coach.spokenKey) private var coachingSpoken = false
     @AppStorage(Coach.styleKey) private var coachingStyle = CoachStyle.gentle.rawValue
     @AppStorage(Coach.customTemplateKey) private var coachingTemplate = ""
-    @State private var categoryOrder = PlaceCategory.ordered
+    @State private var chipOrder = NearbyChip.ordered
+    @State private var editingCustom: CustomCategory?
     @State private var photoSelection: PhotosPickerItem?
     private let profile = ProfileStore.shared
     @Environment(\.modelContext) private var modelContext
@@ -151,22 +152,57 @@ struct SettingsView: View {
                 }
 
                 Section {
-                    ForEach(categoryOrder) { category in
-                        Toggle(isOn: Binding(
-                            get: { !PlaceCategory.isHidden(category) },
-                            set: { PlaceCategory.setHidden(category, !$0) }
-                        )) {
-                            Label(category.title, systemImage: category.systemImage)
+                    ForEach(chipOrder) { chip in
+                        switch chip {
+                        case .builtin(let category):
+                            Toggle(isOn: Binding(
+                                get: { !PlaceCategory.isHidden(category) },
+                                set: { PlaceCategory.setHidden(category, !$0) }
+                            )) {
+                                Label(category.title, systemImage: category.systemImage)
+                            }
+                            .deleteDisabled(true)
+                        case .custom(let custom):
+                            Button {
+                                editingCustom = custom
+                            } label: {
+                                HStack {
+                                    Label(custom.title, systemImage: custom.systemImage)
+                                        .foregroundStyle(.primary)
+                                    Spacer()
+                                    Text(custom.terms.joined(separator: ", "))
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(1)
+                                }
+                            }
                         }
                     }
                     .onMove { source, destination in
-                        categoryOrder.move(fromOffsets: source, toOffset: destination)
-                        PlaceCategory.setOrder(categoryOrder)
+                        chipOrder.move(fromOffsets: source, toOffset: destination)
+                        NearbyChip.setOrder(chipOrder)
+                    }
+                    .onDelete { offsets in
+                        for index in offsets {
+                            if case .custom(let custom) = chipOrder[index] {
+                                deleteCustom(custom)
+                            }
+                        }
+                    }
+                    Button {
+                        editingCustom = CustomCategory(title: "", terms: [])
+                    } label: {
+                        Label("Add Category", systemImage: "plus.circle.fill")
                     }
                 } header: {
                     Text("Nearby categories")
                 } footer: {
-                    Text("Choose which categories show in the Nearby tab, and touch and hold to reorder them — drive electric? Put Superchargers first and hide Gas. Anything hidden stays searchable.")
+                    Text("Choose what shows in the Nearby tab, and touch and hold to reorder. Create your own category from names or brands — if Chipotle is a landmark to you, make it one. Tap a custom category to edit it; swipe to delete.")
+                }
+                .sheet(item: $editingCustom) { custom in
+                    CustomCategoryEditor(custom: custom) { saved in
+                        saveCustom(saved)
+                    }
                 }
 
                 Section {
@@ -251,6 +287,24 @@ struct SettingsView: View {
         }
     }
 
+    private func saveCustom(_ custom: CustomCategory) {
+        var all = CustomCategory.load()
+        if let index = all.firstIndex(where: { $0.id == custom.id }) {
+            all[index] = custom
+        } else {
+            all.append(custom)
+        }
+        CustomCategory.save(all)
+        // Re-derive: an edited chip keeps its position, a new one appends.
+        chipOrder = NearbyChip.ordered
+        NearbyChip.setOrder(chipOrder)
+    }
+
+    private func deleteCustom(_ custom: CustomCategory) {
+        CustomCategory.save(CustomCategory.load().filter { $0.id != custom.id })
+        chipOrder = NearbyChip.ordered
+    }
+
     private func exportEvents() {
         exportError = nil
         do {
@@ -266,6 +320,90 @@ struct SettingsView: View {
             exportURL = url
         } catch {
             exportError = "Export failed: \(error.localizedDescription)"
+        }
+    }
+}
+
+/// Create or edit a custom Nearby category: a name, comma-separated search
+/// terms, and an icon.
+struct CustomCategoryEditor: View {
+    @State private var custom: CustomCategory
+    @State private var termsText: String
+    private let onSave: (CustomCategory) -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    init(custom: CustomCategory, onSave: @escaping (CustomCategory) -> Void) {
+        _custom = State(initialValue: custom)
+        _termsText = State(initialValue: custom.terms.joined(separator: ", "))
+        self.onSave = onSave
+    }
+
+    private var parsedTerms: [String] {
+        termsText
+            .split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+    }
+
+    private var canSave: Bool {
+        !custom.title.trimmingCharacters(in: .whitespaces).isEmpty && !parsedTerms.isEmpty
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextField("Name — e.g. Landmarks (real)", text: $custom.title)
+                }
+                Section {
+                    TextField("chipotle, in-n-out, raising canes", text: $termsText, axis: .vertical)
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
+                        .lineLimit(2...4)
+                } header: {
+                    Text("Search terms")
+                } footer: {
+                    Text("Comma-separated names or brands, matched against what's on the map (OpenStreetMap name and brand tags). Partial matches count — \u{201C}chipotle\u{201D} finds \u{201C}Chipotle Mexican Grill\u{201D}.")
+                }
+                Section("Icon") {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 48))], spacing: 8) {
+                        ForEach(CustomCategory.symbolChoices, id: \.self) { symbol in
+                            Button {
+                                custom.systemImage = symbol
+                            } label: {
+                                Image(systemName: symbol)
+                                    .font(.title3)
+                                    .frame(width: 44, height: 44)
+                                    .background(
+                                        Circle().fill(symbol == custom.systemImage
+                                            ? AnyShapeStyle(.tint.opacity(0.2))
+                                            : AnyShapeStyle(.clear))
+                                    )
+                                    .foregroundStyle(symbol == custom.systemImage
+                                        ? AnyShapeStyle(.tint)
+                                        : AnyShapeStyle(.secondary))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+            .navigationTitle("Custom Category")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        custom.terms = parsedTerms
+                        onSave(custom)
+                        dismiss()
+                    }
+                    .disabled(!canSave)
+                }
+            }
         }
     }
 }

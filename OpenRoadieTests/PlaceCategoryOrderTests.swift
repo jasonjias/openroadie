@@ -4,40 +4,88 @@ import Testing
 
 /// Serialized: these tests share UserDefaults state.
 @Suite(.serialized)
-struct PlaceCategoryOrderTests {
-    private func clearOrder() {
+struct NearbyChipOrderTests {
+    private func clearState() {
         UserDefaults.standard.removeObject(forKey: PlaceCategory.orderDefaultsKey)
+        UserDefaults.standard.removeObject(forKey: CustomCategory.defaultsKey)
     }
 
-    @Test func defaultOrderIsDeclarationOrder() {
-        clearOrder()
-        #expect(PlaceCategory.ordered == PlaceCategory.allCases)
+    @Test func defaultOrderIsBuiltinsThenCustoms() {
+        clearState()
+        let chipotle = CustomCategory(title: "Landmarks (real)", terms: ["chipotle"])
+        CustomCategory.save([chipotle])
+        let ordered = NearbyChip.ordered
+        #expect(Array(ordered.prefix(PlaceCategory.allCases.count)) == PlaceCategory.allCases.map { .builtin($0) })
+        #expect(ordered.last == .custom(chipotle))
+        clearState()
     }
 
-    @Test func storedOrderIsRespected() {
-        clearOrder()
-        let custom: [PlaceCategory] = [.supercharger, .food, .coffee, .fuel, .charger, .landmark]
-        PlaceCategory.setOrder(custom)
-        #expect(PlaceCategory.ordered == custom)
-        clearOrder()
+    @Test func storedOrderInterleavesCustomsWithBuiltins() {
+        clearState()
+        let chipotle = CustomCategory(title: "Landmarks (real)", terms: ["chipotle", "in-n-out"])
+        CustomCategory.save([chipotle])
+        let wanted: [NearbyChip] = [.builtin(.supercharger), .custom(chipotle), .builtin(.food)]
+        NearbyChip.setOrder(wanted)
+        let ordered = NearbyChip.ordered
+        #expect(Array(ordered.prefix(3)) == wanted)
+        #expect(Set(ordered.map(\.id)).count == PlaceCategory.allCases.count + 1)
+        clearState()
     }
 
-    @Test func categoriesMissingFromStoredOrderAreAppended() {
-        clearOrder()
-        // Simulates an order saved before a new category existed.
-        UserDefaults.standard.set(["supercharger", "coffee"], forKey: PlaceCategory.orderDefaultsKey)
-        let ordered = PlaceCategory.ordered
-        #expect(ordered.prefix(2) == [.supercharger, .coffee])
-        #expect(Set(ordered) == Set(PlaceCategory.allCases))
-        clearOrder()
+    @Test func deletedCustomDisappearsFromStoredOrder() {
+        clearState()
+        let chipotle = CustomCategory(title: "Chipotle", terms: ["chipotle"])
+        CustomCategory.save([chipotle])
+        NearbyChip.setOrder([.custom(chipotle), .builtin(.food)])
+        CustomCategory.save([]) // deleted
+        #expect(!NearbyChip.ordered.contains { $0.id == chipotle.key })
+        #expect(NearbyChip.ordered.first == .builtin(.food))
+        clearState()
     }
 
-    @Test func unknownRawValuesAreIgnored() {
-        clearOrder()
+    @Test func unknownStoredIDsAreIgnored() {
+        clearState()
         UserDefaults.standard.set(["heliport", "food"], forKey: PlaceCategory.orderDefaultsKey)
-        let ordered = PlaceCategory.ordered
-        #expect(ordered.first == .food)
-        #expect(Set(ordered) == Set(PlaceCategory.allCases))
-        clearOrder()
+        let ordered = NearbyChip.ordered
+        #expect(ordered.first == .builtin(.food))
+        #expect(ordered.count == PlaceCategory.allCases.count)
+        clearState()
+    }
+
+    @Test func hiddenBuiltinsAreInvisibleButCustomsAlwaysShow() {
+        clearState()
+        let chipotle = CustomCategory(title: "Chipotle", terms: ["chipotle"])
+        CustomCategory.save([chipotle])
+        PlaceCategory.setHidden(.fuel, true)
+        let visible = NearbyChip.visible
+        #expect(!visible.contains(.builtin(.fuel)))
+        #expect(visible.contains(.custom(chipotle)))
+        PlaceCategory.setHidden(.fuel, false)
+        clearState()
+    }
+}
+
+struct CustomCategoryTests {
+    @Test func regexJoinsTermsWithPipe() {
+        let custom = CustomCategory(title: "Favorites", terms: ["chipotle", "in-n-out", "raising canes"])
+        #expect(custom.overpassRegex == "chipotle|in-n-out|raising canes")
+    }
+
+    @Test func regexEscapesMetacharacters() {
+        let custom = CustomCategory(title: "Odd", terms: ["In-N-Out (Lathrop)", "a.b*c"])
+        #expect(custom.overpassRegex == #"In-N-Out \(Lathrop\)|a\.b\*c"#)
+    }
+
+    @Test func regexSkipsBlankTerms() {
+        let custom = CustomCategory(title: "Sparse", terms: [" chipotle ", "", "   "])
+        #expect(custom.overpassRegex == "chipotle")
+    }
+
+    @Test func roundTripsThroughDefaults() {
+        UserDefaults.standard.removeObject(forKey: CustomCategory.defaultsKey)
+        let custom = CustomCategory(title: "Chipotle", systemImage: "fork.knife", terms: ["chipotle"])
+        CustomCategory.save([custom])
+        #expect(CustomCategory.load() == [custom])
+        UserDefaults.standard.removeObject(forKey: CustomCategory.defaultsKey)
     }
 }
