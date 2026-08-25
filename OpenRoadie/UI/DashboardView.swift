@@ -29,17 +29,16 @@ struct DashboardView: View {
 
     private var dashboard: some View {
         VStack(spacing: 24) {
-            // The same header grammar as every other tab: large title,
-            // avatar on the right. The brand lives on the app icon.
-            HStack(alignment: .center) {
-                Text("Drive")
-                    .font(.largeTitle.bold())
-                Spacer()
+            // The wordmark, centered — this screen IS the app.
+            ZStack {
+                Text("OpenRoadie")
+                    .font(.system(.title3, design: .rounded).weight(.semibold))
                 Button {
                     showsSettings = true
                 } label: {
                     ProfileAvatar(size: 36)
                 }
+                .frame(maxWidth: .infinity, alignment: .trailing)
             }
             .padding(.top, 4)
 

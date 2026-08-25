@@ -20,6 +20,57 @@ struct TripsListView: View {
 
     var body: some View {
         NavigationStack {
+            VStack(spacing: 0) {
+                // Fitness-style header row: title, calendar, avatar — no
+                // system large-title machinery, no dead space above.
+                HStack(spacing: 16) {
+                    Text(dayTitle)
+                        .font(.largeTitle.bold())
+                        .contentTransition(.opacity)
+                    Spacer()
+                    Button {
+                        showsCalendar = true
+                    } label: {
+                        Image(systemName: "calendar")
+                            .font(.title2)
+                    }
+                    Button {
+                        showsSettings = true
+                    } label: {
+                        ProfileAvatar(size: 34)
+                    }
+                }
+                .padding(.horizontal)
+                .padding(.top, 6)
+
+                tripsList
+            }
+            .toolbar(.hidden, for: .navigationBar)
+            .fullScreenCover(isPresented: $showsCalendar) {
+                MonthCalendarView(selectedDay: $selectedDay, statsFor: stats(on:))
+            }
+            .fullScreenCover(isPresented: $showsSettings) {
+                SettingsView()
+            }
+            .sheet(isPresented: $showsSafetyDetail) {
+                SafetyDetailView(
+                    dayTitle: dayTitle,
+                    stats: stats(on: selectedDay),
+                    dayEvents: events
+                        .filter { calendar.isDate($0.timestamp, inSameDayAs: selectedDay) }
+                        .sorted { $0.timestamp < $1.timestamp },
+                    overallScore: overallScore
+                )
+            }
+            .navigationDestination(for: PersistentIdentifier.self) { id in
+                if let trip = modelContext.model(for: id) as? Trip {
+                    TripDetailView(trip: trip)
+                }
+            }
+        }
+    }
+
+    private var tripsList: some View {
             List {
                 Section {
                     weekStrip
@@ -52,46 +103,7 @@ struct TripsListView: View {
                     }
                 }
             }
-            .navigationTitle(dayTitle)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    HStack(spacing: 14) {
-                        Button {
-                            showsCalendar = true
-                        } label: {
-                            Image(systemName: "calendar")
-                        }
-                        // Fitness-style profile entry: settings live under it.
-                        Button {
-                            showsSettings = true
-                        } label: {
-                            ProfileAvatar(size: 32)
-                        }
-                    }
-                }
-            }
-            .fullScreenCover(isPresented: $showsCalendar) {
-                MonthCalendarView(selectedDay: $selectedDay, statsFor: stats(on:))
-            }
-            .fullScreenCover(isPresented: $showsSettings) {
-                SettingsView()
-            }
-            .sheet(isPresented: $showsSafetyDetail) {
-                SafetyDetailView(
-                    dayTitle: dayTitle,
-                    stats: stats(on: selectedDay),
-                    dayEvents: events
-                        .filter { calendar.isDate($0.timestamp, inSameDayAs: selectedDay) }
-                        .sorted { $0.timestamp < $1.timestamp },
-                    overallScore: overallScore
-                )
-            }
-            .navigationDestination(for: PersistentIdentifier.self) { id in
-                if let trip = modelContext.model(for: id) as? Trip {
-                    TripDetailView(trip: trip)
-                }
-            }
-        }
+            .contentMargins(.top, 6, for: .scrollContent)
     }
 
     // MARK: - Data
