@@ -210,7 +210,7 @@ struct DriveSceneView: View {
             /// of the car so it settles low in frame — the toy-street-map
             /// view. The transition reads as: spin the car to face forward
             /// in place, then set it down on the map.
-            static let driving = Pose(yaw: 0, pitch: 1.222, radius: 8.4, targetY: 0.2, targetZ: -2.2) // ~70°
+            static let driving = Pose(yaw: 0, pitch: 1.047, radius: 8.4, targetY: 0.2, targetZ: -2.2) // ~60°
 
             static func mix(_ a: Pose, _ b: Pose, _ t: Float) -> Pose {
                 Pose(
