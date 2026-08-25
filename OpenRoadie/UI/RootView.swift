@@ -7,6 +7,9 @@ struct RootView: View {
     let wake: WakeWordCoordinator
 
     @AppStorage(WakeWordCoordinator.modeKey) private var heyRoadieMode = WakeWordCoordinator.Mode.off.rawValue
+    @AppStorage(ModelProviderChoice.defaultsKey) private var modelProvider = ModelProviderChoice.apple.rawValue
+    @AppStorage(ModelProviderChoice.customURLKey) private var customModelURL = ""
+    @AppStorage(ModelProviderChoice.customModelKey) private var customModelName = ""
 
     var body: some View {
         TabView {
@@ -26,5 +29,8 @@ struct RootView: View {
         .task { wake.refresh() }
         .onChange(of: session.isDriving) { _, _ in wake.refresh() }
         .onChange(of: heyRoadieMode) { _, _ in wake.refresh() }
+        .onChange(of: modelProvider) { _, _ in agent.reconfigure() }
+        .onChange(of: customModelURL) { _, _ in agent.reconfigure() }
+        .onChange(of: customModelName) { _, _ in agent.reconfigure() }
     }
 }

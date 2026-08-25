@@ -33,14 +33,12 @@ final class RoadieAgent {
     private(set) var messages: [Message] = []
     private(set) var isThinking = false
 
-    private let driveSession: DriveSessionManager
-    private let store: TripStore?
-    private let placeService = PlaceService()
-    private var session: LanguageModelSession?
+    private let toolbox: RoadieToolbox
+    private var provider: (any RoadieModelProvider)?
+    private var providerChoice: ModelProviderChoice = .apple
 
     init(driveSession: DriveSessionManager, store: TripStore?) {
-        self.driveSession = driveSession
-        self.store = store
+        toolbox = RoadieToolbox(drive: driveSession, store: store)
     }
 
     static let instructions = """
@@ -78,58 +76,77 @@ final class RoadieAgent {
     only inform.
     """
 
-    /// Checks on-device model availability and prepares a session. Safe to
-    /// call repeatedly (e.g. re-check after the model finishes downloading).
+    /// Prepares the selected model provider. Safe to call repeatedly (e.g.
+    /// re-check after the on-device model finishes downloading).
     func start() {
-        switch SystemLanguageModel.default.availability {
-        case .available:
-            if session == nil { resetSession() }
-            state = .ready
-        case .unavailable(let reason):
-            state = .unavailable(Self.explanation(for: reason))
+        providerChoice = ModelProviderChoice.current
+        switch providerChoice {
+        case .apple:
+            switch SystemLanguageModel.default.availability {
+            case .available:
+                if provider == nil || !(provider is AppleFoundationProvider) {
+                    provider = AppleFoundationProvider(toolbox: toolbox, instructions: Self.instructions)
+                }
+                state = .ready
+            case .unavailable(let reason):
+                provider = nil
+                state = .unavailable(Self.explanation(for: reason))
+            }
+        case .custom:
+            if let configuration = OpenAICompatibleProvider.Configuration.fromSettings() {
+                if provider == nil || !(provider is OpenAICompatibleProvider) {
+                    provider = OpenAICompatibleProvider(
+                        configuration: configuration,
+                        toolbox: toolbox,
+                        instructions: Self.instructions
+                    )
+                }
+                state = .ready
+            } else {
+                provider = nil
+                state = .unavailable("Set the custom endpoint's URL and model name in Settings first.")
+            }
         }
+    }
+
+    /// The model choice changed in Settings: rebuild from scratch.
+    func reconfigure() {
+        provider = nil
+        state = .checking
+        start()
     }
 
     /// Asks Roadie a question; returns the reply so callers can also speak it.
     @discardableResult
     func ask(_ question: String) async -> String? {
         let trimmed = question.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let session, !trimmed.isEmpty, !isThinking else { return nil }
+        guard let provider, !trimmed.isEmpty, !isThinking else { return nil }
 
         messages.append(Message(role: .user, text: trimmed))
         isThinking = true
         defer { isThinking = false }
 
         do {
-            let response = try await session.respond(to: trimmed)
-            messages.append(Message(role: .roadie, text: response.content))
-            return response.content
+            let response = try await provider.respond(to: trimmed)
+            messages.append(Message(role: .roadie, text: response))
+            return response
         } catch {
             // Most failures are cured by a fresh session; keep the app
             // usable and say honestly what happened.
             Logger(subsystem: "com.openroadie", category: "agent")
                 .error("Roadie respond failed: \(String(describing: error), privacy: .public)")
-            resetSession()
+            self.provider = nil
+            start()
             let explanation = Self.explanation(for: error)
             messages.append(Message(role: .roadie, text: explanation))
             return explanation
         }
     }
 
-    private func resetSession() {
-        var tools: [any Tool] = [
-            CurrentDriveTool(session: driveSession),
-            FindNearbyTool(session: driveSession, places: placeService),
-            RoadLimitTool(session: driveSession),
-            ConfigureAlertsTool(),
-        ]
-        if let store {
-            tools.append(TripHistoryTool(store: store))
-        }
-        session = LanguageModelSession(tools: tools, instructions: Self.instructions)
-    }
-
     private static func explanation(for error: any Error) -> String {
+        if let providerError = error as? OpenAICompatibleProvider.ProviderError {
+            return "The custom model endpoint failed: \(providerError.localizedDescription)"
+        }
         guard let generationError = error as? LanguageModelSession.GenerationError else {
             return "Something went wrong answering that. Try again."
         }

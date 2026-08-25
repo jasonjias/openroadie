@@ -9,6 +9,10 @@ struct SettingsView: View {
     @AppStorage(AlertCenter.marginKey) private var alertMargin = 0.0
     @AppStorage(AlertCenter.maxSpeedKey) private var alertMaxSpeed = 0.0
     @AppStorage(AlertCenter.autoEndKey) private var autoEndDrive = true
+    @AppStorage(ModelProviderChoice.defaultsKey) private var modelProvider = ModelProviderChoice.apple.rawValue
+    @AppStorage(ModelProviderChoice.customURLKey) private var customModelURL = ""
+    @AppStorage(ModelProviderChoice.customModelKey) private var customModelName = ""
+    @State private var customAPIKey = KeychainStore.get(ModelProviderChoice.customAPIKeyKeychainKey) ?? ""
     @Environment(\.dismiss) private var dismiss
     @State private var previewSpeaker = SpeechSpeaker()
 
@@ -72,6 +76,34 @@ struct SettingsView: View {
                     }
                 } footer: {
                     Text("Download more voices in Settings → Accessibility → Spoken Content → Voices — they appear here automatically.")
+                }
+
+                Section {
+                    Picker("Roadie's model", selection: $modelProvider) {
+                        ForEach(ModelProviderChoice.allCases) { choice in
+                            Text(choice.title).tag(choice.rawValue)
+                        }
+                    }
+                    if modelProvider == ModelProviderChoice.custom.rawValue {
+                        TextField("Base URL (…/v1)", text: $customModelURL)
+                            .textContentType(.URL)
+                            .keyboardType(.URL)
+                            .autocorrectionDisabled()
+                            .textInputAutocapitalization(.never)
+                        TextField("Model name", text: $customModelName)
+                            .autocorrectionDisabled()
+                            .textInputAutocapitalization(.never)
+                        SecureField("API key (stored in Keychain)", text: $customAPIKey)
+                            .onChange(of: customAPIKey) { _, key in
+                                KeychainStore.set(key, for: ModelProviderChoice.customAPIKeyKeychainKey)
+                            }
+                    }
+                } header: {
+                    Text("AI model")
+                } footer: {
+                    Text(modelProvider == ModelProviderChoice.custom.rawValue
+                        ? "Works with any OpenAI-compatible endpoint (OpenAI, Anthropic, Gemini, a local Ollama server, …). Your questions and the driving details needed to answer them are sent to that endpoint. The API key is stored in the Keychain."
+                        : "Apple's on-device model: questions and driving data never leave the phone.")
                 }
 
                 Section {

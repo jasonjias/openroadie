@@ -27,16 +27,19 @@ struct ConfigureAlertsTool: Tool {
         var autoEndDriveWhenParked: Bool?
     }
 
+    private let toolbox: RoadieToolbox
+
+    init(toolbox: RoadieToolbox) {
+        self.toolbox = toolbox
+    }
+
     func call(arguments: Arguments) async throws -> String {
-        await MainActor.run {
-            Self.apply(
-                alertOverPostedLimit: arguments.alertOverPostedLimit,
-                extraAlertMphOverLimit: arguments.extraAlertMphOverLimit,
-                maxSpeedMph: arguments.maxSpeedMph,
-                autoEndDriveWhenParked: arguments.autoEndDriveWhenParked,
-                defaults: .standard
-            )
-        }
+        await toolbox.configureAlerts(
+            alertOverPostedLimit: arguments.alertOverPostedLimit,
+            extraAlertMphOverLimit: arguments.extraAlertMphOverLimit,
+            maxSpeedMph: arguments.maxSpeedMph,
+            autoEndDriveWhenParked: arguments.autoEndDriveWhenParked
+        )
     }
 
     /// Applies the requested changes with deterministic clamping and returns
