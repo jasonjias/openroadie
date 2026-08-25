@@ -47,7 +47,9 @@ struct DashboardView: View {
             Spacer()
 
             // Road info rides above the odometer — except on the 3D scene
-            // face, which carries it inside its own overlay.
+            // face, which carries it inside its own overlay. The slot keeps
+            // a FIXED height so the road resolving never shoves the
+            // odometer down and the drive button into the tab bar.
             if selectedFace != OdometerStyle.rainbowRoad.rawValue {
                 roadSection
             }
@@ -134,12 +136,12 @@ struct DashboardView: View {
         .foregroundStyle(.secondary)
     }
 
-    @ViewBuilder
+    /// A fixed-height slot: empty until the road is known (no "looking
+    /// up…" chatter), and appearing content never reflows the layout —
+    /// the odometer and Start Drive button stay exactly where they are.
     private var roadSection: some View {
-        // Nothing until the road is actually known — no "looking up road…"
-        // placeholder chatter.
-        if let road = session.context.road {
-            HStack(spacing: 12) {
+        HStack(spacing: 12) {
+            if let road = session.context.road {
                 Text(road.displayName ?? "Unnamed road")
                     .font(.headline)
                 if let limit = road.speedLimit {
@@ -147,6 +149,7 @@ struct DashboardView: View {
                 }
             }
         }
+        .frame(height: 36)
     }
 
     @AppStorage("showGPSDetails") private var showGPSDetails = false
