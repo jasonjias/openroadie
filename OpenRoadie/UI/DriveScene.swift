@@ -116,7 +116,10 @@ struct DriveSceneView: View {
             coordinator.vehicle = vehicle
 
             let road = Self.makeRoad()
-            road.isEnabled = isDriving || Self.debugRainbowParked
+            // The rainbow reveals itself only once the car has settled into
+            // the driving position — the fade lives in Coordinator.tick.
+            road.isEnabled = Self.debugRainbowParked
+            road.components.set(OpacityComponent(opacity: Self.debugRainbowParked ? 1 : 0))
             root.addChild(road)
             coordinator.road = road
 
@@ -148,7 +151,6 @@ struct DriveSceneView: View {
             }
             if coordinator.isDriving != isDriving {
                 coordinator.isDriving = isDriving
-                coordinator.road?.isEnabled = isDriving || Self.debugRainbowParked
                 coordinator.beginTransition(driving: isDriving)
             }
         }
@@ -208,7 +210,7 @@ struct DriveSceneView: View {
             /// of the car so it settles low in frame — the toy-street-map
             /// view. The transition reads as: spin the car to face forward
             /// in place, then set it down on the map.
-            static let driving = Pose(yaw: 0, pitch: 1.32, radius: 8.4, targetY: 0.2, targetZ: -2.2)
+            static let driving = Pose(yaw: 0, pitch: 1.222, radius: 8.4, targetY: 0.2, targetZ: -2.2) // ~70°
 
             static func mix(_ a: Pose, _ b: Pose, _ t: Float) -> Pose {
                 Pose(
@@ -229,6 +231,8 @@ struct DriveSceneView: View {
 
         /// Ribbon scroll position, meters into the current rainbow cycle.
         private var phase: Float = 0
+        /// Rainbow reveal: 0…1, eased toward its target each frame.
+        private var roadFade: Float = 0
         /// Drive-mode look-around: temporary camera offsets that ease back
         /// to the chase position ~1.3s after the finger lifts.
         private var chaseYaw: Float = 0
@@ -260,6 +264,20 @@ struct DriveSceneView: View {
                 pose = Pose.mix(from, transitionTo, eased)
                 if t >= 1 { transitionFrom = nil }
                 applyCamera()
+            }
+
+            // The rainbow appears gently only AFTER the car settles into
+            // the driving position, and slips away the moment a stop
+            // begins — the kid lifts the car off a bare floor.
+            if let road {
+                let wantRoad = (isDriving && transitionFrom == nil) || DriveSceneView.debugRainbowParked
+                let target: Float = wantRoad ? 1 : 0
+                if roadFade != target {
+                    let rate = Float(deltaTime) / (wantRoad ? 0.8 : 0.35)
+                    roadFade = wantRoad ? min(1, roadFade + rate) : max(0, roadFade - rate)
+                    road.isEnabled = roadFade > 0.001
+                    road.components.set(OpacityComponent(opacity: roadFade))
+                }
             }
 
             guard isDriving, let road else { return }
