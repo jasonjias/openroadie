@@ -18,7 +18,7 @@ struct SettingsView: View {
     @State private var exportURL: URL?
     @State private var exportError: String?
     @AppStorage(DrivingBackground.defaultsKey) private var drivingBackground = DrivingBackground.green.rawValue
-    @AppStorage(Vehicle.defaultsKey) private var sceneVehicle = Vehicle.classic.rawValue
+    @AppStorage(Vehicle.defaultsKey) private var sceneVehicle = Vehicle.classic.id
     @AppStorage("showGPSDetails") private var showGPSDetails = false
     @AppStorage("showHeading") private var showHeading = false
     @AppStorage(AutoDriveMonitor.modeKey) private var autoStartMode = AutoDriveMonitor.Mode.off.rawValue
@@ -207,11 +207,16 @@ struct SettingsView: View {
 
                 Section {
                     Picker("Vehicle", selection: $sceneVehicle) {
-                        ForEach(Vehicle.allCases) { vehicle in
-                            Text(vehicle.isAvailable ? vehicle.title : "\(vehicle.title) — soon")
-                                .tag(vehicle.rawValue)
+                        ForEach(Vehicle.groups, id: \.self) { group in
+                            Section(group) {
+                                ForEach(Vehicle.all.filter { $0.group == group }) { vehicle in
+                                    Text(vehicle.isAvailable ? vehicle.title : "\(vehicle.title) — soon")
+                                        .tag(vehicle.id)
+                                }
+                            }
                         }
                     }
+                    .pickerStyle(.navigationLink)
                     Picker("Background while driving", selection: $drivingBackground) {
                         ForEach(DrivingBackground.allCases) { choice in
                             Text(choice.title).tag(choice.rawValue)

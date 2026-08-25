@@ -2,89 +2,167 @@ import CoreImage
 import RealityKit
 import SwiftUI
 
-/// The vehicle on the drive scene — Kenney's CC0 kits, user's choice.
-/// Each case maps to a .usdc model bundled under Vehicles/; anything not
-/// bundled yet falls back to the built-in primitive car, so the picker
-/// can ship ahead of the assets.
-enum Vehicle: String, CaseIterable, Identifiable {
-    case classic       // the procedural primitive car
-    case sedan
-    case sportsCar
-    case toyRacer
-    case bulldozer
-    case boat
-    case train
-    case skateboard
-    case pirateShip
-    case speeder
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .classic: "Classic (built-in)"
-        case .sedan: "Sedan"
-        case .sportsCar: "Sports Car"
-        case .toyRacer: "Toy Racer"
-        case .bulldozer: "Bulldozer"
-        case .boat: "Speedboat"
-        case .train: "Bullet Train"
-        case .skateboard: "Skateboard"
-        case .pirateShip: "Pirate Ship"
-        case .speeder: "Hover Speeder"
-        }
-    }
-
-    /// Bundled model resource name (Vehicles/<name>.usda), nil for classic.
-    var modelName: String? {
-        switch self {
-        case .classic: nil
-        case .sedan: "vehicle-sedan"
-        case .sportsCar: "vehicle-sports"
-        case .toyRacer: "vehicle-toy-racer"
-        case .bulldozer: "vehicle-bulldozer"
-        case .boat: "vehicle-boat"
-        case .train: "vehicle-train"
-        case .skateboard: "vehicle-skateboard"
-        case .pirateShip: "vehicle-pirate"
-        case .speeder: "vehicle-speeder"
-        }
-    }
+/// A vehicle for the drive scene — Kenney's CC0 kits (kenney.nl), the
+/// user's choice from a grouped catalog. `chain` links several copies
+/// nose-to-tail (the 3-car light rail); models are normalized to
+/// `targetLength` meters.
+struct Vehicle: Identifiable, Equatable, Hashable {
+    let id: String
+    let title: String
+    let group: String
+    var modelName: String?
+    var chain: Int = 1
+    var targetLength: Float = 3.4
 
     static let defaultsKey = "driveSceneVehicle"
 
-    static var current: Vehicle {
-        Vehicle(rawValue: UserDefaults.standard.string(forKey: defaultsKey) ?? "") ?? .classic
+    /// The built-in primitive car — also the fallback for anything missing.
+    static var classic: Vehicle { all[0] }
+
+    static let all: [Vehicle] = [
+        Vehicle(id: "classic", title: "Classic (built-in)", group: "Cars", modelName: nil),
+        Vehicle(id: "sedan", title: "Sedan", group: "Cars", modelName: "vehicle-sedan"),
+        Vehicle(id: "sportsCar", title: "Sports Car", group: "Cars", modelName: "vehicle-sports"),
+        Vehicle(id: "toyRacer", title: "Toy Racer", group: "Cars", modelName: "vehicle-toy-racer"),
+        Vehicle(id: "bulldozer", title: "Bulldozer", group: "Cars", modelName: "vehicle-bulldozer"),
+        Vehicle(id: "skateboard", title: "Skateboard", group: "Cars", modelName: "vehicle-skateboard"),
+        Vehicle(id: "train", title: "Bullet Train", group: "Trains", modelName: "vehicle-train", targetLength: 4.6),
+        Vehicle(id: "lightRail", title: "Light Rail (3-car)", group: "Trains", modelName: "vehicle-train-tram-modern", chain: 3, targetLength: 6.5),
+        Vehicle(id: "boat", title: "Speedboat A", group: "Watercraft", modelName: "vehicle-boat"),
+        Vehicle(id: "pirateShip", title: "Pirate Ship (Medium)", group: "Pirate Ships", modelName: "vehicle-pirate"),
+        Vehicle(id: "speeder", title: "Speeder A", group: "Spacecraft", modelName: "vehicle-speeder"),
+        Vehicle(id: "carAmbulance", title: "Ambulance", group: "Cars", modelName: "vehicle-car-ambulance"),
+        Vehicle(id: "carDelivery", title: "Delivery", group: "Cars", modelName: "vehicle-car-delivery"),
+        Vehicle(id: "carDeliveryFlat", title: "Delivery Flat", group: "Cars", modelName: "vehicle-car-delivery-flat"),
+        Vehicle(id: "carFiretruck", title: "Firetruck", group: "Cars", modelName: "vehicle-car-firetruck"),
+        Vehicle(id: "carGarbageTruck", title: "Garbage Truck", group: "Cars", modelName: "vehicle-car-garbage-truck"),
+        Vehicle(id: "carHatchbackSports", title: "Hatchback Sports", group: "Cars", modelName: "vehicle-car-hatchback-sports"),
+        Vehicle(id: "carPolice", title: "Police", group: "Cars", modelName: "vehicle-car-police"),
+        Vehicle(id: "carRace", title: "Race", group: "Cars", modelName: "vehicle-car-race"),
+        Vehicle(id: "carRaceFuture", title: "Race Future", group: "Cars", modelName: "vehicle-car-race-future"),
+        Vehicle(id: "carSuv", title: "Suv", group: "Cars", modelName: "vehicle-car-suv"),
+        Vehicle(id: "carSuvLuxury", title: "Suv Luxury", group: "Cars", modelName: "vehicle-car-suv-luxury"),
+        Vehicle(id: "carTaxi", title: "Taxi", group: "Cars", modelName: "vehicle-car-taxi"),
+        Vehicle(id: "carTractor", title: "Tractor", group: "Cars", modelName: "vehicle-car-tractor"),
+        Vehicle(id: "carTractorPolice", title: "Tractor Police", group: "Cars", modelName: "vehicle-car-tractor-police"),
+        Vehicle(id: "carTruck", title: "Truck", group: "Cars", modelName: "vehicle-car-truck"),
+        Vehicle(id: "carTruckFlat", title: "Truck Flat", group: "Cars", modelName: "vehicle-car-truck-flat"),
+        Vehicle(id: "carVan", title: "Van", group: "Cars", modelName: "vehicle-car-van"),
+        Vehicle(id: "carKartOobi", title: "Kart Oobi", group: "Cars", modelName: "vehicle-car-kart-oobi"),
+        Vehicle(id: "carKartOodi", title: "Kart Oodi", group: "Cars", modelName: "vehicle-car-kart-oodi"),
+        Vehicle(id: "carKartOoli", title: "Kart Ooli", group: "Cars", modelName: "vehicle-car-kart-ooli"),
+        Vehicle(id: "carKartOopi", title: "Kart Oopi", group: "Cars", modelName: "vehicle-car-kart-oopi"),
+        Vehicle(id: "carKartOozi", title: "Kart Oozi", group: "Cars", modelName: "vehicle-car-kart-oozi"),
+        Vehicle(id: "trainLocomotiveA", title: "Classic Train A", group: "Trains", modelName: "vehicle-train-locomotive-a"),
+        Vehicle(id: "trainLocomotiveB", title: "Classic Train B", group: "Trains", modelName: "vehicle-train-locomotive-b"),
+        Vehicle(id: "trainLocomotiveC", title: "Classic Train C", group: "Trains", modelName: "vehicle-train-locomotive-c"),
+        Vehicle(id: "spaceCargoa", title: "Cargo Craft A", group: "Spacecraft", modelName: "vehicle-space-cargoa"),
+        Vehicle(id: "spaceCargob", title: "Cargo Craft B", group: "Spacecraft", modelName: "vehicle-space-cargob"),
+        Vehicle(id: "spaceMiner", title: "Miner Craft", group: "Spacecraft", modelName: "vehicle-space-miner"),
+        Vehicle(id: "spaceRacer", title: "Racer Craft", group: "Spacecraft", modelName: "vehicle-space-racer"),
+        Vehicle(id: "spaceSpeederb", title: "Speeder B", group: "Spacecraft", modelName: "vehicle-space-speederb"),
+        Vehicle(id: "spaceSpeederc", title: "Speeder C", group: "Spacecraft", modelName: "vehicle-space-speederc"),
+        Vehicle(id: "spaceSpeederd", title: "Speeder D", group: "Spacecraft", modelName: "vehicle-space-speederd"),
+        Vehicle(id: "pirateSmall", title: "Pirate Ship (Small)", group: "Pirate Ships", modelName: "vehicle-pirate-small"),
+        Vehicle(id: "pirateLarge", title: "Pirate Ship (Large)", group: "Pirate Ships", modelName: "vehicle-pirate-large"),
+        Vehicle(id: "waterBoatFan", title: "Boat Fan", group: "Watercraft", modelName: "vehicle-water-boat-fan"),
+        Vehicle(id: "waterBoatFishingSmall", title: "Boat Fishing Small", group: "Watercraft", modelName: "vehicle-water-boat-fishing-small"),
+        Vehicle(id: "waterBoatHouseA", title: "Boat House A", group: "Watercraft", modelName: "vehicle-water-boat-house-a"),
+        Vehicle(id: "waterBoatHouseB", title: "Boat House B", group: "Watercraft", modelName: "vehicle-water-boat-house-b"),
+        Vehicle(id: "waterBoatHouseC", title: "Boat House C", group: "Watercraft", modelName: "vehicle-water-boat-house-c"),
+        Vehicle(id: "waterBoatHouseD", title: "Boat House D", group: "Watercraft", modelName: "vehicle-water-boat-house-d"),
+        Vehicle(id: "waterBoatRowLarge", title: "Boat Row Large", group: "Watercraft", modelName: "vehicle-water-boat-row-large"),
+        Vehicle(id: "waterBoatRowSmall", title: "Boat Row Small", group: "Watercraft", modelName: "vehicle-water-boat-row-small"),
+        Vehicle(id: "waterBoatSailA", title: "Boat Sail A", group: "Watercraft", modelName: "vehicle-water-boat-sail-a"),
+        Vehicle(id: "waterBoatSailB", title: "Boat Sail B", group: "Watercraft", modelName: "vehicle-water-boat-sail-b"),
+        Vehicle(id: "waterBoatSpeedB", title: "Boat Speed B", group: "Watercraft", modelName: "vehicle-water-boat-speed-b"),
+        Vehicle(id: "waterBoatSpeedC", title: "Boat Speed C", group: "Watercraft", modelName: "vehicle-water-boat-speed-c"),
+        Vehicle(id: "waterBoatSpeedD", title: "Boat Speed D", group: "Watercraft", modelName: "vehicle-water-boat-speed-d"),
+        Vehicle(id: "waterBoatSpeedE", title: "Boat Speed E", group: "Watercraft", modelName: "vehicle-water-boat-speed-e"),
+        Vehicle(id: "waterBoatSpeedF", title: "Boat Speed F", group: "Watercraft", modelName: "vehicle-water-boat-speed-f"),
+        Vehicle(id: "waterBoatSpeedG", title: "Boat Speed G", group: "Watercraft", modelName: "vehicle-water-boat-speed-g"),
+        Vehicle(id: "waterBoatSpeedH", title: "Boat Speed H", group: "Watercraft", modelName: "vehicle-water-boat-speed-h"),
+        Vehicle(id: "waterBoatSpeedI", title: "Boat Speed I", group: "Watercraft", modelName: "vehicle-water-boat-speed-i"),
+        Vehicle(id: "waterBoatSpeedJ", title: "Boat Speed J", group: "Watercraft", modelName: "vehicle-water-boat-speed-j"),
+        Vehicle(id: "waterBoatTowA", title: "Boat Tow A", group: "Watercraft", modelName: "vehicle-water-boat-tow-a"),
+        Vehicle(id: "waterBoatTowB", title: "Boat Tow B", group: "Watercraft", modelName: "vehicle-water-boat-tow-b"),
+        Vehicle(id: "waterBoatTugA", title: "Boat Tug A", group: "Watercraft", modelName: "vehicle-water-boat-tug-a"),
+        Vehicle(id: "waterBoatTugB", title: "Boat Tug B", group: "Watercraft", modelName: "vehicle-water-boat-tug-b"),
+        Vehicle(id: "waterBoatTugC", title: "Boat Tug C", group: "Watercraft", modelName: "vehicle-water-boat-tug-c"),
+        Vehicle(id: "waterShipCargoA", title: "Ship Cargo A", group: "Watercraft", modelName: "vehicle-water-ship-cargo-a"),
+        Vehicle(id: "waterShipCargoB", title: "Ship Cargo B", group: "Watercraft", modelName: "vehicle-water-ship-cargo-b"),
+        Vehicle(id: "waterShipCargoC", title: "Ship Cargo C", group: "Watercraft", modelName: "vehicle-water-ship-cargo-c"),
+        Vehicle(id: "waterShipLarge", title: "Ship Large", group: "Watercraft", modelName: "vehicle-water-ship-large"),
+        Vehicle(id: "waterShipOceanLinerSmall", title: "Ship Ocean Liner Small", group: "Watercraft", modelName: "vehicle-water-ship-ocean-liner-small"),
+        Vehicle(id: "waterShipOceanLiner", title: "Ship Ocean Liner", group: "Watercraft", modelName: "vehicle-water-ship-ocean-liner"),
+        Vehicle(id: "waterShipSmallGhost", title: "Ship Small Ghost", group: "Watercraft", modelName: "vehicle-water-ship-small-ghost"),
+        Vehicle(id: "waterShipSmall", title: "Ship Small", group: "Watercraft", modelName: "vehicle-water-ship-small"),
+    ]
+
+    /// Groups in display order, derived from the catalog.
+    static let groups: [String] = {
+        var seen: [String] = []
+        for vehicle in all where !seen.contains(vehicle.group) {
+            seen.append(vehicle.group)
+        }
+        return seen
+    }()
+
+    static func find(_ id: String) -> Vehicle {
+        all.first { $0.id == id } ?? classic
     }
 
-    /// The model is bundled and loadable — otherwise the picker row shows
-    /// it as coming soon and the scene falls back to classic.
+    static var current: Vehicle {
+        find(UserDefaults.standard.string(forKey: defaultsKey) ?? "")
+    }
+
     var isAvailable: Bool {
         guard let modelName else { return true }
         return Bundle.main.url(forResource: modelName, withExtension: "usda") != nil
     }
 
-    /// Loads the chosen vehicle, scaled and grounded; primitive car when
-    /// no model is bundled.
+    /// Loads the chosen vehicle, chained if asked, scaled and grounded;
+    /// primitive car when no model is bundled.
     @MainActor
     func makeEntity() -> Entity {
-        if let modelName,
-           let url = Bundle.main.url(forResource: modelName, withExtension: "usda"),
-           let model = try? Entity.load(contentsOf: url) {
-            // Normalize: Kenney models vary in native size; scale so the
-            // longest side is ~3.4m (our chase camera's frame of reference).
-            let bounds = model.visualBounds(relativeTo: nil)
-            let longest = max(bounds.extents.x, max(bounds.extents.y, bounds.extents.z))
-            if longest > 0 {
-                model.scale *= SIMD3<Float>(repeating: 3.4 / longest)
-            }
-            let grounded = model.visualBounds(relativeTo: nil)
-            model.position.y -= grounded.min.y
-            // Kenney models face +z; our scene drives toward -z.
-            model.orientation = simd_quatf(angle: .pi, axis: [0, 1, 0])
-            return model
+        guard let modelName,
+              let url = Bundle.main.url(forResource: modelName, withExtension: "usda"),
+              let single = try? Entity.load(contentsOf: url) else {
+            return DriveSceneView.makeCar()
         }
-        return DriveSceneView.makeCar()
+        let model = Entity()
+        if chain > 1 {
+            // Nose-to-tail copies with a whisker of coupling gap.
+            let unitDepth = single.visualBounds(relativeTo: nil).extents.z
+            for index in 0..<chain {
+                let unit = single.clone(recursive: true)
+                unit.position.z = Float(index) * unitDepth * 1.04
+                model.addChild(unit)
+            }
+        } else {
+            model.addChild(single)
+        }
+        // Center the CHILDREN on the entity origin, so the face-down-road
+        // rotation below pivots the middle of the train, not its nose.
+        let localBounds = model.visualBounds(relativeTo: nil)
+        let centerX = (localBounds.min.x + localBounds.max.x) / 2
+        let centerZ = (localBounds.min.z + localBounds.max.z) / 2
+        for child in model.children {
+            child.position.x -= centerX
+            child.position.z -= centerZ
+        }
+        // Normalize: Kenney models vary in native size; scale so the
+        // longest side matches the catalog's target length.
+        let bounds = model.visualBounds(relativeTo: nil)
+        let longest = max(bounds.extents.x, max(bounds.extents.y, bounds.extents.z))
+        if longest > 0 {
+            model.scale *= SIMD3<Float>(repeating: targetLength / longest)
+        }
+        let grounded = model.visualBounds(relativeTo: nil)
+        model.position.y -= grounded.min.y
+        // Face down-road (-z).
+        model.orientation = simd_quatf(angle: .pi, axis: [0, 1, 0])
+        return model
     }
 }
 
@@ -114,6 +192,7 @@ struct DriveSceneView: View {
             root.addChild(car)
             coordinator.car = car
             coordinator.vehicle = vehicle
+            coordinator.sizeScale = max(1, vehicle.targetLength / 3.4)
 
             let road = Self.makeRoad()
             // The rainbow reveals itself only once the car has settled into
@@ -144,6 +223,7 @@ struct DriveSceneView: View {
             coordinator.speedMps = max(0, speedMps ?? 0)
             if coordinator.vehicle != vehicle {
                 coordinator.vehicle = vehicle
+            coordinator.sizeScale = max(1, vehicle.targetLength / 3.4)
                 coordinator.car?.removeFromParent()
                 let fresh = vehicle.makeEntity()
                 coordinator.root?.addChild(fresh)
@@ -222,6 +302,9 @@ struct DriveSceneView: View {
                 )
             }
         }
+        /// Long vehicles (the 3-car light rail) push the camera back
+        /// proportionally so they stay framed.
+        var sizeScale: Float = 1
         private var pose = Pose.parked
         private var transitionFrom: Pose?
         private var transitionTo = Pose.parked
@@ -348,7 +431,7 @@ struct DriveSceneView: View {
             guard let camera else { return }
             let yaw = pose.yaw + chaseYaw
             let pitch = min(1.45, max(0.05, pose.pitch + chasePitch))
-            let radius = pose.radius
+            let radius = pose.radius * sizeScale
             let from: SIMD3<Float> = [
                 sin(yaw) * radius * cos(pitch),
                 sin(pitch) * radius + 0.35,

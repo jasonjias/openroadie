@@ -9,7 +9,7 @@ struct DashboardView: View {
     @Environment(\.openURL) private var openURL
     @State private var showsSettings = false
     @AppStorage(DrivingBackground.defaultsKey) private var drivingBackground = DrivingBackground.green.rawValue
-    @AppStorage(Vehicle.defaultsKey) private var sceneVehicle = Vehicle.classic.rawValue
+    @AppStorage(Vehicle.defaultsKey) private var sceneVehicle = Vehicle.classic.id
     @State private var selectedFace = ""
 
     var body: some View {
@@ -92,7 +92,7 @@ struct DashboardView: View {
                     speedMps: session.context.speed,
                     limitMph: session.context.road?.speedLimit.map { DriveFormatting.milesPerHour(fromMetersPerSecond: $0) },
                     isDriving: session.isDriving,
-                    sceneVehicle: Vehicle(rawValue: sceneVehicle) ?? .classic,
+                    sceneVehicle: Vehicle.find(sceneVehicle),
                     roadName: session.context.road?.displayName
                 )
                 .tag(style.id)
