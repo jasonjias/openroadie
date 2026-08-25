@@ -75,12 +75,12 @@ final class TripStore {
     }
 
     static func persistent() throws -> TripStore {
-        TripStore(container: try ModelContainer(for: Trip.self, TripPoint.self, DriveNote.self))
+        TripStore(container: try ModelContainer(for: Trip.self, TripPoint.self, DriveNote.self, DriveEvent.self))
     }
 
     static func inMemory() throws -> TripStore {
         let config = ModelConfiguration(isStoredInMemoryOnly: true)
-        return TripStore(container: try ModelContainer(for: Trip.self, TripPoint.self, DriveNote.self, configurations: config))
+        return TripStore(container: try ModelContainer(for: Trip.self, TripPoint.self, DriveNote.self, DriveEvent.self, configurations: config))
     }
 
     func beginTrip(at date: Date = .now) -> Trip {
@@ -127,6 +127,19 @@ final class TripStore {
         )
         descriptor.fetchLimit = limit
         return (try? context.fetch(descriptor)) ?? []
+    }
+
+    // MARK: - Driving events
+
+    func saveEvent(kind: String, peakG: Double, coordinate: Coordinate?, speedMph: Double?) {
+        context.insert(DriveEvent(kind: kind, peakG: peakG, coordinate: coordinate, speedMph: speedMph))
+        try? context.save()
+    }
+
+    func allEvents() -> [DriveEvent] {
+        (try? context.fetch(FetchDescriptor<DriveEvent>(
+            sortBy: [SortDescriptor(\.timestamp, order: .reverse)]
+        ))) ?? []
     }
 
     // MARK: - Driving memory

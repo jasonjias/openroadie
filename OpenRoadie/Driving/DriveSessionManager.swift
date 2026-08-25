@@ -27,6 +27,7 @@ final class DriveSessionManager {
 
     private let locationService = LocationService()
     private let roadService = RoadService()
+    private let motionService = MotionService()
     private let alerts = AlertCenter()
     private let store: TripStore?
     private var tracker = TripTracker()
@@ -34,6 +35,8 @@ final class DriveSessionManager {
     private var updatesTask: Task<Void, Never>?
     private var currentTrip: Trip?
     private var stationarySince: Date?
+    /// Recent (timestamp, mph) samples for classifying hard maneuvers.
+    private var recentSpeeds: [(Date, Double)] = []
 
     /// Parked this long → the drive ends and saves itself.
     private static let autoEndAfter: TimeInterval = 600
@@ -72,6 +75,11 @@ final class DriveSessionManager {
         isDriving = true
         currentTrip = store?.beginTrip(at: tracker.context.tripStart ?? .now)
         locationService.begin()
+        recentSpeeds = []
+        motionService.onHardManeuver = { [weak self] peakG in
+            self?.recordHardManeuver(peakG: peakG)
+        }
+        motionService.start()
 
         updatesTask = Task { [weak self] in
             guard let service = self?.locationService else { return }
@@ -95,6 +103,7 @@ final class DriveSessionManager {
         updatesTask = nil
         locationService.end()
         roadService.cancel()
+        motionService.stop()
         tracker.stop()
         context = tracker.context
         if let trip = currentTrip {
@@ -133,9 +142,31 @@ final class DriveSessionManager {
         autoEndIfParked()
     }
 
+    /// Classifies a g-force burst as braking or acceleration using the GPS
+    /// speed trend around it, and records it for the trip map / safety score.
+    private func recordHardManeuver(peakG: Double) {
+        guard isDriving else { return }
+        let nowMph = context.speed.map { $0 * 2.236936 }
+        if let mph = nowMph {
+            recentSpeeds.append((.now, mph))
+        }
+        let earlier = recentSpeeds.last { Date.now.timeIntervalSince($0.0) >= 1.5 }?.1
+        let kind: String
+        if let nowMph, let earlier {
+            kind = nowMph < earlier ? "hardBraking" : "hardAcceleration"
+        } else {
+            kind = "hardBraking" // the conservative guess when GPS can't say
+        }
+        store?.saveEvent(kind: kind, peakG: peakG, coordinate: context.coordinate, speedMph: nowMph)
+    }
+
     /// Deterministic speed alerts, mirrored to a paired Apple Watch by iOS.
     private func evaluateSpeedRules() {
         let mph = { (metersPerSecond: Double) in metersPerSecond * 2.236936 }
+        if let speed = context.speed.map(mph) {
+            recentSpeeds.append((.now, speed))
+            recentSpeeds.removeAll { Date.now.timeIntervalSince($0.0) > 6 }
+        }
         let events = alertEngine.process(
             speedMph: context.speed.map(mph),
             postedLimitMph: context.road?.speedLimit.map(mph) ?? nil

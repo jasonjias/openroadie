@@ -9,12 +9,16 @@ struct TripDetailView: View {
     let trip: Trip
 
     @Query private var tripNotes: [DriveNote]
+    @Query private var tripEvents: [DriveEvent]
 
     init(trip: Trip) {
         self.trip = trip
         let start = trip.startDate
         let end = trip.endDate ?? .distantFuture
         _tripNotes = Query(filter: #Predicate<DriveNote> {
+            $0.timestamp >= start && $0.timestamp <= end
+        })
+        _tripEvents = Query(filter: #Predicate<DriveEvent> {
             $0.timestamp >= start && $0.timestamp <= end
         })
     }
@@ -43,6 +47,17 @@ struct TripDetailView: View {
                 if let end = coordinates.last, coordinates.count >= 2 {
                     Marker("End", systemImage: "flag.checkered", coordinate: end)
                         .tint(.red)
+                }
+                // Hard braking / acceleration moments along the route.
+                ForEach(tripEvents) { event in
+                    if let anchor = event.coordinate {
+                        Marker(
+                            event.kind == "hardBraking" ? "Hard brake" : "Hard accel",
+                            systemImage: "exclamationmark.triangle.fill",
+                            coordinate: CLLocationCoordinate2D(latitude: anchor.latitude, longitude: anchor.longitude)
+                        )
+                        .tint(event.kind == "hardBraking" ? .red : .orange)
+                    }
                 }
                 // Notes spoken during this drive, as speech bubbles.
                 ForEach(tripNotes) { note in

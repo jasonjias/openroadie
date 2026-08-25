@@ -1,4 +1,5 @@
 import AVFoundation
+import SwiftData
 import SwiftUI
 
 struct SettingsView: View {
@@ -13,6 +14,9 @@ struct SettingsView: View {
     @AppStorage(ModelProviderChoice.customURLKey) private var customModelURL = ""
     @AppStorage(ModelProviderChoice.customModelKey) private var customModelName = ""
     @State private var customAPIKey = KeychainStore.get(ModelProviderChoice.customAPIKeyKeychainKey) ?? ""
+    @State private var exportURL: URL?
+    @State private var exportError: String?
+    @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @State private var previewSpeaker = SpeechSpeaker()
 
@@ -108,11 +112,26 @@ struct SettingsView: View {
 
                 Section {
                     LabeledContent("Driving data", value: "On this device only")
+                    if let exportURL {
+                        ShareLink("Share anonymized events", item: exportURL)
+                    } else {
+                        Button("Export anonymized driving events") {
+                            exportEvents()
+                        }
+                    }
+                    if let exportError {
+                        Text(exportError)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                } header: {
+                    Text("Your data")
                 } footer: {
-                    Text("Trips, routes, and speeds are stored locally and never uploaded.")
+                    Text("Trips, routes, and speeds are stored locally and never uploaded. OpenRoadie has no server: community contribution today means exporting a file you choose to share — hard-braking and acceleration events only, locations coarsened to ~110 m, times reduced to the hour, no identity and no routes.")
                 }
             }
             .navigationTitle("Settings")
+            .onDisappear { exportURL = nil }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
@@ -121,6 +140,24 @@ struct SettingsView: View {
             }
         }
         .presentationDetents([.medium])
+    }
+
+    private func exportEvents() {
+        exportError = nil
+        do {
+            let events = try modelContext.fetch(FetchDescriptor<DriveEvent>())
+            guard !events.isEmpty else {
+                exportError = "No hard-braking or acceleration events recorded yet."
+                return
+            }
+            let data = try CommunityExport.json(events)
+            let url = FileManager.default.temporaryDirectory
+                .appendingPathComponent("openroadie-events.json")
+            try data.write(to: url)
+            exportURL = url
+        } catch {
+            exportError = "Export failed: \(error.localizedDescription)"
+        }
     }
 }
 
