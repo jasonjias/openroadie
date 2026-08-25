@@ -201,16 +201,16 @@ struct DriveSceneView: View {
         private var pitch: Float = 0.28
         private var lastDrag: CGSize?
 
+        /// Ribbon scroll position, meters into the current rainbow cycle.
+        private var phase: Float = 0
+
         func tick(deltaTime: TimeInterval) {
             guard isDriving, let road else { return }
-            // Move stripes toward the camera at true speed; recycle.
-            let dz = Float(speedMps * deltaTime)
-            for stripe in road.children {
-                stripe.position.z += dz
-                if stripe.position.z > DriveSceneView.stripeRecycleZ {
-                    stripe.position.z -= DriveSceneView.roadLength
-                }
-            }
+            // Slide the textured ribbon toward the camera at true speed;
+            // wrapping by one texture period is invisible.
+            phase = (phase + Float(speedMps * deltaTime))
+                .truncatingRemainder(dividingBy: DriveSceneView.rainbowPeriod)
+            road.position.z = phase
         }
 
         func applyManualOrbit(drag: CGSize) {
@@ -321,24 +321,77 @@ struct DriveSceneView: View {
     static let roadLength: Float = 60
     static let stripeRecycleZ: Float = 8
 
-    /// The rainbow as a soft glowing gradient, not hard tiles: each slab's
-    /// hue steps a little further around the wheel, so adjacent slabs blend
-    /// into a Mario-Kart-style sweep. Exactly one full rainbow per road
-    /// length, so a recycled slab rejoins the gradient seamlessly. Unlit
-    /// material = it glows instead of catching shadows.
+    /// One rainbow cycle along the road, meters. Tesla-ish pacing.
+    static let rainbowPeriod: Float = 6
+
+    /// The rainbow the way Tesla actually does it: not stacked geometry but
+    /// a single flat ribbon with a scrolling texture. The texture holds
+    /// discrete rectangular bands — red stays red, blue stays blue — with
+    /// soft blurred edges baked in, tiled down the ribbon and slid along by
+    /// real speed. Unlit, so it glows.
     static func makeRoad() -> Entity {
         let road = Entity()
-        let stripeDepth: Float = 1.2
-        let count = Int(roadLength / stripeDepth)
-        for i in 0..<count {
-            let hue = CGFloat(i) / CGFloat(count) // one cycle per roadLength
-            let color = UIColor(hue: hue, saturation: 0.65, brightness: 1.0, alpha: 1)
-            let material = UnlitMaterial(color: color)
-            let stripe = ModelEntity(mesh: .generateBox(size: [3.4, 0.04, stripeDepth]), materials: [material])
-            stripe.position = [0, 0.02, stripeRecycleZ - Float(i) * stripeDepth]
-            road.addChild(stripe)
+        let depth = roadLength + rainbowPeriod // slack so the wrap never shows
+        var material = UnlitMaterial()
+        if let cgImage = rainbowBandImage(),
+           let texture = try? TextureResource(image: cgImage, options: .init(semantic: .color)) {
+            material.color = .init(texture: .init(texture))
+            // Tile the one-cycle texture down the ribbon's length.
+            material.textureCoordinateTransform.scale = SIMD2(1, depth / rainbowPeriod)
+        } else {
+            material.color = .init(tint: UIColor(hue: 0.75, saturation: 0.6, brightness: 1, alpha: 1))
         }
+        let ribbon = ModelEntity(
+            mesh: .generatePlane(width: 3.4, depth: depth),
+            materials: [material]
+        )
+        ribbon.position = [0, 0.02, stripeRecycleZ - depth / 2]
+        road.addChild(ribbon)
         return road
+    }
+
+    /// The band texture, generated in code: six vivid rectangles with a
+    /// soft transition at each seam — blurred edges, not blended hues.
+    static func rainbowBandImage(size: Int = 512) -> CGImage? {
+        let bands: [UIColor] = [
+            UIColor(red: 0.96, green: 0.22, blue: 0.21, alpha: 1),
+            UIColor(red: 1.00, green: 0.58, blue: 0.10, alpha: 1),
+            UIColor(red: 1.00, green: 0.90, blue: 0.16, alpha: 1),
+            UIColor(red: 0.28, green: 0.83, blue: 0.35, alpha: 1),
+            UIColor(red: 0.20, green: 0.55, blue: 0.97, alpha: 1),
+            UIColor(red: 0.63, green: 0.32, blue: 0.90, alpha: 1),
+        ]
+        // Each band holds solid through its middle, then eases into the
+        // next over ~35% of its span (the "blur"). The last wraps to the
+        // first so tiling is seamless.
+        var colors: [CGColor] = []
+        var locations: [CGFloat] = []
+        let n = CGFloat(bands.count)
+        for (i, band) in bands.enumerated() {
+            let start = CGFloat(i) / n
+            colors.append(band.cgColor)
+            locations.append(start + 0.175 / n)
+            colors.append(band.cgColor)
+            locations.append(start + 0.825 / n)
+        }
+        colors.append(bands[0].cgColor)
+        locations.append(1.0 + 0.175 / CGFloat(bands.count))
+
+        guard let context = CGContext(
+            data: nil, width: 8, height: size, bitsPerComponent: 8, bytesPerRow: 0,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ), let gradient = CGGradient(
+            colorsSpace: CGColorSpaceCreateDeviceRGB(),
+            colors: colors as CFArray, locations: locations
+        ) else { return nil }
+        context.drawLinearGradient(
+            gradient,
+            start: CGPoint(x: 0, y: 0),
+            end: CGPoint(x: 0, y: size),
+            options: [.drawsBeforeStartLocation, .drawsAfterEndLocation]
+        )
+        return context.makeImage()
     }
 
     /// No gray world — just a soft round shadow so the vehicle doesn't
