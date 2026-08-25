@@ -1,6 +1,83 @@
 import RealityKit
 import SwiftUI
 
+/// The vehicle on the drive scene — Kenney's CC0 kits, user's choice.
+/// Each case maps to a .usdc model bundled under Vehicles/; anything not
+/// bundled yet falls back to the built-in primitive car, so the picker
+/// can ship ahead of the assets.
+enum Vehicle: String, CaseIterable, Identifiable {
+    case classic       // the procedural primitive car
+    case sedan
+    case sportsCar
+    case toyRacer
+    case bulldozer
+    case boat
+    case train
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .classic: "Classic (built-in)"
+        case .sedan: "Sedan"
+        case .sportsCar: "Sports Car"
+        case .toyRacer: "Toy Racer"
+        case .bulldozer: "Bulldozer"
+        case .boat: "Boat"
+        case .train: "Train"
+        }
+    }
+
+    /// Bundled model resource name (Vehicles/<name>.usdc), nil for classic.
+    var modelName: String? {
+        switch self {
+        case .classic: nil
+        case .sedan: "vehicle-sedan"
+        case .sportsCar: "vehicle-sports"
+        case .toyRacer: "vehicle-toy-racer"
+        case .bulldozer: "vehicle-bulldozer"
+        case .boat: "vehicle-boat"
+        case .train: "vehicle-train"
+        }
+    }
+
+    static let defaultsKey = "driveSceneVehicle"
+
+    static var current: Vehicle {
+        Vehicle(rawValue: UserDefaults.standard.string(forKey: defaultsKey) ?? "") ?? .classic
+    }
+
+    /// The model is bundled and loadable — otherwise the picker row shows
+    /// it as coming soon and the scene falls back to classic.
+    var isAvailable: Bool {
+        guard let modelName else { return true }
+        return Bundle.main.url(forResource: modelName, withExtension: "usdc") != nil
+    }
+
+    /// Loads the chosen vehicle, scaled and grounded; primitive car when
+    /// no model is bundled.
+    @MainActor
+    func makeEntity() -> Entity {
+        if let modelName,
+           let url = Bundle.main.url(forResource: modelName, withExtension: "usdc"),
+           let model = try? Entity.load(contentsOf: url) {
+            // Normalize: Kenney models vary in native size; scale so the
+            // longest side is ~3.4m (our chase camera's frame of reference).
+            let bounds = model.visualBounds(relativeTo: nil)
+            let longest = max(bounds.extents.x, max(bounds.extents.y, bounds.extents.z))
+            if longest > 0 {
+                model.scale *= SIMD3<Float>(repeating: 3.4 / longest)
+            }
+            let grounded = model.visualBounds(relativeTo: nil)
+            model.position.y -= grounded.min.y
+            // Kenney models face +z; our scene drives toward -z.
+            model.orientation = simd_quatf(angle: .pi, axis: [0, 1, 0])
+            return model
+        }
+        return DriveSceneView.makeCar()
+    }
+}
+
 /// The 3D drive scene — a real engine this time, not a flat canvas.
 ///
 /// Parked: the car sits under studio light, camera at a front three-quarter
@@ -11,6 +88,7 @@ import SwiftUI
 struct DriveSceneView: View {
     let isDriving: Bool
     let speedMps: Double?
+    var vehicle: Vehicle = .classic
 
     /// Bridges live values into the per-frame update closure without
     /// re-subscribing, and retains the scene-update subscription.
@@ -20,9 +98,12 @@ struct DriveSceneView: View {
         RealityView { content in
             let root = Entity()
             content.add(root)
+            coordinator.root = root
 
-            let car = Self.makeCar()
+            let car = vehicle.makeEntity()
             root.addChild(car)
+            coordinator.car = car
+            coordinator.vehicle = vehicle
 
             let road = Self.makeRoad()
             road.isEnabled = isDriving // rainbow is a driving-only spectacle
@@ -48,6 +129,13 @@ struct DriveSceneView: View {
             }
         } update: { _ in
             coordinator.speedMps = max(0, speedMps ?? 0)
+            if coordinator.vehicle != vehicle {
+                coordinator.vehicle = vehicle
+                coordinator.car?.removeFromParent()
+                let fresh = vehicle.makeEntity()
+                coordinator.root?.addChild(fresh)
+                coordinator.car = fresh
+            }
             if coordinator.isDriving != isDriving {
                 coordinator.isDriving = isDriving
                 coordinator.road?.isEnabled = isDriving
@@ -56,6 +144,18 @@ struct DriveSceneView: View {
                 }
             }
         }
+        // Tesla-style: drag to spin around the parked vehicle. The idle
+        // orbit pauses while you're in control and resumes a beat later.
+        .gesture(
+            DragGesture(minimumDistance: 2)
+                .onChanged { value in
+                    guard !isDriving else { return }
+                    coordinator.applyManualOrbit(dragX: value.translation.width)
+                }
+                .onEnded { _ in
+                    coordinator.endManualOrbit()
+                }
+        )
         .onAppear {
             coordinator.isDriving = isDriving
             coordinator.speedMps = max(0, speedMps ?? 0)
@@ -69,11 +169,16 @@ struct DriveSceneView: View {
     final class Coordinator {
         var speedMps: Double = 0
         var isDriving = false
+        var vehicle: Vehicle = .classic
+        var root: Entity?
+        var car: Entity?
         var camera: PerspectiveCamera?
         var road: Entity?
         var subscription: EventSubscription?
-        /// Parked-orbit angle, radians.
+        /// Parked-orbit angle, radians (0 = the front three-quarter hero).
         private var orbit: Float = 0
+        private var lastDragX: CGFloat?
+        private var manualUntil: Date = .distantPast
 
         func tick(deltaTime: TimeInterval) {
             guard let road else { return }
@@ -86,16 +191,37 @@ struct DriveSceneView: View {
                         stripe.position.z -= DriveSceneView.roadLength
                     }
                 }
-            } else if let camera {
-                // Showroom: drift slowly around the parked car, framed wide
-                // enough that the whole body stays in the short viewport.
-                orbit += Float(deltaTime) * 0.12
-                let radius: Float = 6.8
-                let angle = orbit - 2.6 // start at the front three-quarter
-                let x = sin(angle) * radius
-                let z = cos(angle) * radius
-                camera.look(at: [0, 0.35, 0], from: [x, 1.9, z], relativeTo: nil)
+            } else {
+                // Showroom: drift slowly unless the driver is spinning it.
+                if Date.now > manualUntil {
+                    orbit += Float(deltaTime) * 0.12
+                }
+                pointCamera()
             }
+        }
+
+        func applyManualOrbit(dragX: CGFloat) {
+            let delta = dragX - (lastDragX ?? dragX)
+            lastDragX = dragX
+            orbit -= Float(delta) * 0.012
+            manualUntil = .distantFuture
+            pointCamera()
+        }
+
+        func endManualOrbit() {
+            lastDragX = nil
+            manualUntil = .now.addingTimeInterval(3) // linger, then drift again
+        }
+
+        private func pointCamera() {
+            guard let camera else { return }
+            let radius: Float = 6.8
+            let angle = orbit - 2.6 // 0 = front three-quarter
+            camera.look(
+                at: [0, 0.35, 0],
+                from: [sin(angle) * radius, 1.9, cos(angle) * radius],
+                relativeTo: nil
+            )
         }
     }
 

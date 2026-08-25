@@ -9,6 +9,7 @@ struct DashboardView: View {
     @Environment(\.openURL) private var openURL
     @State private var showsSettings = false
     @AppStorage(DrivingBackground.defaultsKey) private var drivingBackground = DrivingBackground.green.rawValue
+    @AppStorage(Vehicle.defaultsKey) private var sceneVehicle = Vehicle.classic.rawValue
 
     var body: some View {
         ZStack {
@@ -89,7 +90,8 @@ struct DashboardView: View {
                     isOverLimit: isOverLimit,
                     speedMps: session.context.speed,
                     limitMph: session.context.road?.speedLimit.map { DriveFormatting.milesPerHour(fromMetersPerSecond: $0) },
-                    isDriving: session.isDriving
+                    isDriving: session.isDriving,
+                    sceneVehicle: Vehicle(rawValue: sceneVehicle) ?? .classic
                 )
                 .tag(style.id)
             }

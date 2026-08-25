@@ -18,6 +18,7 @@ struct SettingsView: View {
     @State private var exportURL: URL?
     @State private var exportError: String?
     @AppStorage(DrivingBackground.defaultsKey) private var drivingBackground = DrivingBackground.green.rawValue
+    @AppStorage(Vehicle.defaultsKey) private var sceneVehicle = Vehicle.classic.rawValue
     @AppStorage("showGPSDetails") private var showGPSDetails = false
     @AppStorage("showHeading") private var showHeading = false
     @AppStorage(AutoDriveMonitor.modeKey) private var autoStartMode = AutoDriveMonitor.Mode.off.rawValue
@@ -198,12 +199,18 @@ struct SettingsView: View {
                             set: { OdometerStyle.setEnabled(style, $0) }
                         ))
                     }
+                    Picker("Vehicle", selection: $sceneVehicle) {
+                        ForEach(Vehicle.allCases) { vehicle in
+                            Text(vehicle.isAvailable ? vehicle.title : "\(vehicle.title) — soon")
+                                .tag(vehicle.rawValue)
+                        }
+                    }
                     Toggle("Show heading", isOn: $showHeading)
                     Toggle("Show GPS details", isOn: $showGPSDetails)
                 } header: {
                     Text("Dashboard")
                 } footer: {
-                    Text("Pick the odometer faces you like — swipe between them on the Drive tab. The background tints while a drive is live. Heading and GPS details (coordinates, accuracy, altitude) are for the technically curious.")
+                    Text("Pick the odometer faces you like — swipe between them on the Drive tab. \u{201C}Vehicle\u{201D} is what appears on the Rainbow Road scene (models from Kenney's wonderful CC0 kits — kenney.nl); drag to spin it while parked. The background tints while a drive is live.")
                 }
 
                 Section {

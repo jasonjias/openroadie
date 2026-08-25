@@ -87,6 +87,7 @@ struct OdometerView: View {
     var speedMps: Double?
     var limitMph: Int?
     var isDriving: Bool = false
+    var sceneVehicle: Vehicle = .classic
 
     private var speedColor: Color { isOverLimit ? .red : .primary }
 
@@ -98,7 +99,7 @@ struct OdometerView: View {
         case .gauge: gauge
         case .racing: racing
         case .rainbowRoad:
-            DriveSceneView(isDriving: isDriving, speedMps: speedMps)
+            DriveSceneView(isDriving: isDriving, speedMps: speedMps, vehicle: sceneVehicle)
                 .overlay(alignment: .topLeading) {
                     VStack(alignment: .leading, spacing: 0) {
                         Text(speedMph.map(String.init) ?? "—")
