@@ -1,3 +1,4 @@
+import CoreImage
 import RealityKit
 import SwiftUI
 
@@ -115,7 +116,7 @@ struct DriveSceneView: View {
             coordinator.vehicle = vehicle
 
             let road = Self.makeRoad()
-            road.isEnabled = isDriving // rainbow is a driving-only spectacle
+            road.isEnabled = isDriving || Self.debugRainbowParked
             root.addChild(road)
             coordinator.road = road
 
@@ -147,7 +148,7 @@ struct DriveSceneView: View {
             }
             if coordinator.isDriving != isDriving {
                 coordinator.isDriving = isDriving
-                coordinator.road?.isEnabled = isDriving
+                coordinator.road?.isEnabled = isDriving || Self.debugRainbowParked
                 if !isDriving { coordinator.resetStance() }
                 if let camera = coordinator.camera {
                     Self.place(camera: camera, driving: isDriving, animated: true)
@@ -165,7 +166,6 @@ struct DriveSceneView: View {
                     .gesture(
                         DragGesture(minimumDistance: 2)
                             .onChanged { value in
-                                guard !isDriving else { return }
                                 coordinator.applyManualOrbit(drag: value.translation)
                             }
                             .onEnded { _ in
@@ -203,6 +203,11 @@ struct DriveSceneView: View {
 
         /// Ribbon scroll position, meters into the current rainbow cycle.
         private var phase: Float = 0
+        /// Drive-mode look-around: temporary camera offsets that ease back
+        /// to the chase position ~1.3s after the finger lifts.
+        private var chaseYaw: Float = 0
+        private var chasePitch: Float = 0
+        private var chaseReturnAt: Date = .distantPast
 
         func tick(deltaTime: TimeInterval) {
             guard isDriving, let road else { return }
@@ -211,18 +216,58 @@ struct DriveSceneView: View {
             phase = (phase + Float(speedMps * deltaTime))
                 .truncatingRemainder(dividingBy: DriveSceneView.rainbowPeriod)
             road.position.z = phase
+
+            if chaseYaw != 0 || chasePitch != 0 {
+                if Date.now > chaseReturnAt {
+                    let decay = Float(exp(-4 * deltaTime))
+                    chaseYaw *= decay
+                    chasePitch *= decay
+                    if abs(chaseYaw) < 0.004, abs(chasePitch) < 0.004 {
+                        chaseYaw = 0
+                        chasePitch = 0
+                    }
+                }
+                pointChaseCamera()
+            }
         }
 
         func applyManualOrbit(drag: CGSize) {
             let last = lastDrag ?? drag
             lastDrag = drag
-            yaw -= Float(drag.width - last.width) * 0.012
-            pitch = min(1.25, max(0.08, pitch + Float(drag.height - last.height) * 0.008))
-            pointCamera()
+            let dx = Float(drag.width - last.width)
+            let dy = Float(drag.height - last.height)
+            if isDriving {
+                chaseYaw = min(1.2, max(-1.2, chaseYaw - dx * 0.008))
+                chasePitch = min(0.55, max(-0.12, chasePitch + dy * 0.006))
+                chaseReturnAt = .distantFuture
+                pointChaseCamera()
+            } else {
+                yaw -= dx * 0.012
+                pitch = min(1.25, max(0.08, pitch + dy * 0.008))
+                pointCamera()
+            }
         }
 
         func endManualOrbit() {
             lastDrag = nil
+            if isDriving {
+                chaseReturnAt = .now.addingTimeInterval(1.3)
+            }
+        }
+
+        /// Chase camera with look-around offsets; at zero offsets this is
+        /// exactly the standard placed chase transform (no jump either way).
+        private func pointChaseCamera() {
+            guard let camera else { return }
+            let from: SIMD3<Float> = [
+                sin(chaseYaw) * 6.2,
+                3.2 + chasePitch * 5,
+                cos(chaseYaw) * 6.2,
+            ]
+            // Looking down the road normally; toward the car when orbited.
+            let t = min(1, (abs(chaseYaw) + abs(chasePitch)) / 0.5)
+            let at: SIMD3<Float> = [0, 0.2 + 0.3 * t, -8 * (1 - t)]
+            camera.look(at: at, from: from, relativeTo: nil)
         }
 
         /// Back to the locked front three-quarter stance (after a drive).
@@ -321,37 +366,54 @@ struct DriveSceneView: View {
     static let roadLength: Float = 60
     static let stripeRecycleZ: Float = 8
 
-    /// One rainbow cycle along the road, meters. Tesla-ish pacing.
-    static let rainbowPeriod: Float = 6
+    /// One rainbow cycle along the road: six car-half-length bands.
+    static let rainbowPeriod: Float = 15.6
+    /// Ribbon width — a lane's worth; the vehicle overlaps its edges and
+    /// the halo bleeds past them, like the reference shots.
+    static let ribbonWidth: Float = 2.2
 
-    /// The rainbow the way Tesla actually does it: not stacked geometry but
-    /// a single flat ribbon with a scrolling texture. The texture holds
-    /// discrete rectangular bands — red stays red, blue stays blue — with
-    /// soft blurred edges baked in, tiled down the ribbon and slid along by
-    /// real speed. Unlit, so it glows.
+    /// Hidden defaults flag so the rainbow can be inspected while parked
+    /// (design iteration without a test drive). No UI on purpose.
+    static var debugRainbowParked: Bool {
+        UserDefaults.standard.bool(forKey: "debugRainbowParked")
+    }
+
+    /// The rainbow the way Tesla actually does it: flat ribbon, scrolling
+    /// texture — plus the trick their bloom pass does for free, faked here
+    /// as a second, wider ribbon carrying a Gaussian-blurred copy of the
+    /// texture. Sharp bands on top, glow bleeding outward underneath.
     static func makeRoad() -> Entity {
         let road = Entity()
         let depth = roadLength + rainbowPeriod // slack so the wrap never shows
-        var material = UnlitMaterial()
-        if let cgImage = rainbowBandImage(),
-           let texture = try? TextureResource(image: cgImage, options: .init(semantic: .color)) {
-            material.color = .init(texture: .init(texture))
-            // Tile the one-cycle texture down the ribbon's length.
-            material.textureCoordinateTransform.scale = SIMD2(1, depth / rainbowPeriod)
-        } else {
-            material.color = .init(tint: UIColor(hue: 0.75, saturation: 0.6, brightness: 1, alpha: 1))
+        let tiles = depth / rainbowPeriod
+
+        if let sharp = rainbowBandImage() {
+            // Halo first (underneath): wider, blurred, translucent.
+            if let haloImage = blurred(sharp, radius: 22),
+               let haloTexture = try? TextureResource(image: haloImage, options: .init(semantic: .color)) {
+                var halo = UnlitMaterial()
+                halo.color = .init(tint: UIColor(white: 1, alpha: 0.55), texture: .init(haloTexture))
+                halo.blending = .transparent(opacity: 0.55)
+                halo.textureCoordinateTransform.scale = SIMD2(1, tiles)
+                let plane = ModelEntity(mesh: .generatePlane(width: ribbonWidth * 1.6, depth: depth), materials: [halo])
+                plane.position = [0, 0.012, stripeRecycleZ - depth / 2]
+                road.addChild(plane)
+            }
+            if let texture = try? TextureResource(image: sharp, options: .init(semantic: .color)) {
+                var material = UnlitMaterial()
+                material.color = .init(texture: .init(texture))
+                material.textureCoordinateTransform.scale = SIMD2(1, tiles)
+                let ribbon = ModelEntity(mesh: .generatePlane(width: ribbonWidth, depth: depth), materials: [material])
+                ribbon.position = [0, 0.024, stripeRecycleZ - depth / 2]
+                road.addChild(ribbon)
+            }
         }
-        let ribbon = ModelEntity(
-            mesh: .generatePlane(width: 3.4, depth: depth),
-            materials: [material]
-        )
-        ribbon.position = [0, 0.02, stripeRecycleZ - depth / 2]
-        road.addChild(ribbon)
         return road
     }
 
-    /// The band texture, generated in code: six vivid rectangles with a
-    /// soft transition at each seam — blurred edges, not blended hues.
+    /// The band texture: six vivid rectangles, solid centers, a soft ~30%
+    /// transition at each seam — blurred edges, not blended hues. Wraps
+    /// purple back to red so tiling is seamless.
     static func rainbowBandImage(size: Int = 512) -> CGImage? {
         let bands: [UIColor] = [
             UIColor(red: 0.96, green: 0.22, blue: 0.21, alpha: 1),
@@ -361,21 +423,26 @@ struct DriveSceneView: View {
             UIColor(red: 0.20, green: 0.55, blue: 0.97, alpha: 1),
             UIColor(red: 0.63, green: 0.32, blue: 0.90, alpha: 1),
         ]
-        // Each band holds solid through its middle, then eases into the
-        // next over ~35% of its span (the "blur"). The last wraps to the
-        // first so tiling is seamless.
-        var colors: [CGColor] = []
-        var locations: [CGFloat] = []
+        // CGGradient requires locations in [0, 1] — it silently returns nil
+        // otherwise. The purple→red wrap is handled with an explicit
+        // half-blend color at both ends, so the tile seam is seamless.
+        var fr: CGFloat = 0, fg: CGFloat = 0, fb: CGFloat = 0, fa: CGFloat = 0
+        var lr: CGFloat = 0, lg: CGFloat = 0, lb: CGFloat = 0, la: CGFloat = 0
+        bands[0].getRed(&fr, green: &fg, blue: &fb, alpha: &fa)
+        bands[bands.count - 1].getRed(&lr, green: &lg, blue: &lb, alpha: &la)
+        let seam = UIColor(red: (fr + lr) / 2, green: (fg + lg) / 2, blue: (fb + lb) / 2, alpha: 1)
+        var colors: [CGColor] = [seam.cgColor]
+        var locations: [CGFloat] = [0]
         let n = CGFloat(bands.count)
         for (i, band) in bands.enumerated() {
             let start = CGFloat(i) / n
             colors.append(band.cgColor)
-            locations.append(start + 0.175 / n)
+            locations.append(start + 0.15 / n)
             colors.append(band.cgColor)
-            locations.append(start + 0.825 / n)
+            locations.append(start + 0.85 / n)
         }
-        colors.append(bands[0].cgColor)
-        locations.append(1.0 + 0.175 / CGFloat(bands.count))
+        colors.append(seam.cgColor)
+        locations.append(1)
 
         guard let context = CGContext(
             data: nil, width: 8, height: size, bitsPerComponent: 8, bytesPerRow: 0,
@@ -392,6 +459,16 @@ struct DriveSceneView: View {
             options: [.drawsBeforeStartLocation, .drawsAfterEndLocation]
         )
         return context.makeImage()
+    }
+
+    /// Gaussian blur for the halo layer, at texture-generation time.
+    static func blurred(_ image: CGImage, radius: Double) -> CGImage? {
+        let input = CIImage(cgImage: image)
+        guard let filter = CIFilter(name: "CIGaussianBlur") else { return nil }
+        filter.setValue(input.clampedToExtent(), forKey: kCIInputImageKey)
+        filter.setValue(radius, forKey: kCIInputRadiusKey)
+        guard let output = filter.outputImage else { return nil }
+        return CIContext().createCGImage(output, from: input.extent)
     }
 
     /// No gray world — just a soft round shadow so the vehicle doesn't
