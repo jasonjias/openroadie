@@ -160,12 +160,14 @@ final class SpeechRecognizer {
         await Self.requestPermissions()
     }
 
-    /// nonisolated on purpose: TCC invokes the callback on a background
-    /// queue, so the closure must not carry main-actor isolation (it traps
-    /// the runtime isolation check on device otherwise).
+    /// The callback must be @Sendable: TCC invokes it on a background queue,
+    /// and a plain closure formed here picks up main-actor isolation (under
+    /// approachable concurrency, nonisolated async runs on the caller's
+    /// actor) and traps the runtime isolation check on device. `nonisolated`
+    /// alone stopped being enough with the Xcode 26.6 compiler.
     private nonisolated static func requestSpeechAuthorization() async -> Bool {
         await withCheckedContinuation { continuation in
-            SFSpeechRecognizer.requestAuthorization { status in
+            SFSpeechRecognizer.requestAuthorization { @Sendable status in
                 continuation.resume(returning: status == .authorized)
             }
         }

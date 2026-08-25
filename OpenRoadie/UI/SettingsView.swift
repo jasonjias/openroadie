@@ -199,11 +199,6 @@ struct SettingsView: View {
                 } footer: {
                     Text("Choose what shows in the Nearby tab, and touch and hold to reorder. Create your own category from names or brands — if Chipotle is a landmark to you, make it one. Tap a custom category to edit it; swipe to delete.")
                 }
-                .sheet(item: $editingCustom) { custom in
-                    CustomCategoryEditor(custom: custom) { saved in
-                        saveCustom(saved)
-                    }
-                }
 
                 Section {
                     Picker("Roadie's voice", selection: $voiceIdentifier) {
@@ -270,6 +265,13 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle("Settings")
+            // On the Form, not a Section — Section modifiers replicate
+            // per-row, and presentation modifiers must exist exactly once.
+            .sheet(item: $editingCustom) { custom in
+                CustomCategoryEditor(custom: custom) { saved in
+                    saveCustom(saved)
+                }
+            }
             .onDisappear { exportURL = nil }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

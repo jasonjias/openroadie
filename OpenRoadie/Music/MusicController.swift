@@ -86,10 +86,12 @@ final class MusicController {
         return Array(results.prefix(50))
     }
 
-    /// nonisolated: the authorization callback arrives on a background queue.
+    /// @Sendable callback: authorization arrives on a background queue, and a
+    /// plain closure here would pick up main-actor isolation and trap on
+    /// device (see SpeechRecognizer.requestSpeechAuthorization).
     private nonisolated static func requestLibraryAccess() async -> Bool {
         await withCheckedContinuation { continuation in
-            MPMediaLibrary.requestAuthorization { status in
+            MPMediaLibrary.requestAuthorization { @Sendable status in
                 continuation.resume(returning: status == .authorized)
             }
         }

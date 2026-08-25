@@ -34,7 +34,9 @@ final class AlertCenter: NSObject, UNUserNotificationCenterDelegate {
     }
 
     static func requestAuthorization() {
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
+        // @Sendable: the callback arrives on a background queue and must not
+        // carry this class's main-actor isolation (device-only trap).
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { @Sendable _, _ in }
     }
 
     /// Shared by notifications and the watch app's live alerts.
