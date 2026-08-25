@@ -92,36 +92,41 @@ struct OdometerView: View {
     private var speedColor: Color { isOverLimit ? .red : .primary }
 
     var body: some View {
-        switch style {
-        case .classic: classic
-        case .minimal: minimal
-        case .digital: digital
-        case .gauge: gauge
-        case .racing: racing
-        case .rainbowRoad:
-            DriveSceneView(isDriving: isDriving, speedMps: speedMps, vehicle: sceneVehicle)
-                .overlay(alignment: .topLeading) {
-                    VStack(alignment: .leading, spacing: 0) {
-                        Text(speedMph.map(String.init) ?? "—")
-                            .font(.system(size: 40, weight: .bold, design: .rounded))
-                            .monospacedDigit()
-                            .contentTransition(.numericText())
-                            .foregroundStyle(isOverLimit ? .red : .primary)
-                        Text("mph")
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(.secondary)
+        Group {
+            switch style {
+            case .classic: classic
+            case .minimal: minimal
+            case .digital: digital
+            case .gauge: gauge
+            case .racing: racing
+            case .rainbowRoad:
+                DriveSceneView(isDriving: isDriving, speedMps: speedMps, vehicle: sceneVehicle)
+                    .overlay(alignment: .topLeading) {
+                        VStack(alignment: .leading, spacing: 0) {
+                            Text(speedMph.map(String.init) ?? "—")
+                                .font(.system(size: 40, weight: .bold, design: .rounded))
+                                .monospacedDigit()
+                                .contentTransition(.numericText())
+                                .foregroundStyle(isOverLimit ? .red : .primary)
+                            Text("mph")
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.leading, 14)
+                        .padding(.top, 6)
                     }
-                    .padding(.leading, 14)
+                    .padding(.horizontal, 12)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // Every face carries the road's posted limit in the top-right,
+        // like a windshield's corner.
+        .overlay(alignment: .topTrailing) {
+            if let limitMph {
+                SpeedLimitSign(limitMph: limitMph)
+                    .padding(.trailing, 26)
                     .padding(.top, 6)
-                }
-                .overlay(alignment: .topTrailing) {
-                    if let limitMph {
-                        SpeedLimitSign(limitMph: limitMph)
-                            .padding(.trailing, 14)
-                            .padding(.top, 6)
-                    }
-                }
-                .padding(.horizontal, 12)
+            }
         }
     }
 

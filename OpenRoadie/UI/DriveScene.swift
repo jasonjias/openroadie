@@ -154,18 +154,27 @@ struct DriveSceneView: View {
                 }
             }
         }
-        // Tesla-style: drag to spin around the parked vehicle. The idle
-        // orbit pauses while you're in control and resumes a beat later.
-        .gesture(
-            DragGesture(minimumDistance: 2)
-                .onChanged { value in
-                    guard !isDriving else { return }
-                    coordinator.applyManualOrbit(drag: value.translation)
-                }
-                .onEnded { _ in
-                    coordinator.endManualOrbit()
-                }
-        )
+        // Tesla-style: drag on the vehicle to orbit — but only the upper
+        // region. The bottom strip stays gesture-free so swiping there
+        // pages between odometer faces instead of spinning the car.
+        .overlay {
+            GeometryReader { geo in
+                Color.clear
+                    .contentShape(Rectangle())
+                    .frame(height: geo.size.height * 0.72)
+                    .gesture(
+                        DragGesture(minimumDistance: 2)
+                            .onChanged { value in
+                                guard !isDriving else { return }
+                                coordinator.applyManualOrbit(drag: value.translation)
+                            }
+                            .onEnded { _ in
+                                coordinator.endManualOrbit()
+                            }
+                    )
+                    .frame(maxHeight: .infinity, alignment: .top)
+            }
+        }
         .onAppear {
             coordinator.isDriving = isDriving
             coordinator.speedMps = max(0, speedMps ?? 0)
