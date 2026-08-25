@@ -46,11 +46,15 @@ struct DashboardView: View {
 
             Spacer()
 
+            // Road info rides above the odometer — except on the 3D scene
+            // face, which carries it inside its own overlay.
+            if selectedFace != OdometerStyle.rainbowRoad.rawValue {
+                roadSection
+            }
             speedSection
             if showHeading {
                 headingSection
             }
-            roadSection
             positionSection
 
             Spacer()
@@ -90,16 +94,17 @@ struct DashboardView: View {
                     speedMps: session.context.speed,
                     limitMph: session.context.road?.speedLimit.map { DriveFormatting.milesPerHour(fromMetersPerSecond: $0) },
                     isDriving: session.isDriving,
-                    sceneVehicle: Vehicle(rawValue: sceneVehicle) ?? .classic
+                    sceneVehicle: Vehicle(rawValue: sceneVehicle) ?? .classic,
+                    roadName: session.context.road?.displayName
                 )
                 .tag(style.id)
             }
         }
         .tabViewStyle(.page(indexDisplayMode: styles.count > 1 ? .automatic : .never))
         .indexViewStyle(.page(backgroundDisplayMode: .never))
-        // The 3D scene face runs taller: more world, and enough room that
-        // orbit swipes have somewhere to land.
-        .frame(height: selectedFace == OdometerStyle.rainbowRoad.rawValue ? 320 : 205)
+        // The 3D scene face runs tall — down to just above the trip stats —
+        // so the camera transition has headroom and orbit swipes have space.
+        .frame(height: selectedFace == OdometerStyle.rainbowRoad.rawValue ? 430 : 205)
         .animation(.easeInOut(duration: 0.25), value: selectedFace)
         .onAppear {
             if selectedFace.isEmpty { selectedFace = styles.first?.rawValue ?? "" }
@@ -131,6 +136,8 @@ struct DashboardView: View {
 
     @ViewBuilder
     private var roadSection: some View {
+        // Nothing until the road is actually known — no "looking up road…"
+        // placeholder chatter.
         if let road = session.context.road {
             HStack(spacing: 12) {
                 Text(road.displayName ?? "Unnamed road")
@@ -139,10 +146,6 @@ struct DashboardView: View {
                     SpeedLimitSign(limitMph: DriveFormatting.milesPerHour(fromMetersPerSecond: limit))
                 }
             }
-        } else if session.isDriving && session.context.coordinate != nil && RoadService.isEnabled {
-            Text("looking up road…")
-                .font(.subheadline)
-                .foregroundStyle(.tertiary)
         }
     }
 

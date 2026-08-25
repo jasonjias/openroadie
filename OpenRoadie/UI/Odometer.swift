@@ -105,6 +105,7 @@ struct OdometerView: View {
     var limitMph: Int?
     var isDriving: Bool = false
     var sceneVehicle: Vehicle = .classic
+    var roadName: String?
 
     private var speedColor: Color { isOverLimit ? .red : .primary }
 
@@ -138,6 +139,17 @@ struct OdometerView: View {
                         SpeedLimitSign(limitMph: limitMph)
                             .padding(.trailing, 14)
                             .padding(.top, 6)
+                    }
+                }
+                // Street name centered between the speed and the limit sign.
+                // Silent until the road is actually known.
+                .overlay(alignment: .top) {
+                    if let roadName {
+                        Text(roadName)
+                            .font(.headline)
+                            .lineLimit(1)
+                            .padding(.horizontal, 70)
+                            .padding(.top, 12)
                     }
                 }
                 .padding(.horizontal, 12)

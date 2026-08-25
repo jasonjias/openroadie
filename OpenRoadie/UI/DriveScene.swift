@@ -127,7 +127,7 @@ struct DriveSceneView: View {
             camera.camera.fieldOfViewInDegrees = 55
             root.addChild(camera)
             coordinator.camera = camera
-            Self.place(camera: camera, driving: isDriving, animated: false)
+            coordinator.applyPose(driving: isDriving)
 
             // Per-frame: scroll the rainbow at real speed, idle-orbit when
             // parked. RealityKit delivers scene updates on the main thread;
@@ -149,10 +149,7 @@ struct DriveSceneView: View {
             if coordinator.isDriving != isDriving {
                 coordinator.isDriving = isDriving
                 coordinator.road?.isEnabled = isDriving || Self.debugRainbowParked
-                if !isDriving { coordinator.resetStance() }
-                if let camera = coordinator.camera {
-                    Self.place(camera: camera, driving: isDriving, animated: true)
-                }
+                coordinator.beginTransition(driving: isDriving)
             }
         }
         // Tesla-style: drag on the vehicle to orbit — but only the upper
@@ -194,11 +191,36 @@ struct DriveSceneView: View {
         var camera: PerspectiveCamera?
         var road: Entity?
         var subscription: EventSubscription?
-        /// Showroom camera: locked to the front three-quarter stance until
-        /// the driver swipes — horizontal drags orbit around, vertical drags
-        /// raise or lower the eye. No auto-drift; it stays where you put it.
-        private var yaw: Float = -2.6
-        private var pitch: Float = 0.28
+        /// The camera lives on a sphere around the car (yaw, pitch, fixed
+        /// radius) looking at a target that slides from the car (parked) to
+        /// the road ahead (driving). Transitions animate these PARAMETERS —
+        /// the camera orbits around the vehicle and never loses it, unlike
+        /// a raw transform lerp (which swung wide and off-screen).
+        struct Pose {
+            var yaw: Float
+            var pitch: Float
+            var targetY: Float
+            var targetZ: Float
+
+            static let parked = Pose(yaw: -2.6, pitch: 0.28, targetY: 0.35, targetZ: 0)
+            static let driving = Pose(yaw: 0, pitch: 0.43, targetY: 0.2, targetZ: -8)
+
+            static func mix(_ a: Pose, _ b: Pose, _ t: Float) -> Pose {
+                Pose(
+                    yaw: a.yaw + (b.yaw - a.yaw) * t,
+                    pitch: a.pitch + (b.pitch - a.pitch) * t,
+                    targetY: a.targetY + (b.targetY - a.targetY) * t,
+                    targetZ: a.targetZ + (b.targetZ - a.targetZ) * t
+                )
+            }
+        }
+
+        private let radius: Float = 6.8
+        private var pose = Pose.parked
+        private var transitionFrom: Pose?
+        private var transitionTo = Pose.parked
+        private var transitionStart = Date.distantPast
+        private let transitionDuration: TimeInterval = 1.4
         private var lastDrag: CGSize?
 
         /// Ribbon scroll position, meters into the current rainbow cycle.
@@ -209,7 +231,31 @@ struct DriveSceneView: View {
         private var chasePitch: Float = 0
         private var chaseReturnAt: Date = .distantPast
 
+        func applyPose(driving: Bool) {
+            pose = driving ? .driving : .parked
+            transitionFrom = nil
+            applyCamera()
+        }
+
+        func beginTransition(driving: Bool) {
+            transitionFrom = pose
+            transitionTo = driving ? .driving : .parked
+            transitionStart = .now
+            chaseYaw = 0
+            chasePitch = 0
+        }
+
         func tick(deltaTime: TimeInterval) {
+            // Camera transition: orbit smoothly between stances.
+            if let from = transitionFrom {
+                let raw = Float(Date.now.timeIntervalSince(transitionStart) / transitionDuration)
+                let t = min(1, max(0, raw))
+                let eased = t * t * (3 - 2 * t) // smoothstep
+                pose = Pose.mix(from, transitionTo, eased)
+                if t >= 1 { transitionFrom = nil }
+                applyCamera()
+            }
+
             guard isDriving, let road else { return }
             // Slide the textured ribbon toward the camera at true speed;
             // wrapping by one texture period is invisible.
@@ -227,7 +273,7 @@ struct DriveSceneView: View {
                         chasePitch = 0
                     }
                 }
-                pointChaseCamera()
+                applyCamera()
             }
         }
 
@@ -240,12 +286,11 @@ struct DriveSceneView: View {
                 chaseYaw = min(1.2, max(-1.2, chaseYaw - dx * 0.008))
                 chasePitch = min(0.55, max(-0.12, chasePitch + dy * 0.006))
                 chaseReturnAt = .distantFuture
-                pointChaseCamera()
             } else {
-                yaw -= dx * 0.012
-                pitch = min(1.25, max(0.08, pitch + dy * 0.008))
-                pointCamera()
+                pose.yaw -= dx * 0.012
+                pose.pitch = min(1.25, max(0.08, pose.pitch + dy * 0.008))
             }
+            applyCamera()
         }
 
         func endManualOrbit() {
@@ -255,62 +300,20 @@ struct DriveSceneView: View {
             }
         }
 
-        /// Chase camera with look-around offsets; at zero offsets this is
-        /// exactly the standard placed chase transform (no jump either way).
-        private func pointChaseCamera() {
+        /// One camera formula for every state: pose plus (while driving)
+        /// the look-around offsets, which pull the gaze back to the car.
+        private func applyCamera() {
             guard let camera else { return }
+            let yaw = pose.yaw + chaseYaw
+            let pitch = min(1.3, max(0.05, pose.pitch + chasePitch))
             let from: SIMD3<Float> = [
-                sin(chaseYaw) * 6.2,
-                3.2 + chasePitch * 5,
-                cos(chaseYaw) * 6.2,
+                sin(yaw) * radius * cos(pitch),
+                sin(pitch) * radius + 0.35,
+                cos(yaw) * radius * cos(pitch),
             ]
-            // Looking down the road normally; toward the car when orbited.
-            let t = min(1, (abs(chaseYaw) + abs(chasePitch)) / 0.5)
-            let at: SIMD3<Float> = [0, 0.2 + 0.3 * t, -8 * (1 - t)]
+            let offset = min(1, (abs(chaseYaw) + abs(chasePitch)) / 0.5)
+            let at: SIMD3<Float> = [0, pose.targetY + 0.15 * offset, pose.targetZ * (1 - offset)]
             camera.look(at: at, from: from, relativeTo: nil)
-        }
-
-        /// Back to the locked front three-quarter stance (after a drive).
-        func resetStance() {
-            yaw = -2.6
-            pitch = 0.28
-        }
-
-        func pointCamera() {
-            guard let camera, !isDriving else { return }
-            let radius: Float = 6.8
-            camera.look(
-                at: [0, 0.35, 0],
-                from: [
-                    sin(yaw) * radius * cos(pitch),
-                    sin(pitch) * radius + 0.35,
-                    cos(yaw) * radius * cos(pitch),
-                ],
-                relativeTo: nil
-            )
-        }
-    }
-
-    // MARK: - Camera
-
-    private static func place(camera: PerspectiveCamera, driving: Bool, animated: Bool) {
-        var transform = Transform()
-        if driving {
-            // Chase cam: above and behind, looking down the road.
-            transform = Transform(matrix: float4x4.look(at: [0, 0.2, -8], from: [0, 3.2, 6.2]))
-        } else {
-            // The locked front three-quarter stance (yaw -2.6, pitch 0.28) —
-            // must match Coordinator's defaults so the first swipe doesn't jump.
-            let yaw: Float = -2.6, pitch: Float = 0.28, radius: Float = 6.8
-            transform = Transform(matrix: float4x4.look(
-                at: [0, 0.35, 0],
-                from: [sin(yaw) * radius * cos(pitch), sin(pitch) * radius + 0.35, cos(yaw) * radius * cos(pitch)]
-            ))
-        }
-        if animated {
-            camera.move(to: transform, relativeTo: nil, duration: 1.4, timingFunction: .easeInOut)
-        } else {
-            camera.transform = transform
         }
     }
 
