@@ -67,6 +67,19 @@ struct SettingsView: View {
                 }
 
                 Section {
+                    ForEach(PlaceCategory.allCases) { category in
+                        Toggle(category.title, isOn: Binding(
+                            get: { !PlaceCategory.isHidden(category) },
+                            set: { PlaceCategory.setHidden(category, !$0) }
+                        ))
+                    }
+                } header: {
+                    Text("Nearby categories")
+                } footer: {
+                    Text("Choose which categories show in the Nearby tab. Drive electric? Hide Gas. Anything hidden stays searchable.")
+                }
+
+                Section {
                     Picker("Roadie's voice", selection: $voiceIdentifier) {
                         Text("Automatic (best installed)").tag("")
                         ForEach(voices, id: \.identifier) { voice in

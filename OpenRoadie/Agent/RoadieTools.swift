@@ -31,7 +31,7 @@ struct FindNearbyTool: Tool {
     let name = "findNearby"
     let description = """
     Find nearby places by category. Valid categories: food, coffee, gas, \
-    charger, landmark. Optionally filter by a brand or name like "Tesla", \
+    charger, supercharger, landmark. Optionally filter by a brand or name like "Tesla", \
     "Chipotle", or "Shell". Returns the closest matches with distance and \
     compass direction from the driver.
     """
@@ -44,7 +44,7 @@ struct FindNearbyTool: Tool {
 
     @Generable
     struct Arguments {
-        @Guide(description: "One of: food, coffee, gas, charger, landmark")
+        @Guide(description: "One of: food, coffee, gas, charger, supercharger, landmark")
         var category: String
 
         @Guide(description: "Optional brand or place name to filter by, like Tesla, Chipotle, or Starbucks. Omit to get everything.")

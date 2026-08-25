@@ -15,6 +15,7 @@ struct NearbyView: View {
     @State private var camera: MapCameraPosition = .automatic
     @State private var searchText = ""
     @State private var searchResults: [(place: FoundPlace, distance: Double)]?
+    @State private var selectedMarkerID: String?
 
     var body: some View {
         NavigationStack {
@@ -79,7 +80,7 @@ struct NearbyView: View {
     }
 
     private var map: some View {
-        Map(position: $camera) {
+        Map(position: $camera, selection: $selectedMarkerID) {
             if let origin {
                 Annotation("You", coordinate: CLLocationCoordinate2D(latitude: origin.latitude, longitude: origin.longitude)) {
                     ZStack {
@@ -99,6 +100,7 @@ struct NearbyView: View {
                         )
                     )
                     .tint(.purple)
+                    .tag(result.place.id)
                 }
             } else {
                 ForEach(results.prefix(25), id: \.place.id) { result in
@@ -111,17 +113,28 @@ struct NearbyView: View {
                         )
                     )
                     .tint(.orange)
+                    .tag(result.place.id)
                 }
             }
         }
         .mapStyle(.standard(elevation: .flat))
         .frame(height: 280)
+        .onChange(of: selectedMarkerID) { _, id in
+            // Tapping a pin behaves like tapping the row: hand off to Maps.
+            guard let id else { return }
+            if let hit = searchResults?.first(where: { $0.place.id == id }) {
+                openDirections(name: hit.place.name, to: hit.place.coordinate)
+            } else if let hit = results.first(where: { $0.place.id == id }) {
+                openDirections(name: hit.place.displayName, to: hit.place.coordinate)
+            }
+            selectedMarkerID = nil
+        }
     }
 
     private var categoryPicker: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                ForEach(PlaceCategory.allCases) { candidate in
+                ForEach(PlaceCategory.visible) { candidate in
                     Button {
                         category = candidate
                     } label: {
@@ -139,6 +152,15 @@ struct NearbyView: View {
             }
             .padding(.horizontal)
             .padding(.vertical, 10)
+        }
+        // Horizontal chips only: no vertical wandering, no rubber-banding
+        // when everything already fits.
+        .frame(height: 52)
+        .scrollBounceBehavior(.basedOnSize)
+        .onAppear {
+            if PlaceCategory.isHidden(category), let first = PlaceCategory.visible.first {
+                category = first
+            }
         }
     }
 

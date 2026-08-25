@@ -7,6 +7,7 @@ enum PlaceCategory: String, CaseIterable, Identifiable, Sendable, Codable {
     case coffee
     case fuel
     case charger
+    case supercharger
     case landmark
 
     var id: String { rawValue }
@@ -17,6 +18,7 @@ enum PlaceCategory: String, CaseIterable, Identifiable, Sendable, Codable {
         case .coffee: "Coffee"
         case .fuel: "Gas"
         case .charger: "Chargers"
+        case .supercharger: "Superchargers"
         case .landmark: "Landmarks"
         }
     }
@@ -27,6 +29,7 @@ enum PlaceCategory: String, CaseIterable, Identifiable, Sendable, Codable {
         case .coffee: "cup.and.saucer.fill"
         case .fuel: "fuelpump.fill"
         case .charger: "bolt.car.fill"
+        case .supercharger: "bolt.circle.fill"
         case .landmark: "building.columns.fill"
         }
     }
@@ -38,6 +41,7 @@ enum PlaceCategory: String, CaseIterable, Identifiable, Sendable, Codable {
         case .coffee: #"["amenity"="cafe"]"#
         case .fuel: #"["amenity"="fuel"]"#
         case .charger: #"["amenity"="charging_station"]"#
+        case .supercharger: #"["amenity"="charging_station"]["brand"~"Tesla",i]"#
         case .landmark: #"["tourism"~"^(attraction|museum|viewpoint)$"]"#
         }
     }
@@ -49,6 +53,7 @@ enum PlaceCategory: String, CaseIterable, Identifiable, Sendable, Codable {
         case .food, .coffee: 3_000
         case .fuel, .landmark: 5_000
         case .charger: 8_000
+        case .supercharger: 15_000
         }
     }
 
@@ -58,8 +63,29 @@ enum PlaceCategory: String, CaseIterable, Identifiable, Sendable, Codable {
         case .coffee: "cafe"
         case .fuel: "gas station"
         case .charger: "charger"
+        case .supercharger: "Supercharger"
         case .landmark: "landmark"
         }
+    }
+
+    // MARK: - User-chosen visibility (Nearby chips)
+
+    static let hiddenDefaultsKey = "hiddenPlaceCategories"
+
+    static var visible: [PlaceCategory] {
+        let hidden = Set(UserDefaults.standard.stringArray(forKey: hiddenDefaultsKey) ?? [])
+        let shown = allCases.filter { !hidden.contains($0.rawValue) }
+        return shown.isEmpty ? allCases : shown
+    }
+
+    static func setHidden(_ category: PlaceCategory, _ hidden: Bool) {
+        var set = Set(UserDefaults.standard.stringArray(forKey: hiddenDefaultsKey) ?? [])
+        if hidden { set.insert(category.rawValue) } else { set.remove(category.rawValue) }
+        UserDefaults.standard.set(Array(set).sorted(), forKey: hiddenDefaultsKey)
+    }
+
+    static func isHidden(_ category: PlaceCategory) -> Bool {
+        (UserDefaults.standard.stringArray(forKey: hiddenDefaultsKey) ?? []).contains(category.rawValue)
     }
 }
 
@@ -133,7 +159,7 @@ final class PlaceService {
     static func timeToLive(for category: PlaceCategory) -> TimeInterval {
         switch category {
         case .food, .coffee: 3 * 3600
-        case .fuel, .charger, .landmark: 24 * 3600
+        case .fuel, .charger, .supercharger, .landmark: 24 * 3600
         }
     }
 

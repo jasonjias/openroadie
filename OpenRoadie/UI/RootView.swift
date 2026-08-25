@@ -17,7 +17,7 @@ struct RootView: View {
                 DashboardView(session: session, wake: wake)
             }
             Tab("Roadie", systemImage: "sparkles") {
-                AskView(agent: agent, speaker: speaker, wake: wake)
+                AskView(agent: agent, speaker: speaker, wake: wake, drive: session)
             }
             Tab("Nearby", systemImage: "mappin.and.ellipse") {
                 NearbyView(session: session)

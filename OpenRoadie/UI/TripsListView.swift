@@ -13,6 +13,7 @@ struct TripsListView: View {
 
     @State private var selectedDay = Calendar.current.startOfDay(for: .now)
     @State private var showsCalendar = false
+    @State private var showsSafetyDetail = false
 
     private var calendar: Calendar { .current }
 
@@ -63,6 +64,16 @@ struct TripsListView: View {
             .sheet(isPresented: $showsCalendar) {
                 MonthCalendarView(selectedDay: $selectedDay, statsFor: stats(on:))
             }
+            .sheet(isPresented: $showsSafetyDetail) {
+                SafetyDetailView(
+                    dayTitle: dayTitle,
+                    stats: stats(on: selectedDay),
+                    dayEvents: events
+                        .filter { calendar.isDate($0.timestamp, inSameDayAs: selectedDay) }
+                        .sorted { $0.timestamp < $1.timestamp },
+                    overallScore: overallScore
+                )
+            }
             .navigationDestination(for: PersistentIdentifier.self) { id in
                 if let trip = modelContext.model(for: id) as? Trip {
                     TripDetailView(trip: trip)
@@ -75,6 +86,17 @@ struct TripsListView: View {
 
     private func stats(on day: Date) -> DayStats {
         DayStats.compute(trips: trips, events: events, on: day, calendar: calendar)
+    }
+
+    /// Average of the last 30 days that had any driving — the overall score.
+    private var overallScore: Int? {
+        let today = calendar.startOfDay(for: .now)
+        let scores = (0..<30).compactMap { offset -> Int? in
+            guard let day = calendar.date(byAdding: .day, value: -offset, to: today) else { return nil }
+            return stats(on: day).score
+        }
+        guard !scores.isEmpty else { return nil }
+        return scores.reduce(0, +) / scores.count
     }
 
     private var dayTrips: [Trip] {
@@ -130,33 +152,42 @@ struct TripsListView: View {
 
     private var dayCard: some View {
         let stats = stats(on: selectedDay)
-        return HStack(spacing: 16) {
-            VStack(alignment: .leading, spacing: 10) {
+        let eventCount = stats.hardEvents + stats.overLimitCrossings + stats.wellOverCrossings
+        return HStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 12) {
                 metric("Miles", stats.tripCount > 0 ? String(format: "%.1f", stats.miles) : "—", tint: .blue)
                 metric("Time", stats.tripCount > 0 ? DriveFormatting.duration(stats.duration) : "—", tint: .green)
                 metric("Max speed", stats.maxSpeedMph.map { "\($0) mph" } ?? "—", tint: .orange)
-                metric("Hard events", stats.tripCount > 0 ? "\(stats.hardEvents)" : "—", tint: .red)
-                metric("Over limit", stats.tripCount > 0 ? "\(stats.overLimitCrossings + stats.wellOverCrossings)×" : "—", tint: .purple)
             }
-            Spacer()
-            VStack(spacing: 4) {
-                ScoreRing(score: stats.score, lineWidth: 9)
-                    .frame(width: 92, height: 92)
-                    .overlay {
-                        if let score = stats.score {
-                            Text("\(score)")
-                                .font(.title2.bold())
-                                .monospacedDigit()
-                        } else {
-                            Text("—").font(.title3).foregroundStyle(.tertiary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            Button {
+                showsSafetyDetail = true
+            } label: {
+                VStack(spacing: 4) {
+                    ScoreRing(score: stats.score, lineWidth: 9)
+                        .frame(width: 96, height: 96)
+                        .overlay {
+                            if let score = stats.score {
+                                Text("\(score)")
+                                    .font(.title2.bold())
+                                    .monospacedDigit()
+                            } else {
+                                Text("—").font(.title3).foregroundStyle(.tertiary)
+                            }
                         }
-                    }
-                Text("Drive Score")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    Text("Drive Score")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    Text(stats.tripCount > 0 ? (eventCount > 0 ? "\(eventCount) events ›" : "clean day ›") : "no drives")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
             }
+            .buttonStyle(.plain)
+            .frame(maxWidth: .infinity)
         }
-        .padding(.vertical, 6)
+        .padding(.vertical, 8)
     }
 
     private func metric(_ label: String, _ value: String, tint: Color) -> some View {

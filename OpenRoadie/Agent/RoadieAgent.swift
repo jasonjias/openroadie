@@ -49,7 +49,8 @@ final class RoadieAgent {
     - Any question about speed, location, position, road, speed limit, \
     heading, or the current trip: ALWAYS call currentDrive first, even if \
     you answered recently.
-    - Any question about food, restaurants, coffee, gas, chargers, or \
+    - Any question about food, restaurants, coffee, gas, chargers, \
+    Tesla Superchargers, or \
     landmarks: ALWAYS call findNearby, then repeat the place names to the \
     user. Example good answer: "Closest food: Chipotle 0.2 mi NW, Sweetgreen \
     0.3 mi N, Osteria 0.4 mi E." A count alone, like "there are 5 \

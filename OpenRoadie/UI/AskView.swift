@@ -5,6 +5,7 @@ struct AskView: View {
     let agent: RoadieAgent
     let speaker: SpeechSpeaker
     var wake: WakeWordCoordinator? = nil
+    var drive: DriveSessionManager? = nil
 
     @State private var input = ""
     @State private var speech = SpeechRecognizer()
@@ -96,14 +97,45 @@ struct AskView: View {
                     }
                     .padding(.vertical, 12)
                 }
+                // Swipe down or tap anywhere in the chat to tuck the keyboard.
+                .scrollDismissesKeyboard(.interactively)
+                .simultaneousGesture(TapGesture().onEnded { inputFocused = false })
                 .onChange(of: agent.messages) { _, messages in
                     if let last = messages.last {
                         withAnimation { proxy.scrollTo(last.id, anchor: .bottom) }
                     }
                 }
             }
-            inputBar
+            if drive?.isDriving == true {
+                drivingVoiceBar
+            } else {
+                inputBar
+            }
         }
+    }
+
+    /// While a drive is active the keyboard goes away entirely: voice only.
+    /// OpenRoadie should never encourage typing at the wheel.
+    private var drivingVoiceBar: some View {
+        VStack(spacing: 4) {
+            Button {
+                speaker.stop()
+                Task { await speech.toggle() }
+            } label: {
+                Image(systemName: speech.isListening ? "waveform" : "mic.fill")
+                    .symbolEffect(.variableColor.iterative, isActive: speech.isListening)
+                    .font(.system(size: 26))
+                    .foregroundStyle(.white)
+                    .frame(width: 62, height: 62)
+                    .background(speech.isListening ? AnyShapeStyle(.red) : AnyShapeStyle(.tint), in: Circle())
+            }
+            Text(speech.isListening ? "Listening…" : "Voice only while driving")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity)
+        .background(.bar)
     }
 
     private var emptyState: some View {
