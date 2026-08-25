@@ -57,11 +57,15 @@ struct DashboardView: View {
             }
             positionSection
 
-            Spacer()
+            // Capped: keeps the trip bar close under the odometer instead
+            // of pinning the Start Drive button against the tab bar.
+            Spacer().frame(maxHeight: 28)
 
             tripSection
             statusBanner
             driveButton
+
+            Spacer().frame(maxHeight: 18)
         }
         .padding()
         .fullScreenCover(isPresented: $showsSettings) {
@@ -174,31 +178,29 @@ struct DashboardView: View {
         }
     }
 
+    /// Always present — zeros while parked — so starting a drive never
+    /// reflows the layout and the Start Drive button stays put.
     private var tripSection: some View {
-        Group {
-            if session.context.tripStart != nil {
-                TimelineView(.periodic(from: .now, by: 1)) { timeline in
-                    HStack(spacing: 12) {
-                        Label(
-                            DriveFormatting.duration(session.context.tripDuration(at: timeline.date) ?? 0),
-                            systemImage: "clock"
-                        )
-                        Label(
-                            DriveFormatting.miles(fromMeters: session.context.tripDistance),
-                            systemImage: "road.lanes"
-                        )
-                        if session.isDriving {
-                            Label(
-                                session.isStationary ? "Stationary" : "Moving",
-                                systemImage: session.isStationary ? "parkingsign" : "car.fill"
-                            )
-                        }
-                    }
-                    .font(.callout.weight(.medium))
-                    .monospacedDigit()
-                    .foregroundStyle(.secondary)
+        TimelineView(.periodic(from: .now, by: 1)) { timeline in
+            HStack(spacing: 12) {
+                Label(
+                    DriveFormatting.duration(session.context.tripDuration(at: timeline.date) ?? 0),
+                    systemImage: "clock"
+                )
+                Label(
+                    DriveFormatting.miles(fromMeters: session.context.tripDistance),
+                    systemImage: "road.lanes"
+                )
+                if session.isDriving {
+                    Label(
+                        session.isStationary ? "Stationary" : "Moving",
+                        systemImage: session.isStationary ? "parkingsign" : "car.fill"
+                    )
                 }
             }
+            .font(.callout.weight(.medium))
+            .monospacedDigit()
+            .foregroundStyle(.secondary)
         }
     }
 

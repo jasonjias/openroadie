@@ -416,11 +416,11 @@ struct DriveSceneView: View {
         let tiles = depth / rainbowPeriod
 
         if let sharp = rainbowBandImage(),
-           let haloImage = blurred(sharp, radius: 22),
+           let haloImage = blurred(sharp, radius: 34),
            let haloTexture = try? TextureResource(image: haloImage, options: .init(semantic: .color)) {
             var halo = UnlitMaterial()
-            halo.color = .init(tint: UIColor(white: 1, alpha: 0.55), texture: .init(haloTexture))
-            halo.blending = .transparent(opacity: 0.55)
+            halo.color = .init(tint: UIColor(white: 1, alpha: 0.42), texture: .init(haloTexture))
+            halo.blending = .transparent(opacity: 0.42)
             halo.textureCoordinateTransform.scale = SIMD2(1, tiles)
             let ribbon = ModelEntity(mesh: .generatePlane(width: ribbonWidth * 1.6, depth: depth), materials: [halo])
             ribbon.position = [0, 0.012, stripeRecycleZ - depth / 2]
