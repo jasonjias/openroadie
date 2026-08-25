@@ -15,7 +15,7 @@ struct DashboardView: View {
             // A splash of color while the drive is live (user-selectable).
             if session.isDriving, let color = DrivingBackground.current.color {
                 LinearGradient(
-                    colors: [color.opacity(0.30), color.opacity(0.06), .clear],
+                    colors: [color.opacity(0.55), color.opacity(0.22), color.opacity(0.05)],
                     startPoint: .top,
                     endPoint: .bottom
                 )
@@ -94,7 +94,7 @@ struct DashboardView: View {
         }
         .tabViewStyle(.page(indexDisplayMode: styles.count > 1 ? .automatic : .never))
         .indexViewStyle(.page(backgroundDisplayMode: .never))
-        .frame(height: 190)
+        .frame(height: 205)
     }
 
     /// Over the posted limit with a little grace (~2 mph) so GPS noise at
@@ -137,14 +137,20 @@ struct DashboardView: View {
         }
     }
 
+    @AppStorage("showCoordinates") private var showCoordinates = false
+
     private var positionSection: some View {
         VStack(spacing: 2) {
             if let coordinate = session.context.coordinate {
-                Text(DriveFormatting.coordinate(coordinate))
-                    .font(.body.monospaced())
+                // Raw coordinates are developer telemetry, not driver info:
+                // hidden unless the Settings flag turns them on.
+                if showCoordinates {
+                    Text(DriveFormatting.coordinate(coordinate))
+                        .font(.body.monospaced())
+                }
                 HStack(spacing: 10) {
                     if let accuracy = session.context.horizontalAccuracy {
-                        Text("± \(Int(accuracy.rounded())) m")
+                        Text("GPS ± \(Int(accuracy.rounded())) m")
                     }
                     if let altitude = session.context.altitude {
                         Text("alt \(DriveFormatting.feet(fromMeters: altitude)) ft")

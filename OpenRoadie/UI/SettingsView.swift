@@ -17,6 +17,7 @@ struct SettingsView: View {
     @State private var exportURL: URL?
     @State private var exportError: String?
     @AppStorage(DrivingBackground.defaultsKey) private var drivingBackground = DrivingBackground.green.rawValue
+    @AppStorage("showCoordinates") private var showCoordinates = false
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @State private var previewSpeaker = SpeechSpeaker()
@@ -79,6 +80,7 @@ struct SettingsView: View {
                             set: { OdometerStyle.setEnabled(style, $0) }
                         ))
                     }
+                    Toggle("Show coordinates", isOn: $showCoordinates)
                 } header: {
                     Text("Dashboard")
                 } footer: {

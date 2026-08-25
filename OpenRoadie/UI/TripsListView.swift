@@ -178,17 +178,20 @@ struct TripsListView: View {
                 showsSafetyDetail = true
             } label: {
                 VStack(spacing: 4) {
-                    ScoreRing(score: stats.score, lineWidth: 9)
-                        .frame(width: 96, height: 96)
-                        .overlay {
-                            if let score = stats.score {
-                                Text("\(score)")
-                                    .font(.title2.bold())
-                                    .monospacedDigit()
-                            } else {
-                                Text("—").font(.title3).foregroundStyle(.tertiary)
-                            }
+                    SemicircleGauge(
+                        fraction: Double(stats.score ?? 0) / 100,
+                        color: scoreColor(stats.score),
+                        lineWidth: 10
+                    ) {
+                        if let score = stats.score {
+                            Text("\(score)")
+                                .font(.title.bold())
+                                .monospacedDigit()
+                        } else {
+                            Text("—").font(.title3).foregroundStyle(.tertiary)
                         }
+                    }
+                    .frame(width: 130)
                     Text("Drive Score")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
@@ -201,6 +204,14 @@ struct TripsListView: View {
             .frame(maxWidth: .infinity)
         }
         .padding(.vertical, 8)
+    }
+
+    private func scoreColor(_ score: Int?) -> Color {
+        switch score ?? 0 {
+        case 90...: .green
+        case 70..<90: .yellow
+        default: .red
+        }
     }
 
     private func metric(_ label: String, _ value: String, tint: Color) -> some View {
