@@ -17,9 +17,9 @@ struct RootView: View {
             Tab("Drive", systemImage: "car.fill") {
                 DashboardView(session: session, wake: wake)
             }
-            Tab("Roadie", systemImage: "sparkles") {
-                AskView(agent: agent, speaker: speaker, wake: wake, drive: session)
-            }
+            // The Roadie chat tab is retired — a text UI invites texting
+            // while driving. The agent lives on behind "Hey Roadie"; its
+            // AskView is kept in the codebase for a future, better home.
             Tab("Nearby", systemImage: "mappin.and.ellipse") {
                 NearbyView(session: session)
             }
