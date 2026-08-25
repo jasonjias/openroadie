@@ -20,8 +20,7 @@ struct Vehicle: Identifiable, Equatable, Hashable {
     static var classic: Vehicle { all[0] }
 
     static let all: [Vehicle] = [
-        Vehicle(id: "classic", title: "Classic (built-in)", group: "Cars", modelName: nil),
-        Vehicle(id: "sedan", title: "Sedan", group: "Cars", modelName: "vehicle-sedan"),
+        Vehicle(id: "classic", title: "Classic Car", group: "Cars", modelName: nil),
         Vehicle(id: "sportsCar", title: "Sports Car", group: "Cars", modelName: "vehicle-sports"),
         Vehicle(id: "bulldozer", title: "Bulldozer", group: "Cars", modelName: "vehicle-bulldozer"),
         Vehicle(id: "skateboard", title: "Skateboard", group: "Cars", modelName: "vehicle-skateboard"),
