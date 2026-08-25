@@ -92,6 +92,12 @@ final class WatchSessionModel: NSObject, WCSessionDelegate {
     private func handleAlert(text: String?, severe: Bool) {
         lastAlert = text
         // Distinct wrist feel: urgent for crossings, a tap for approaches.
-        WKInterfaceDevice.current().play(severe ? .failure : .notification)
+        // Double-buzz — a single haptic is easy to miss at highway speed.
+        let haptic: WKHapticType = severe ? .failure : .notification
+        WKInterfaceDevice.current().play(haptic)
+        Task {
+            try? await Task.sleep(for: .milliseconds(450))
+            WKInterfaceDevice.current().play(haptic)
+        }
     }
 }
