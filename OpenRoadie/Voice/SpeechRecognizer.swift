@@ -65,7 +65,7 @@ final class SpeechRecognizer {
             try session.setCategory(
                 .playAndRecord,
                 mode: .measurement,
-                options: [.duckOthers, .allowBluetooth, .defaultToSpeaker]
+                options: [.duckOthers, .allowBluetoothA2DP, .defaultToSpeaker]
             )
             try session.setActive(true, options: .notifyOthersOnDeactivation)
 

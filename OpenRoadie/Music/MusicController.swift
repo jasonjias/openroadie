@@ -29,6 +29,9 @@ final class MusicController {
             player.skipToPreviousItem()
             return "Went back a track. Confirm briefly."
         case "nowplaying", "now_playing", "current":
+            guard await Self.requestLibraryAccess() else {
+                return "Music library access is off — the driver can enable it in Settings → Privacy → Media & Apple Music."
+            }
             return nowPlaying()
         default:
             return "Unknown music action \"\(action)\". Valid: play, pause, next, previous, nowplaying."
@@ -36,12 +39,14 @@ final class MusicController {
     }
 
     func nowPlaying() -> String {
-        guard let item = player.nowPlayingItem else {
-            return "Nothing is playing in the Music app."
+        if let item = player.nowPlayingItem {
+            let title = item.title ?? "Unknown title"
+            let artist = item.artist ?? "unknown artist"
+            return "Now playing: \(title) by \(artist)."
         }
-        let title = item.title ?? "Unknown title"
-        let artist = item.artist ?? "unknown artist"
-        return "Now playing: \(title) by \(artist)."
+        return player.playbackState == .playing
+            ? "Audio is playing, but from an app I can't see into (like Spotify) — I can only read the Apple Music app."
+            : "Nothing is playing in the Music app."
     }
 
     private func playFromLibrary(matching term: String) async -> String {

@@ -71,7 +71,7 @@ final class WakeWordListener {
             try session.setCategory(
                 .playAndRecord,
                 mode: .measurement,
-                options: [.mixWithOthers, .allowBluetooth, .defaultToSpeaker]
+                options: [.mixWithOthers, .allowBluetoothA2DP, .defaultToSpeaker]
             )
             try session.setActive(true, options: .notifyOthersOnDeactivation)
 
