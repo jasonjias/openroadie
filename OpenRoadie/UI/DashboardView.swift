@@ -88,8 +88,8 @@ struct DashboardView: View {
                     accuracyMph: accuracyMph,
                     isOverLimit: isOverLimit,
                     speedMps: session.context.speed,
-                    tripDistanceMeters: session.context.tripDistance,
-                    contextTimestamp: session.context.timestamp
+                    limitMph: session.context.road?.speedLimit.map { DriveFormatting.milesPerHour(fromMetersPerSecond: $0) },
+                    isDriving: session.isDriving
                 )
                 .tag(style.id)
             }
