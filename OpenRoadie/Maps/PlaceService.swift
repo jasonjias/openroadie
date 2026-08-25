@@ -68,14 +68,30 @@ enum PlaceCategory: String, CaseIterable, Identifiable, Sendable, Codable {
         }
     }
 
-    // MARK: - User-chosen visibility (Nearby chips)
+    // MARK: - User-chosen visibility and order (Nearby chips)
 
     static let hiddenDefaultsKey = "hiddenPlaceCategories"
+    static let orderDefaultsKey = "placeCategoryOrder"
+
+    /// All categories in the user's chosen order — a Tesla driver puts
+    /// Superchargers first. Categories the stored order doesn't know
+    /// (added in a later release) keep their default position.
+    static var ordered: [PlaceCategory] {
+        guard let stored = UserDefaults.standard.stringArray(forKey: orderDefaultsKey) else {
+            return allCases
+        }
+        let known = stored.compactMap(PlaceCategory.init(rawValue:))
+        return known + allCases.filter { !known.contains($0) }
+    }
+
+    static func setOrder(_ categories: [PlaceCategory]) {
+        UserDefaults.standard.set(categories.map(\.rawValue), forKey: orderDefaultsKey)
+    }
 
     static var visible: [PlaceCategory] {
         let hidden = Set(UserDefaults.standard.stringArray(forKey: hiddenDefaultsKey) ?? [])
-        let shown = allCases.filter { !hidden.contains($0.rawValue) }
-        return shown.isEmpty ? allCases : shown
+        let shown = ordered.filter { !hidden.contains($0.rawValue) }
+        return shown.isEmpty ? ordered : shown
     }
 
     static func setHidden(_ category: PlaceCategory, _ hidden: Bool) {

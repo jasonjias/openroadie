@@ -24,6 +24,7 @@ struct SettingsView: View {
     @AppStorage(Coach.spokenKey) private var coachingSpoken = false
     @AppStorage(Coach.styleKey) private var coachingStyle = CoachStyle.gentle.rawValue
     @AppStorage(Coach.customTemplateKey) private var coachingTemplate = ""
+    @State private var categoryOrder = PlaceCategory.ordered
     @State private var photoSelection: PhotosPickerItem?
     private let profile = ProfileStore.shared
     @Environment(\.modelContext) private var modelContext
@@ -150,16 +151,22 @@ struct SettingsView: View {
                 }
 
                 Section {
-                    ForEach(PlaceCategory.allCases) { category in
-                        Toggle(category.title, isOn: Binding(
+                    ForEach(categoryOrder) { category in
+                        Toggle(isOn: Binding(
                             get: { !PlaceCategory.isHidden(category) },
                             set: { PlaceCategory.setHidden(category, !$0) }
-                        ))
+                        )) {
+                            Label(category.title, systemImage: category.systemImage)
+                        }
+                    }
+                    .onMove { source, destination in
+                        categoryOrder.move(fromOffsets: source, toOffset: destination)
+                        PlaceCategory.setOrder(categoryOrder)
                     }
                 } header: {
                     Text("Nearby categories")
                 } footer: {
-                    Text("Choose which categories show in the Nearby tab. Drive electric? Hide Gas. Anything hidden stays searchable.")
+                    Text("Choose which categories show in the Nearby tab, and touch and hold to reorder them — drive electric? Put Superchargers first and hide Gas. Anything hidden stays searchable.")
                 }
 
                 Section {
