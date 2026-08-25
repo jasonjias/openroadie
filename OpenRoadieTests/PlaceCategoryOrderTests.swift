@@ -76,18 +76,17 @@ struct NearbyChipOrderTests {
 }
 
 struct CustomCategoryTests {
-    @Test func regexJoinsTermsWithPipe() {
-        let custom = CustomCategory(title: "Favorites", terms: ["chipotle", "in-n-out", "raising canes"])
-        #expect(custom.overpassRegex == "chipotle|in-n-out|raising canes")
-    }
-
-    @Test func regexEscapesMetacharacters() {
-        let custom = CustomCategory(title: "Odd", terms: ["In-N-Out (Lathrop)", "a.b*c"])
-        #expect(custom.overpassRegex == #"In-N-Out \(Lathrop\)|a\.b\*c"#)
-    }
-
-    @Test func regexSkipsBlankTerms() {
-        let custom = CustomCategory(title: "Sparse", terms: [" chipotle ", "", "   "])
-        #expect(custom.overpassRegex == "chipotle")
+    @Test func foundPlaceConvertsToPlace() {
+        let found = FoundPlace(
+            id: "Chipotle@37.42,-122.14",
+            name: "Chipotle Mexican Grill",
+            address: "2675 El Camino Real, Palo Alto",
+            coordinate: Coordinate(latitude: 37.42, longitude: -122.14)
+        )
+        let place = Place(found)
+        #expect(place.displayName == "Chipotle Mexican Grill")
+        #expect(place.address == "2675 El Camino Real, Palo Alto")
+        #expect(place.id == found.id)
+        #expect(place.matches(keyword: "chipotle"))
     }
 }

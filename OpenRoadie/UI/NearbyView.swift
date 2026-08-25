@@ -219,7 +219,7 @@ struct NearbyView: View {
             ContentUnavailableView(
                 "Nothing mapped nearby",
                 systemImage: chip.systemImage,
-                description: Text("No \(chip.title.lowercased()) within ~\(Int((chip.searchRadius / 1609.344).rounded())) miles in OpenStreetMap.")
+                description: Text("No \(chip.title.lowercased()) within ~\(Int((chip.searchRadius / 1609.344).rounded())) miles in \(chip.sourceName).")
             )
             Spacer()
         } else {
@@ -289,7 +289,7 @@ struct NearbyView: View {
             // the screen now, so a cancelled fetch must not stamp an error
             // over it (that was the phantom "Couldn't search" on arrival).
             guard !Task.isCancelled else { return }
-            errorText = "OpenStreetMap didn't answer. Try again in a moment."
+            errorText = "\(chip.sourceName) didn't answer. Try again in a moment."
             results = []
         }
     }

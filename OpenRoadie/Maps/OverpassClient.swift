@@ -56,35 +56,6 @@ struct OverpassClient: Sendable {
         return try Self.parsePlaces(await post(query), category: category)
     }
 
-    /// Tag keys that mark an element as a place of interest. A custom
-    /// category regex only runs against these — an unconstrained name regex
-    /// would scan every node in the radius (road geometry included) and
-    /// time out the free servers.
-    private static let poiKeys = ["amenity", "shop", "tourism", "leisure"]
-
-    /// Fetches places whose name or brand matches a user regex — powers
-    /// custom categories ("chipotle|in-n-out|raising canes").
-    func places(near coordinate: Coordinate, radius: Double, matching regex: String) async throws -> [Place] {
-        let around = "around:\(Int(radius)),\(coordinate.latitude),\(coordinate.longitude)"
-        let clauses = Self.poiKeys.flatMap { key in
-            ["name", "brand"].flatMap { tag in
-                ["  node(\(around))[\"\(key)\"][\"\(tag)\"~\"\(regex)\",i];",
-                 "  way(\(around))[\"\(key)\"][\"\(tag)\"~\"\(regex)\",i];"]
-            }
-        }
-        let query = """
-        [out:json][timeout:8];
-        (
-        \(clauses.joined(separator: "\n"))
-        );
-        out center tags;
-        """
-
-        // Custom matches always carry the name or brand the regex hit, so
-        // the category below only seeds Place's never-shown fallback label.
-        return try Self.parsePlaces(await post(query), category: .landmark)
-    }
-
     /// Fetches the `maxspeed` tags of roads matching a name or route number
     /// within `radius` meters — powers "what's the limit on 101?".
     /// Tags-only (no geometry), so it's a light query.

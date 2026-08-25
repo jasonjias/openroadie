@@ -1,8 +1,10 @@
 import Foundation
 
 /// A user-made Nearby category: a name, an icon, and the search terms it
-/// matches — "Landmarks (real)" for chipotle, in-n-out, raising canes.
-/// Terms match OSM name and brand tags, case-insensitively.
+/// looks for — "Landmarks (real)" for chipotle, in-n-out, raising canes.
+/// Terms are Apple Maps searches (the same engine as the search bar, which
+/// is the point: if the search bar finds it, the chip finds it), with
+/// results cached to disk like every other category.
 struct CustomCategory: Identifiable, Codable, Equatable, Hashable, Sendable {
     var id: UUID
     var title: String
@@ -21,22 +23,6 @@ struct CustomCategory: Identifiable, Codable, Equatable, Hashable, Sendable {
 
     /// Stable cache/order identity, distinct from built-in raw values.
     var key: String { "custom-\(id.uuidString)" }
-
-    /// One Overpass regex matching any term, with regex metacharacters
-    /// escaped so "In-N-Out (Lathrop)" can't hijack the query.
-    var overpassRegex: String {
-        terms
-            .map { $0.trimmingCharacters(in: .whitespaces) }
-            .filter { !$0.isEmpty }
-            .map { term in
-                term.replacingOccurrences(
-                    of: #"[\\.\[\]\(\)\*\+\?\^\$\|\{\}"]"#,
-                    with: #"\\$0"#,
-                    options: .regularExpression
-                )
-            }
-            .joined(separator: "|")
-    }
 
     // MARK: - Persistence
 
@@ -95,6 +81,14 @@ enum NearbyChip: Identifiable, Equatable, Hashable {
         switch self {
         case .builtin(let category): category.searchRadius
         case .custom(let custom): custom.searchRadius
+        }
+    }
+
+    /// Where this chip's results come from — shown in error/empty states.
+    var sourceName: String {
+        switch self {
+        case .builtin: "OpenStreetMap"
+        case .custom: "Apple Maps"
         }
     }
 

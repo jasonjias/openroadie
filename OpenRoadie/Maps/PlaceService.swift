@@ -113,6 +113,23 @@ struct Place: Identifiable, Equatable, Sendable, Codable {
     }
 }
 
+extension Place {
+    /// An Apple Maps search hit reshaped for the shared Nearby pipeline.
+    /// (In an extension so the memberwise init survives.) The category only
+    /// seeds the never-shown fallback label — search hits always have a name.
+    init(_ found: FoundPlace) {
+        self.init(
+            id: found.id,
+            name: found.name,
+            brand: nil,
+            operatedBy: nil,
+            address: found.address,
+            category: .landmark,
+            coordinate: found.coordinate
+        )
+    }
+}
+
 /// Geometry helpers for presenting places relative to the driver.
 enum PlaceGeometry {
     /// Initial bearing in degrees from true north, `from` → `to`.
@@ -177,7 +194,9 @@ final class PlaceService {
         }
     }
 
-    /// Brand locations don't move: custom categories cache like infrastructure.
+    /// Custom categories search Apple Maps — the same engine as the search
+    /// bar, so a chip finds exactly what typing its terms would find. Brand
+    /// locations don't move: results cache to disk like infrastructure.
     func places(near coordinate: Coordinate, custom: CustomCategory, forceRefresh: Bool = false) async throws -> [Place] {
         try await cached(
             key: custom.key,
@@ -185,8 +204,22 @@ final class PlaceService {
             timeToLive: 24 * 3600,
             radius: custom.searchRadius,
             forceRefresh: forceRefresh
-        ) {
-            try await self.client.places(near: $0, radius: custom.searchRadius, matching: custom.overpassRegex)
+        ) { origin in
+            // One Apple Maps search per term, merged and deduped. A term
+            // failing is fine as long as any term answers.
+            var merged: [String: Place] = [:]
+            var lastError: Error?
+            for term in custom.terms {
+                do {
+                    for found in try await PlaceSearch.search(term, near: origin, radiusMeters: custom.searchRadius) {
+                        merged[found.id] = Place(found)
+                    }
+                } catch {
+                    lastError = error
+                }
+            }
+            if merged.isEmpty, let lastError { throw lastError }
+            return Array(merged.values)
         }
     }
 

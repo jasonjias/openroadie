@@ -365,7 +365,7 @@ struct CustomCategoryEditor: View {
                 } header: {
                     Text("Search terms")
                 } footer: {
-                    Text("Comma-separated names or brands, matched against what's on the map (OpenStreetMap name and brand tags). Partial matches count — \u{201C}chipotle\u{201D} finds \u{201C}Chipotle Mexican Grill\u{201D}.")
+                    Text("Comma-separated searches, each run through Apple Maps — the same engine as the Nearby search bar. \u{201C}chipotle\u{201D} finds every Chipotle Mexican Grill.")
                 }
                 Section("Icon") {
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 48))], spacing: 8) {
