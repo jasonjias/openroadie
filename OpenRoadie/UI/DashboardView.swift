@@ -8,8 +8,26 @@ struct DashboardView: View {
 
     @Environment(\.openURL) private var openURL
     @State private var showsSettings = false
+    @AppStorage(DrivingBackground.defaultsKey) private var drivingBackground = DrivingBackground.green.rawValue
 
     var body: some View {
+        ZStack {
+            // A splash of color while the drive is live (user-selectable).
+            if session.isDriving, let color = DrivingBackground.current.color {
+                LinearGradient(
+                    colors: [color.opacity(0.30), color.opacity(0.06), .clear],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .ignoresSafeArea()
+                .transition(.opacity)
+            }
+            dashboard
+        }
+        .animation(.easeInOut(duration: 0.6), value: session.isDriving)
+    }
+
+    private var dashboard: some View {
         VStack(spacing: 24) {
             ZStack {
                 Text("OPENROADIE")
@@ -19,7 +37,8 @@ struct DashboardView: View {
                 Button {
                     showsSettings = true
                 } label: {
-                    Image(systemName: "gearshape")
+                    Image(systemName: "person.crop.circle.fill")
+                        .font(.title2)
                         .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .trailing)
@@ -46,7 +65,7 @@ struct DashboardView: View {
             driveButton
         }
         .padding()
-        .sheet(isPresented: $showsSettings) {
+        .fullScreenCover(isPresented: $showsSettings) {
             SettingsView()
         }
         .onChange(of: session.isDriving) { _, driving in
@@ -56,23 +75,26 @@ struct DashboardView: View {
         }
     }
 
+    /// Swipe between the odometer faces chosen in Settings — watch-face style.
     private var speedSection: some View {
-        VStack(spacing: 4) {
-            if let speed = session.context.speed {
-                Text("\(DriveFormatting.milesPerHour(fromMetersPerSecond: speed))")
-                    .font(.system(size: 96, weight: .bold, design: .rounded))
-                    .monospacedDigit()
-                    .contentTransition(.numericText())
-                    .foregroundStyle(isOverLimit ? AnyShapeStyle(.red) : AnyShapeStyle(.primary))
-            } else {
-                Text("—")
-                    .font(.system(size: 96, weight: .bold, design: .rounded))
-                    .foregroundStyle(.tertiary)
+        let styles = OdometerStyle.enabled
+        let speedMph = session.context.speed.map { DriveFormatting.milesPerHour(fromMetersPerSecond: $0) }
+        let accuracyMph = session.context.speedAccuracy.map { max(1, DriveFormatting.milesPerHour(fromMetersPerSecond: $0)) }
+
+        return TabView {
+            ForEach(styles) { style in
+                OdometerView(
+                    style: style,
+                    speedMph: speedMph,
+                    accuracyMph: accuracyMph,
+                    isOverLimit: isOverLimit
+                )
+                .tag(style.id)
             }
-            Text(speedUnitLine)
-                .font(.headline)
-                .foregroundStyle(.secondary)
         }
+        .tabViewStyle(.page(indexDisplayMode: styles.count > 1 ? .automatic : .never))
+        .indexViewStyle(.page(backgroundDisplayMode: .never))
+        .frame(height: 190)
     }
 
     /// Over the posted limit with a little grace (~2 mph) so GPS noise at
@@ -81,14 +103,6 @@ struct DashboardView: View {
         guard let speed = session.context.speed,
               let limit = session.context.road?.speedLimit else { return false }
         return speed > limit + 0.9
-    }
-
-    private var speedUnitLine: String {
-        if let accuracy = session.context.speedAccuracy {
-            let mph = max(1, DriveFormatting.milesPerHour(fromMetersPerSecond: accuracy))
-            return "mph  ± \(mph)"
-        }
-        return "mph"
     }
 
     private var headingSection: some View {

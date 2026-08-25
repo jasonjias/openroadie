@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// The Drive Score, shown its work: the day's deductions line by line, the
-/// 30-day overall, and every event behind the numbers. Deterministic math,
-/// fully inspectable — the anti-black-box safety score.
+/// The Drive Score, Tesla-gauge style: a semicircle from Unsafe to Safe,
+/// factor occurrence counts (no point-deduction math — drive well and keep
+/// the green, rather than watch points bleed), and the day's events.
 struct SafetyDetailView: View {
     let dayTitle: String
     let stats: DayStats
@@ -15,22 +15,35 @@ struct SafetyDetailView: View {
         NavigationStack {
             List {
                 Section {
-                    VStack(spacing: 10) {
-                        ScoreRing(score: stats.score, lineWidth: 11)
-                            .frame(width: 120, height: 120)
-                            .overlay {
-                                if let score = stats.score {
-                                    Text("\(score)")
-                                        .font(.system(size: 38, weight: .bold, design: .rounded))
-                                        .monospacedDigit()
-                                } else {
-                                    Text("—").font(.title).foregroundStyle(.tertiary)
-                                }
+                    VStack(spacing: 6) {
+                        SemicircleGauge(
+                            fraction: Double(stats.score ?? 0) / 100,
+                            color: gaugeColor,
+                            lineWidth: 18
+                        ) {
+                            if let score = stats.score {
+                                Text("\(score)")
+                                    .font(.system(size: 54, weight: .bold, design: .rounded))
+                                    .monospacedDigit()
+                            } else {
+                                Text("—").font(.largeTitle).foregroundStyle(.tertiary)
                             }
+                        }
+                        .frame(maxWidth: 300)
+                        HStack {
+                            Text("Unsafe")
+                            Spacer()
+                            Text("Safe")
+                        }
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: 300)
+
                         if let overallScore {
                             Label("30-day average: \(overallScore)", systemImage: "calendar")
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
+                                .padding(.top, 6)
                         }
                     }
                     .frame(maxWidth: .infinity)
@@ -38,30 +51,10 @@ struct SafetyDetailView: View {
                     .listRowBackground(Color.clear)
                 }
 
-                Section("How it's calculated") {
-                    breakdownRow("Starting score", detail: nil, points: "100")
-                    breakdownRow(
-                        "Hard maneuvers",
-                        detail: "\(stats.hardEvents) × −8",
-                        points: stats.hardEvents > 0 ? "−\(stats.hardEvents * 8)" : "0"
-                    )
-                    breakdownRow(
-                        "Limit crossings",
-                        detail: "\(stats.overLimitCrossings) × −3",
-                        points: stats.overLimitCrossings > 0 ? "−\(stats.overLimitCrossings * 3)" : "0"
-                    )
-                    breakdownRow(
-                        "+5 mph over crossings",
-                        detail: "\(stats.wellOverCrossings) × −8",
-                        points: stats.wellOverCrossings > 0 ? "−\(stats.wellOverCrossings * 8)" : "0"
-                    )
-                    HStack {
-                        Text("Drive Score").fontWeight(.semibold)
-                        Spacer()
-                        Text(stats.score.map(String.init) ?? "—")
-                            .fontWeight(.bold)
-                            .monospacedDigit()
-                    }
+                Section("Factors") {
+                    factorRow("Hard maneuvers", count: stats.hardEvents)
+                    factorRow("Limit crossings", count: stats.overLimitCrossings)
+                    factorRow("+5 mph over crossings", count: stats.wellOverCrossings)
                 }
 
                 if !dayEvents.isEmpty {
@@ -86,27 +79,49 @@ struct SafetyDetailView: View {
             .navigationTitle("\(dayTitle) · Drive Score")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title3)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
         }
-        .presentationDetents([.medium, .large])
     }
 
-    private func breakdownRow(_ title: String, detail: String?, points: String) -> some View {
-        HStack {
-            Text(title)
-            if let detail {
-                Text(detail)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-            Text(points)
-                .monospacedDigit()
-                .foregroundStyle(points.hasPrefix("−") ? .red : .primary)
+    private var gaugeColor: Color {
+        switch stats.score ?? 0 {
+        case 90...: .green
+        case 70..<90: .yellow
+        default: .red
         }
+    }
+
+    /// Tesla-style factor row: the count, and a three-segment severity bar
+    /// (green / yellow / red) lit by how often it happened.
+    private func factorRow(_ title: String, count: Int) -> some View {
+        let severity = count == 0 ? 0 : (count <= 2 ? 1 : 2)
+        let colors: [Color] = [.green, .yellow, .red]
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(title)
+                Spacer()
+                Text(count == 0 ? "none" : "\(count)×")
+                    .monospacedDigit()
+                    .foregroundStyle(count == 0 ? .secondary : .primary)
+            }
+            HStack(spacing: 4) {
+                ForEach(0..<3, id: \.self) { segment in
+                    Capsule()
+                        .fill(segment == severity ? colors[segment] : Color(.systemFill))
+                        .frame(height: 4)
+                }
+            }
+        }
+        .padding(.vertical, 2)
     }
 
     private func icon(for kind: String) -> String {

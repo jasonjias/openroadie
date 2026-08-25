@@ -14,6 +14,7 @@ struct TripsListView: View {
     @State private var selectedDay = Calendar.current.startOfDay(for: .now)
     @State private var showsCalendar = false
     @State private var showsSafetyDetail = false
+    @State private var showsSettings = false
 
     private var calendar: Calendar { .current }
 
@@ -54,15 +55,27 @@ struct TripsListView: View {
             .navigationTitle(dayTitle)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showsCalendar = true
-                    } label: {
-                        Image(systemName: "calendar")
+                    HStack(spacing: 14) {
+                        Button {
+                            showsCalendar = true
+                        } label: {
+                            Image(systemName: "calendar")
+                        }
+                        // Fitness-style profile entry: settings live under it.
+                        Button {
+                            showsSettings = true
+                        } label: {
+                            Image(systemName: "person.crop.circle.fill")
+                                .font(.title3)
+                        }
                     }
                 }
             }
-            .sheet(isPresented: $showsCalendar) {
+            .fullScreenCover(isPresented: $showsCalendar) {
                 MonthCalendarView(selectedDay: $selectedDay, statsFor: stats(on:))
+            }
+            .fullScreenCover(isPresented: $showsSettings) {
+                SettingsView()
             }
             .sheet(isPresented: $showsSafetyDetail) {
                 SafetyDetailView(
@@ -331,24 +344,29 @@ struct MonthCalendarView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
-                        shiftMonth(-1)
+                        dismiss()
                     } label: {
-                        Image(systemName: "chevron.left")
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title3)
+                            .foregroundStyle(.secondary)
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    HStack {
+                    HStack(spacing: 16) {
+                        Button {
+                            shiftMonth(-1)
+                        } label: {
+                            Image(systemName: "chevron.left")
+                        }
                         Button {
                             shiftMonth(1)
                         } label: {
                             Image(systemName: "chevron.right")
                         }
-                        Button("Done") { dismiss() }
                     }
                 }
             }
         }
-        .presentationDetents([.medium, .large])
     }
 
     private var monthStart: Date {

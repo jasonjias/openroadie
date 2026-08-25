@@ -16,6 +16,7 @@ struct SettingsView: View {
     @State private var customAPIKey = KeychainStore.get(ModelProviderChoice.customAPIKeyKeychainKey) ?? ""
     @State private var exportURL: URL?
     @State private var exportError: String?
+    @AppStorage(DrivingBackground.defaultsKey) private var drivingBackground = DrivingBackground.green.rawValue
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @State private var previewSpeaker = SpeechSpeaker()
@@ -64,6 +65,24 @@ struct SettingsView: View {
                     .pickerStyle(.segmented)
                 } footer: {
                     Text("Listens on this device for \u{201C}Hey Roadie\u{201D} so you can ask anything hands-free. Your voice never leaves the phone, and music keeps playing while it listens. \u{201C}Always\u{201D} keeps the microphone on whenever OpenRoadie is open, even parked — more battery, and iOS shows the mic indicator the whole time.")
+                }
+
+                Section {
+                    Picker("Background while driving", selection: $drivingBackground) {
+                        ForEach(DrivingBackground.allCases) { choice in
+                            Text(choice.title).tag(choice.rawValue)
+                        }
+                    }
+                    ForEach(OdometerStyle.allCases) { style in
+                        Toggle(style.title, isOn: Binding(
+                            get: { OdometerStyle.isEnabled(style) },
+                            set: { OdometerStyle.setEnabled(style, $0) }
+                        ))
+                    }
+                } header: {
+                    Text("Dashboard")
+                } footer: {
+                    Text("Pick the odometer faces you like — swipe between them on the Drive tab. The background tints while a drive is live.")
                 }
 
                 Section {
@@ -147,12 +166,18 @@ struct SettingsView: View {
             .onDisappear { exportURL = nil }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
+                // Account-style full-screen page: close with the ✕.
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title3)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
         }
-        .presentationDetents([.medium])
     }
 
     private func exportEvents() {
