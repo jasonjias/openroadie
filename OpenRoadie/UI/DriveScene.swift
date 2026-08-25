@@ -204,9 +204,11 @@ struct DriveSceneView: View {
             var targetZ: Float
 
             static let parked = Pose(yaw: -2.6, pitch: 0.28, radius: 6.8, targetY: 0.35, targetZ: 0)
-            /// Driving sits farther back and higher — the Tesla drive view's
-            /// zoomed-out, top-down lean.
-            static let driving = Pose(yaw: 0, pitch: 0.62, radius: 8.4, targetY: 0.2, targetZ: -6)
+            /// Driving: mostly top-down (~76°), zoomed out, gaze just ahead
+            /// of the car so it settles low in frame — the toy-street-map
+            /// view. The transition reads as: spin the car to face forward
+            /// in place, then set it down on the map.
+            static let driving = Pose(yaw: 0, pitch: 1.32, radius: 8.4, targetY: 0.2, targetZ: -2.2)
 
             static func mix(_ a: Pose, _ b: Pose, _ t: Float) -> Pose {
                 Pose(
@@ -309,7 +311,7 @@ struct DriveSceneView: View {
         private func applyCamera() {
             guard let camera else { return }
             let yaw = pose.yaw + chaseYaw
-            let pitch = min(1.3, max(0.05, pose.pitch + chasePitch))
+            let pitch = min(1.45, max(0.05, pose.pitch + chasePitch))
             let radius = pose.radius
             let from: SIMD3<Float> = [
                 sin(yaw) * radius * cos(pitch),
