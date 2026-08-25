@@ -37,7 +37,7 @@ struct TripsListView: View {
                     Button {
                         showsSettings = true
                     } label: {
-                        ProfileAvatar(size: 34)
+                        ProfileAvatar(size: 46)
                     }
                 }
                 .padding(.horizontal)
@@ -79,6 +79,10 @@ struct TripsListView: View {
 
                 Section {
                     dayCard
+                }
+
+                Section {
+                    streakCard
                 }
 
                 daySection
@@ -135,6 +139,41 @@ struct TripsListView: View {
         if calendar.isDateInToday(selectedDay) { return "Today" }
         if calendar.isDateInYesterday(selectedDay) { return "Yesterday" }
         return selectedDay.formatted(.dateTime.weekday(.abbreviated).month().day())
+    }
+
+    // MARK: - Streak
+
+    /// The thing you don't want to lose: consecutive drives with no alerts
+    /// and no hard maneuvers. The positive counterpart to the safety score.
+    private var streakCard: some View {
+        let streak = Streak.compute(trips: Array(trips), events: Array(events))
+        return HStack(spacing: 14) {
+            Image(systemName: "flame.fill")
+                .font(.title2)
+                .foregroundStyle(streak.current > 0 ? AnyShapeStyle(.orange) : AnyShapeStyle(.secondary))
+                .symbolEffect(.pulse, isActive: streak.current >= 3)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Clean Drive Streak")
+                    .font(AppFont.rowTitle)
+                Text(streak.current == 0
+                    ? "Finish a drive with no alerts or hard maneuvers to start one."
+                    : "No alerts, no hard maneuvers — keep it going.")
+                    .font(AppFont.rowDetail)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            VStack(alignment: .trailing, spacing: 2) {
+                Text("\(streak.current)")
+                    .font(.system(.title2, design: .rounded).weight(.semibold))
+                    .contentTransition(.numericText())
+                if streak.best > streak.current {
+                    Text("Best \(streak.best)")
+                        .font(AppFont.rowDetail)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .padding(.vertical, 2)
     }
 
     // MARK: - Week strip

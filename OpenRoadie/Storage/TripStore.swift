@@ -134,6 +134,14 @@ final class TripStore {
         return (try? context.fetch(descriptor)) ?? []
     }
 
+    /// Current and best clean-drive streaks across all history.
+    func streak() -> Streak.Summary {
+        let completed = (try? context.fetch(FetchDescriptor<Trip>(
+            predicate: #Predicate { $0.endDate != nil }
+        ))) ?? []
+        return Streak.compute(trips: completed, events: allEvents())
+    }
+
     // MARK: - Driving events
 
     func saveEvent(kind: String, peakG: Double, coordinate: Coordinate?, speedMph: Double?) {

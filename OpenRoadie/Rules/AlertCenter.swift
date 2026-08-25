@@ -75,6 +75,16 @@ final class AlertCenter: NSObject, UNUserNotificationCenterDelegate {
         }
     }
 
+    /// The earn-points moment: a finished drive with zero events.
+    func deliverCleanDrive(streak: Int) {
+        let content = UNMutableNotificationContent()
+        content.title = "Clean drive"
+        content.body = streak >= 2
+            ? "No alerts, no hard maneuvers. That's \(streak) in a row — keep it going."
+            : "No alerts, no hard maneuvers. Streak started."
+        post(content)
+    }
+
     func deliverDriveAutoEnded() {
         let content = UNMutableNotificationContent()
         content.title = "Drive saved"

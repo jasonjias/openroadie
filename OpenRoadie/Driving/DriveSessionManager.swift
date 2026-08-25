@@ -41,6 +41,9 @@ final class DriveSessionManager {
     private var stationarySince: Date?
     /// Alerts so far this drive — coaching escalates its tone politely.
     private var alertOccurrences = 0
+    /// Recorded events (hard maneuvers + limit crossings) this drive.
+    /// Zero at drive end = a clean drive that extends the streak.
+    private var eventsThisDrive = 0
 
     /// Set by the app layer: speaks a coaching nudge through the shared
     /// voice pipeline (which pauses the wake listener around it).
@@ -83,6 +86,7 @@ final class DriveSessionManager {
         scoreRecorder.config = SpeedAlertEngine.Config(alertOverPostedLimit: true, postedMarginMph: 5)
         scoreRecorder.reset()
         alertOccurrences = 0
+        eventsThisDrive = 0
         tracker.start()
         context = tracker.context
         isDriving = true
@@ -121,6 +125,7 @@ final class DriveSessionManager {
         context = tracker.context
         watchLink.push(context: context, isDriving: false)
         if let trip = currentTrip {
+            let willSave = trip.points.count >= 2
             store?.endTrip(
                 trip,
                 at: context.tripEnd ?? .now,
@@ -128,6 +133,11 @@ final class DriveSessionManager {
                 maxSpeed: context.tripMaxSpeed
             )
             currentTrip = nil
+            // A saved drive with zero events extends the clean streak —
+            // that's worth hearing about; a broken one stays silent.
+            if willSave, eventsThisDrive == 0, let streak = store?.streak().current {
+                alerts.deliverCleanDrive(streak: streak)
+            }
         }
     }
 
@@ -173,6 +183,7 @@ final class DriveSessionManager {
             kind = "hardBraking" // the conservative guess when GPS can't say
         }
         store?.saveEvent(kind: kind, peakG: peakG, coordinate: context.coordinate, speedMph: nowMph)
+        eventsThisDrive += 1
     }
 
     /// Deterministic speed alerts, mirrored to a paired Apple Watch by iOS.
@@ -207,8 +218,10 @@ final class DriveSessionManager {
             switch event {
             case .overPostedLimit:
                 store?.saveEvent(kind: "overLimit", peakG: 0, coordinate: context.coordinate, speedMph: mphNow)
+                eventsThisDrive += 1
             case .overPostedMargin:
                 store?.saveEvent(kind: "wellOverLimit", peakG: 0, coordinate: context.coordinate, speedMph: mphNow)
+                eventsThisDrive += 1
             default:
                 break
             }
