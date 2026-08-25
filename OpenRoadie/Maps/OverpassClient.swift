@@ -18,6 +18,7 @@ struct OverpassClient: Sendable {
     var endpoints = [
         URL(string: "https://overpass-api.de/api/interpreter")!,
         URL(string: "https://overpass.kumi.systems/api/interpreter")!,
+        URL(string: "https://overpass.private.coffee/api/interpreter")!,
     ]
 
     /// OSM etiquette: identify the app and where to reach its maintainers.

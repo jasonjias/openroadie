@@ -63,6 +63,16 @@ struct NearbyChipOrderTests {
         PlaceCategory.setHidden(.fuel, false)
         clearState()
     }
+
+    // In this suite (not CustomCategoryTests) because it touches the shared
+    // UserDefaults key — suites run in parallel; only this one is serialized.
+    @Test func customCategoriesRoundTripThroughDefaults() {
+        clearState()
+        let custom = CustomCategory(title: "Chipotle", systemImage: "fork.knife", terms: ["chipotle"])
+        CustomCategory.save([custom])
+        #expect(CustomCategory.load() == [custom])
+        clearState()
+    }
 }
 
 struct CustomCategoryTests {
@@ -79,13 +89,5 @@ struct CustomCategoryTests {
     @Test func regexSkipsBlankTerms() {
         let custom = CustomCategory(title: "Sparse", terms: [" chipotle ", "", "   "])
         #expect(custom.overpassRegex == "chipotle")
-    }
-
-    @Test func roundTripsThroughDefaults() {
-        UserDefaults.standard.removeObject(forKey: CustomCategory.defaultsKey)
-        let custom = CustomCategory(title: "Chipotle", systemImage: "fork.knife", terms: ["chipotle"])
-        CustomCategory.save([custom])
-        #expect(CustomCategory.load() == [custom])
-        UserDefaults.standard.removeObject(forKey: CustomCategory.defaultsKey)
     }
 }

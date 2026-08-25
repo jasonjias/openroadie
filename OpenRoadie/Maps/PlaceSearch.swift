@@ -14,7 +14,34 @@ struct FoundPlace: Identifiable, Equatable {
 /// OSM categories. Display data only; the query result never persists.
 @MainActor
 enum PlaceSearch {
+    /// Session cache: same query near the same spot (~2 km grid) reuses the
+    /// answer for a day — Chipotles don't move between searches.
+    private struct CacheKey: Hashable {
+        let query: String
+        let cellLat: Int
+        let cellLon: Int
+
+        init(query: String, origin: Coordinate) {
+            self.query = query.lowercased()
+            cellLat = Int((origin.latitude / 0.02).rounded())
+            cellLon = Int((origin.longitude / 0.02).rounded())
+        }
+    }
+
+    private static var cache: [CacheKey: (fetchedAt: Date, places: [FoundPlace])] = [:]
+    private static let timeToLive: TimeInterval = 24 * 3600
+
     static func search(_ query: String, near origin: Coordinate, radiusMeters: Double = 10_000) async throws -> [FoundPlace] {
+        let key = CacheKey(query: query, origin: origin)
+        if let hit = cache[key], Date.now.timeIntervalSince(hit.fetchedAt) < timeToLive {
+            return hit.places
+        }
+        let places = try await fetch(query, near: origin, radiusMeters: radiusMeters)
+        cache[key] = (.now, places)
+        return places
+    }
+
+    private static func fetch(_ query: String, near origin: Coordinate, radiusMeters: Double) async throws -> [FoundPlace] {
         let request = MKLocalSearch.Request()
         request.naturalLanguageQuery = query
         request.region = MKCoordinateRegion(

@@ -145,7 +145,12 @@ final class PlaceService {
         var places: [Place]
     }
 
-    private static let cacheMaxDrift: Double = 500
+    /// A cached answer stays valid while you're within a fifth of its search
+    /// radius — driving across town shouldn't refetch Superchargers found
+    /// 15 km out, but should refetch 3 km-radius coffee.
+    private static func cacheMaxDrift(radius: Double) -> Double {
+        radius / 5
+    }
 
     private let client = OverpassClient()
     private var cache: [String: CacheEntry] = [:]
@@ -198,7 +203,7 @@ final class PlaceService {
         if !forceRefresh,
            let entry = cache[key],
            Date.now.timeIntervalSince(entry.fetchedAt) < timeToLive,
-           TripTracker.distance(from: entry.center, to: coordinate) < Self.cacheMaxDrift {
+           TripTracker.distance(from: entry.center, to: coordinate) < Self.cacheMaxDrift(radius: radius) {
             return entry.places
         }
 

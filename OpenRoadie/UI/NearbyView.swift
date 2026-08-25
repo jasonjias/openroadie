@@ -285,6 +285,10 @@ struct NearbyView: View {
             results = PlaceGeometry.sortedByDistance(places, from: coordinate)
             camera = .automatic // re-frame the map around the fresh pins
         } catch {
+            // Switching chips cancels this load — the new chip's load owns
+            // the screen now, so a cancelled fetch must not stamp an error
+            // over it (that was the phantom "Couldn't search" on arrival).
+            guard !Task.isCancelled else { return }
             errorText = "OpenStreetMap didn't answer. Try again in a moment."
             results = []
         }
