@@ -15,6 +15,10 @@ struct DayStats: Equatable {
     var overLimitCrossings: Int = 0
     /// Times speed went more than 5 mph past the posted limit.
     var wellOverCrossings: Int = 0
+    /// Harsh corners (lateral g past threshold).
+    var harshCornering: Int = 0
+    /// Phone handled while moving at road speed.
+    var phoneUseEvents: Int = 0
 
     /// The Drive Score, 0–100 — Tesla-calibrated after field testing: an
     /// afternoon of ordinary flow-of-traffic driving should score in the
@@ -25,7 +29,11 @@ struct DayStats: Equatable {
     /// `nil` on days with no driving — no drive, no ring.
     var score: Int? {
         guard tripCount > 0 else { return nil }
-        return max(0, 100 - hardEvents * 10 - wellOverCrossings * 5)
+        return max(0, 100
+            - hardEvents * 10
+            - harshCornering * 10
+            - wellOverCrossings * 5
+            - phoneUseEvents * 15) // distracted driving weighs heaviest
     }
 
     static func compute(
@@ -61,6 +69,10 @@ struct DayStats: Equatable {
                 stats.hardEvents += 1
             case "overLimit": stats.overLimitCrossings += 1
             case "wellOverLimit": stats.wellOverCrossings += 1
+            case "harshCornering":
+                guard !stationary else { break }
+                stats.harshCornering += 1
+            case "phoneUse": stats.phoneUseEvents += 1
             default: break
             }
         }

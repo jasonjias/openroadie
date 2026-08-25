@@ -1,3 +1,4 @@
+import Charts
 import MapKit
 import SwiftData
 import SwiftUI
@@ -81,6 +82,7 @@ struct TripDetailView: View {
 
             RouteLegend(runs: runs, mode: colorMode)
                 .padding(.top, 6)
+            speedChart(route: route)
             statsGrid
         }
         .navigationTitle(trip.startDate.formatted(.dateTime.month().day().hour().minute()))
@@ -96,6 +98,50 @@ struct TripDetailView: View {
         }
         .task {
             shareURL = TripShareRenderer.pngURL(for: trip)
+        }
+    }
+
+    /// Speed over the drive, with the posted limit as a dashed line —
+    /// drawn entirely from the route points we already store.
+    @ViewBuilder
+    private func speedChart(route: [TripPoint]) -> some View {
+        let start = trip.startDate
+        let samples = route.compactMap { point -> (minutes: Double, mph: Double, limit: Double?)? in
+            guard let speed = point.speed else { return nil }
+            return (
+                minutes: point.timestamp.timeIntervalSince(start) / 60,
+                mph: speed * 2.236936,
+                limit: point.speedLimit.map { $0 * 2.236936 }
+            )
+        }
+        if samples.count >= 5 {
+            Chart {
+                ForEach(Array(samples.enumerated()), id: \.offset) { _, sample in
+                    LineMark(
+                        x: .value("Time", sample.minutes),
+                        y: .value("Speed", sample.mph),
+                        series: .value("Series", "Speed")
+                    )
+                    .foregroundStyle(.blue)
+                    .interpolationMethod(.monotone)
+                }
+                ForEach(Array(samples.enumerated()), id: \.offset) { _, sample in
+                    if let limit = sample.limit {
+                        LineMark(
+                            x: .value("Time", sample.minutes),
+                            y: .value("Limit", limit),
+                            series: .value("Series", "Limit")
+                        )
+                        .foregroundStyle(.red.opacity(0.6))
+                        .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [4, 4]))
+                    }
+                }
+            }
+            .chartXAxisLabel("minutes", alignment: .trailing)
+            .chartYAxisLabel("mph")
+            .frame(height: 130)
+            .padding(.horizontal)
+            .padding(.top, 8)
         }
     }
 

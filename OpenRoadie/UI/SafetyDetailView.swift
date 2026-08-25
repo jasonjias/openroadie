@@ -76,8 +76,28 @@ struct SafetyDetailView: View {
                         description: "Times you went more than 5 mph past the posted limit.",
                         count: stats.wellOverCrossings
                     )
+                    factorRow(
+                        "Harsh Cornering",
+                        description: "Corners taken hard enough to push everyone sideways — slower, smoother turns keep this green.",
+                        count: stats.harshCornering
+                    )
+                    factorRow(
+                        "Phone Handling",
+                        description: "Times the phone was picked up and handled while moving — the single riskiest habit on this list.",
+                        count: stats.phoneUseEvents
+                    )
                 } header: {
                     SectionHeader("Factors")
+                }
+
+                Section {
+                    FactorRadar(stats: stats)
+                        .frame(height: 240)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                        .listRowBackground(Color.clear)
+                } header: {
+                    SectionHeader("At a glance")
                 }
 
                 if !dayEvents.isEmpty {
@@ -158,6 +178,8 @@ struct SafetyDetailView: View {
     private func icon(for kind: String) -> String {
         switch kind {
         case "hardBraking", "hardAcceleration": "exclamationmark.triangle.fill"
+        case "harshCornering": "arrow.turn.up.right"
+        case "phoneUse": "iphone.radiowaves.left.and.right"
         default: "gauge.high"
         }
     }
@@ -167,6 +189,8 @@ struct SafetyDetailView: View {
         case "hardBraking": .red
         case "hardAcceleration": .orange
         case "wellOverLimit": .red
+        case "harshCornering": .orange
+        case "phoneUse": .purple
         default: .yellow
         }
     }
@@ -177,6 +201,8 @@ struct SafetyDetailView: View {
         case "hardAcceleration": "Hard acceleration"
         case "overLimit": "Crossed the posted limit"
         case "wellOverLimit": "More than 5 over the limit"
+        case "harshCornering": "Harsh cornering"
+        case "phoneUse": "Phone handled while driving"
         default: kind
         }
     }
@@ -187,7 +213,10 @@ struct SafetyDetailView: View {
             parts.append("\(Int(speed.rounded())) mph")
         }
         if event.peakG > 0 {
-            parts.append(String(format: "%.2f g", event.peakG))
+            // phoneUse stores the handling duration in the peakG slot.
+            parts.append(event.kind == "phoneUse"
+                ? String(format: "%.1fs in hand", event.peakG)
+                : String(format: "%.2f g", event.peakG))
         }
         return parts.joined(separator: " · ")
     }
@@ -313,5 +342,72 @@ struct LearnMoreView: View {
     private func segmentColor(_ color: Color, segment: Int) -> Color {
         let position = color == .green ? 0 : (color == .yellow ? 1 : 2)
         return segment == position ? color : Color(.systemFill)
+    }
+}
+
+/// SPIDER-style radar: five axes, each scored 0 (3+ events, center) to
+/// 1 (clean, outer edge) — the whole day's shape at a glance.
+struct FactorRadar: View {
+    let stats: DayStats
+
+    private var axes: [(label: String, value: Double)] {
+        func score(_ count: Int) -> Double { max(0, 1 - Double(count) / 3) }
+        return [
+            ("Braking", score(stats.hardBraking)),
+            ("Acceleration", score(stats.hardAcceleration)),
+            ("Speeding", score(stats.wellOverCrossings)),
+            ("Cornering", score(stats.harshCornering)),
+            ("Phone", score(stats.phoneUseEvents)),
+        ]
+    }
+
+    var body: some View {
+        Canvas { context, size in
+            let center = CGPoint(x: size.width / 2, y: size.height / 2 + 6)
+            let radius = min(size.width, size.height) / 2 - 34
+            let n = axes.count
+
+            func point(axis: Int, r: CGFloat) -> CGPoint {
+                let angle = -CGFloat.pi / 2 + CGFloat(axis) * 2 * .pi / CGFloat(n)
+                return CGPoint(x: center.x + cos(angle) * r, y: center.y + sin(angle) * r)
+            }
+
+            // Grid rings and spokes.
+            for ring in [0.33, 0.66, 1.0] {
+                var path = Path()
+                for i in 0...n {
+                    let p = point(axis: i % n, r: radius * ring)
+                    i == 0 ? path.move(to: p) : path.addLine(to: p)
+                }
+                context.stroke(path, with: .color(.gray.opacity(0.25)), lineWidth: 1)
+            }
+            for i in 0..<n {
+                var spoke = Path()
+                spoke.move(to: center)
+                spoke.addLine(to: point(axis: i, r: radius))
+                context.stroke(spoke, with: .color(.gray.opacity(0.2)), lineWidth: 1)
+            }
+
+            // The day's shape.
+            var shape = Path()
+            for (i, axis) in axes.enumerated() {
+                let p = point(axis: i, r: radius * max(0.06, axis.value))
+                i == 0 ? shape.move(to: p) : shape.addLine(to: p)
+            }
+            shape.closeSubpath()
+            let clean = axes.allSatisfy { $0.value >= 0.99 }
+            let fill: Color = clean ? .green : (axes.contains { $0.value < 0.4 } ? .orange : .yellow)
+            context.fill(shape, with: .color(fill.opacity(0.35)))
+            context.stroke(shape, with: .color(fill), lineWidth: 2)
+
+            // Labels just past each axis tip.
+            for (i, axis) in axes.enumerated() {
+                let p = point(axis: i, r: radius + 20)
+                context.draw(
+                    Text(axis.label).font(.caption2.weight(.medium)).foregroundStyle(.secondary),
+                    at: p
+                )
+            }
+        }
     }
 }

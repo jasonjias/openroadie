@@ -51,6 +51,11 @@ final class DriveSessionManager {
     var speakCoaching: ((String) -> Void)?
     /// Recent (timestamp, mph) samples for classifying hard maneuvers.
     private var recentSpeeds: [(Date, Double)] = []
+    private var corneringDetector = CorneringDetector()
+    private var phoneUseDetector = PhoneUseDetector()
+    /// Latest yaw rate (rad/s) — read by the drive scene for turn lean.
+    /// ObservationIgnored: it updates at 10Hz and must not churn SwiftUI.
+    @ObservationIgnored private(set) var latestYawRate: Double = 0
 
     /// Parked this long → the drive ends and saves itself.
     private static let autoEndAfter: TimeInterval = 600
@@ -96,6 +101,11 @@ final class DriveSessionManager {
         recentSpeeds = []
         motionService.onHardManeuver = { [weak self] peakG in
             self?.recordHardManeuver(peakG: peakG)
+        }
+        corneringDetector = CorneringDetector()
+        phoneUseDetector = PhoneUseDetector()
+        motionService.onRotationSample = { [weak self] yawRate, nonYaw in
+            self?.processRotation(yawRate: yawRate, nonYaw: nonYaw)
         }
         motionService.start()
 
@@ -193,6 +203,24 @@ final class DriveSessionManager {
         }
         store?.saveEvent(kind: kind, peakG: peakG, coordinate: context.coordinate, speedMph: nowMph)
         eventsThisDrive += 1
+    }
+
+    /// Cornering (yaw × speed = lateral g) and phone handling (sustained
+    /// non-yaw rotation at speed) — both saved as score events.
+    private func processRotation(yawRate: Double, nonYaw: Double) {
+        latestYawRate = yawRate
+        guard isDriving, let speed = context.speed else { return }
+        if let peakG = corneringDetector.process(yawRate: yawRate, speedMps: speed, at: .now) {
+            store?.saveEvent(kind: "harshCornering", peakG: peakG, coordinate: context.coordinate, speedMph: speed * 2.236936)
+            eventsThisDrive += 1
+        }
+        // Handling only counts at real road speed — passengers and parked
+        // fiddling are not distracted driving.
+        if speed * 2.236936 >= 10,
+           let duration = phoneUseDetector.process(nonYawRotation: nonYaw, at: .now) {
+            store?.saveEvent(kind: "phoneUse", peakG: duration, coordinate: context.coordinate, speedMph: speed * 2.236936)
+            eventsThisDrive += 1
+        }
     }
 
     /// Deterministic speed alerts, mirrored to a paired Apple Watch by iOS.
