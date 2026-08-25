@@ -8,6 +8,9 @@ struct DayStats: Equatable {
     var maxSpeedMph: Int?
     var tripCount: Int = 0
     var hardEvents: Int = 0
+    /// The split behind `hardEvents`, for display.
+    var hardBraking: Int = 0
+    var hardAcceleration: Int = 0
     /// Times the posted limit was crossed.
     var overLimitCrossings: Int = 0
     /// Times speed went more than 5 mph past the posted limit.
@@ -41,7 +44,12 @@ struct DayStats: Equatable {
         }
         for event in events where calendar.isDate(event.timestamp, inSameDayAs: day) {
             switch event.kind {
-            case "hardBraking", "hardAcceleration": stats.hardEvents += 1
+            case "hardBraking":
+                stats.hardBraking += 1
+                stats.hardEvents += 1
+            case "hardAcceleration":
+                stats.hardAcceleration += 1
+                stats.hardEvents += 1
             case "overLimit": stats.overLimitCrossings += 1
             case "wellOverLimit": stats.wellOverCrossings += 1
             default: break

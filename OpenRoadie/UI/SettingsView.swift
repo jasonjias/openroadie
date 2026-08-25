@@ -17,7 +17,8 @@ struct SettingsView: View {
     @State private var exportURL: URL?
     @State private var exportError: String?
     @AppStorage(DrivingBackground.defaultsKey) private var drivingBackground = DrivingBackground.green.rawValue
-    @AppStorage("showCoordinates") private var showCoordinates = false
+    @AppStorage("showGPSDetails") private var showGPSDetails = false
+    @AppStorage("showHeading") private var showHeading = false
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @State private var previewSpeaker = SpeechSpeaker()
@@ -80,11 +81,12 @@ struct SettingsView: View {
                             set: { OdometerStyle.setEnabled(style, $0) }
                         ))
                     }
-                    Toggle("Show coordinates", isOn: $showCoordinates)
+                    Toggle("Show heading", isOn: $showHeading)
+                    Toggle("Show GPS details", isOn: $showGPSDetails)
                 } header: {
                     Text("Dashboard")
                 } footer: {
-                    Text("Pick the odometer faces you like — swipe between them on the Drive tab. The background tints while a drive is live.")
+                    Text("Pick the odometer faces you like — swipe between them on the Drive tab. The background tints while a drive is live. Heading and GPS details (coordinates, accuracy, altitude) are for the technically curious.")
                 }
 
                 Section {

@@ -81,6 +81,8 @@ struct DayStatsTests {
         #expect(stats.overLimitCrossings == 1)
         #expect(stats.wellOverCrossings == 1)
         #expect(stats.hardEvents == 1)
+        #expect(stats.hardBraking == 1)
+        #expect(stats.hardAcceleration == 0)
         #expect(stats.score == 100 - 3 - 8 - 8)
     }
 }

@@ -48,7 +48,9 @@ struct DashboardView: View {
             Spacer()
 
             speedSection
-            headingSection
+            if showHeading {
+                headingSection
+            }
             roadSection
             positionSection
 
@@ -137,27 +139,28 @@ struct DashboardView: View {
         }
     }
 
-    @AppStorage("showCoordinates") private var showCoordinates = false
+    @AppStorage("showGPSDetails") private var showGPSDetails = false
+    @AppStorage("showHeading") private var showHeading = false
 
     private var positionSection: some View {
         VStack(spacing: 2) {
             if let coordinate = session.context.coordinate {
-                // Raw coordinates are developer telemetry, not driver info:
-                // hidden unless the Settings flag turns them on.
-                if showCoordinates {
+                // Coordinates, GPS accuracy, and altitude are developer
+                // telemetry, not driver info — hidden unless the flag is on.
+                if showGPSDetails {
                     Text(DriveFormatting.coordinate(coordinate))
                         .font(.body.monospaced())
-                }
-                HStack(spacing: 10) {
-                    if let accuracy = session.context.horizontalAccuracy {
-                        Text("GPS ± \(Int(accuracy.rounded())) m")
+                    HStack(spacing: 10) {
+                        if let accuracy = session.context.horizontalAccuracy {
+                            Text("GPS ± \(Int(accuracy.rounded())) m")
+                        }
+                        if let altitude = session.context.altitude {
+                            Text("alt \(DriveFormatting.feet(fromMeters: altitude)) ft")
+                        }
                     }
-                    if let altitude = session.context.altitude {
-                        Text("alt \(DriveFormatting.feet(fromMeters: altitude)) ft")
-                    }
+                    .font(.caption.monospaced())
+                    .foregroundStyle(.secondary)
                 }
-                .font(.caption.monospaced())
-                .foregroundStyle(.secondary)
             } else if session.isDriving {
                 Text("waiting for GPS…")
                     .font(.body)
