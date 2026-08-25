@@ -322,6 +322,16 @@ struct SettingsView: View {
                 }
 
                 Section {
+                    NavigationLink {
+                        PracticeLogView()
+                    } label: {
+                        Label("Permit Practice Log", systemImage: "graduationcap")
+                    }
+                } footer: {
+                    Text("Track supervised practice hours toward a learner's permit — total and night hours, with a printable log to sign.")
+                }
+
+                Section {
                     LabeledContent("Driving data", value: "On this device only")
                     if let exportURL {
                         ShareLink("Share anonymized events", item: exportURL)
