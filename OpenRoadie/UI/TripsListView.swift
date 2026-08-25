@@ -33,6 +33,13 @@ struct TripsListView: View {
                 dayNotesSection
 
                 Section {
+                    if !dayTrips.isEmpty {
+                        NavigationLink {
+                            DayDrivesMap(trips: dayTrips, title: dayTitle)
+                        } label: {
+                            Label("Map for this day", systemImage: "point.topleft.down.to.point.bottomright.curvepath")
+                        }
+                    }
                     NavigationLink {
                         AllDrivesMap(trips: trips)
                             .navigationTitle("All drives")
@@ -129,6 +136,7 @@ struct TripsListView: View {
                 metric("Time", stats.tripCount > 0 ? DriveFormatting.duration(stats.duration) : "—", tint: .green)
                 metric("Max speed", stats.maxSpeedMph.map { "\($0) mph" } ?? "—", tint: .orange)
                 metric("Hard events", stats.tripCount > 0 ? "\(stats.hardEvents)" : "—", tint: .red)
+                metric("Over limit", stats.tripCount > 0 ? "\(stats.overLimitCrossings + stats.wellOverCrossings)×" : "—", tint: .purple)
             }
             Spacer()
             VStack(spacing: 4) {
@@ -336,6 +344,42 @@ struct MonthCalendarView: View {
         if let shifted = calendar.date(byAdding: .month, value: delta, to: displayedMonth) {
             displayedMonth = shifted
         }
+    }
+}
+
+/// One day's drives overlaid, colored by speed or actual-vs-limit —
+/// the "how did I actually drive today" view.
+struct DayDrivesMap: View {
+    let trips: [Trip]
+    let title: String
+
+    @State private var colorMode: RouteColorMode = .vsLimit
+
+    var body: some View {
+        let allRuns = trips.flatMap { RouteColoring.runs(for: $0.route, mode: colorMode) }
+
+        VStack(spacing: 0) {
+            Map(initialPosition: .automatic) {
+                ForEach(trips) { trip in
+                    ColoredRoute(route: trip.route, mode: colorMode)
+                }
+            }
+            .mapStyle(.standard(elevation: .flat))
+
+            Picker("Coloring", selection: $colorMode) {
+                ForEach(RouteColorMode.allCases) { mode in
+                    Text(mode.title).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal)
+            .padding(.top, 8)
+
+            RouteLegend(runs: allRuns, mode: colorMode)
+                .padding(.vertical, 8)
+        }
+        .navigationTitle(title)
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 

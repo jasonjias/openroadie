@@ -8,12 +8,18 @@ struct DayStats: Equatable {
     var maxSpeedMph: Int?
     var tripCount: Int = 0
     var hardEvents: Int = 0
+    /// Times the posted limit was crossed.
+    var overLimitCrossings: Int = 0
+    /// Times speed went more than 5 mph past the posted limit.
+    var wellOverCrossings: Int = 0
 
-    /// The Drive Score, 0–100: start at 100, lose 8 per hard maneuver.
-    /// `nil` on days with no driving — no drive, no ring.
+    /// The Drive Score, 0–100 — actual vs expected, where expected is the
+    /// posted limit and smooth inputs. Deterministic and explainable:
+    /// start at 100; −8 per hard maneuver, −3 per limit crossing, −8 per
+    /// +5-over crossing. `nil` on days with no driving — no drive, no ring.
     var score: Int? {
         guard tripCount > 0 else { return nil }
-        return max(0, 100 - hardEvents * 8)
+        return max(0, 100 - hardEvents * 8 - overLimitCrossings * 3 - wellOverCrossings * 8)
     }
 
     static func compute(
@@ -33,7 +39,14 @@ struct DayStats: Equatable {
                 stats.maxSpeedMph = max(stats.maxSpeedMph ?? 0, mph)
             }
         }
-        stats.hardEvents = events.count { calendar.isDate($0.timestamp, inSameDayAs: day) }
+        for event in events where calendar.isDate(event.timestamp, inSameDayAs: day) {
+            switch event.kind {
+            case "hardBraking", "hardAcceleration": stats.hardEvents += 1
+            case "overLimit": stats.overLimitCrossings += 1
+            case "wellOverLimit": stats.wellOverCrossings += 1
+            default: break
+            }
+        }
         return stats
     }
 }

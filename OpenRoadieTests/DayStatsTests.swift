@@ -57,4 +57,61 @@ struct DayStatsTests {
         stats.hardEvents = 0
         #expect(stats.score == 100)
     }
+
+    @Test func overspeedCrossingsCostPoints() {
+        var stats = DayStats()
+        stats.tripCount = 1
+        stats.overLimitCrossings = 2   // -6
+        stats.wellOverCrossings = 1    // -8
+        stats.hardEvents = 1           // -8
+        #expect(stats.score == 78)
+    }
+
+    @Test func countsEventKindsSeparately() {
+        let day = Calendar.current.startOfDay(for: .now)
+        let trip = Trip(startDate: day.addingTimeInterval(3600))
+        trip.endDate = day.addingTimeInterval(4000)
+        trip.distance = 1609
+        let events = [
+            DriveEvent(kind: "overLimit", peakG: 0, coordinate: nil, speedMph: 40, timestamp: day.addingTimeInterval(3700)),
+            DriveEvent(kind: "wellOverLimit", peakG: 0, coordinate: nil, speedMph: 50, timestamp: day.addingTimeInterval(3800)),
+            DriveEvent(kind: "hardBraking", peakG: 0.4, coordinate: nil, speedMph: 30, timestamp: day.addingTimeInterval(3900)),
+        ]
+        let stats = DayStats.compute(trips: [trip], events: events, on: day)
+        #expect(stats.overLimitCrossings == 1)
+        #expect(stats.wellOverCrossings == 1)
+        #expect(stats.hardEvents == 1)
+        #expect(stats.score == 100 - 3 - 8 - 8)
+    }
+}
+
+@MainActor
+struct RelativeColoringTests {
+    @Test func mapsDeltasToBands() {
+        let limit = 29.06 // 65 mph in m/s
+        // Unknown limit or speed → gray band 0.
+        #expect(RouteColoring.relativeBandIndex(speedMps: 30, limitMps: nil) == 0)
+        #expect(RouteColoring.relativeBandIndex(speedMps: nil, limitMps: limit) == 0)
+        // 50 mph in a 65: well under.
+        #expect(RouteColoring.relativeBandIndex(speedMps: 22.35, limitMps: limit) == 1)
+        // 65 in a 65: at limit.
+        #expect(RouteColoring.relativeBandIndex(speedMps: 29.06, limitMps: limit) == 2)
+        // 68 in a 65: +1–5.
+        #expect(RouteColoring.relativeBandIndex(speedMps: 30.4, limitMps: limit) == 3)
+        // 72 in a 65: +5–10.
+        #expect(RouteColoring.relativeBandIndex(speedMps: 32.2, limitMps: limit) == 4)
+        // 80 in a 65: +10 over.
+        #expect(RouteColoring.relativeBandIndex(speedMps: 35.8, limitMps: limit) == 5)
+    }
+
+    @Test func relativeRunsGroupAndCoverEverything() {
+        let limit: Double? = 29.06
+        // Well under → +1–5 over → +10 over, two points each.
+        let speeds: [Double?] = [22, 22, 30.5, 30.5, 35.8, 35.8]
+        let runs = RouteColoring.relativeRuns(speeds: speeds, limits: Array(repeating: limit, count: 6))
+        #expect(runs.first?.pointIndices.lowerBound == 0)
+        #expect(runs.last?.pointIndices.upperBound == 5)
+        #expect(runs.count == 3)
+        #expect(runs.map(\.bandIndex) == [1, 3, 5])
+    }
 }

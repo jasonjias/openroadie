@@ -53,14 +53,18 @@ final class TripPoint {
     var speed: Double?
     /// Meters above sea level; `nil` when GPS didn't know.
     var altitude: Double?
+    /// Posted limit here (m/s) when road awareness knew it — powers the
+    /// "vs Limit" map coloring.
+    var speedLimit: Double?
     var trip: Trip?
 
-    init(timestamp: Date, latitude: Double, longitude: Double, speed: Double?, altitude: Double?) {
+    init(timestamp: Date, latitude: Double, longitude: Double, speed: Double?, altitude: Double?, speedLimit: Double? = nil) {
         self.timestamp = timestamp
         self.latitude = latitude
         self.longitude = longitude
         self.speed = speed
         self.altitude = altitude
+        self.speedLimit = speedLimit
     }
 }
 
@@ -99,7 +103,8 @@ final class TripStore {
             latitude: coordinate.latitude,
             longitude: coordinate.longitude,
             speed: drivingContext.speed,
-            altitude: drivingContext.altitude
+            altitude: drivingContext.altitude,
+            speedLimit: drivingContext.road?.speedLimit
         )
         point.trip = trip
         context.insert(point)

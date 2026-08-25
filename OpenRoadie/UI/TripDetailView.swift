@@ -23,23 +23,18 @@ struct TripDetailView: View {
         })
     }
 
+    @State private var colorMode: RouteColorMode = .speed
+
     var body: some View {
         let route = trip.route
         let coordinates = route.map {
             CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude)
         }
-        // Activity-style speed coloring: one polyline per contiguous speed band.
-        let runs = RouteColoring.runs(forSpeeds: route.map(\.speed))
+        let runs = RouteColoring.runs(for: route, mode: colorMode)
 
         VStack(spacing: 0) {
             Map(initialPosition: .automatic) {
-                ForEach(Array(runs.enumerated()), id: \.offset) { _, run in
-                    MapPolyline(coordinates: Array(coordinates[run.pointIndices]))
-                        .stroke(
-                            RouteColoring.bands[run.bandIndex].color,
-                            style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round)
-                        )
-                }
+                ColoredRoute(route: route, mode: colorMode)
                 if let start = coordinates.first {
                     Marker("Start", systemImage: "flag.fill", coordinate: start)
                         .tint(.green)
@@ -49,7 +44,8 @@ struct TripDetailView: View {
                         .tint(.red)
                 }
                 // Hard braking / acceleration moments along the route.
-                ForEach(tripEvents) { event in
+                // (Overspeed crossings color the route itself in vs-Limit mode.)
+                ForEach(tripEvents.filter { $0.kind == "hardBraking" || $0.kind == "hardAcceleration" }) { event in
                     if let anchor = event.coordinate {
                         Marker(
                             event.kind == "hardBraking" ? "Hard brake" : "Hard accel",
@@ -73,31 +69,21 @@ struct TripDetailView: View {
             }
             .mapStyle(.standard(elevation: .flat))
 
-            speedLegend(runs: runs)
+            Picker("Coloring", selection: $colorMode) {
+                ForEach(RouteColorMode.allCases) { mode in
+                    Text(mode.title).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal)
+            .padding(.top, 8)
+
+            RouteLegend(runs: runs, mode: colorMode)
+                .padding(.top, 6)
             statsGrid
         }
         .navigationTitle(trip.startDate.formatted(.dateTime.month().day().hour().minute()))
         .navigationBarTitleDisplayMode(.inline)
-    }
-
-    /// Only the bands this trip actually visited, so quiet drives stay quiet.
-    private func speedLegend(runs: [RouteColoring.Run]) -> some View {
-        HStack(spacing: 10) {
-            ForEach(RouteColoring.presentBands(in: runs), id: \.self) { index in
-                legendEntry(RouteColoring.bands[index].color, RouteColoring.bands[index].label)
-            }
-            Text("mph")
-        }
-        .font(.caption2)
-        .foregroundStyle(.secondary)
-        .padding(.top, 8)
-    }
-
-    private func legendEntry(_ color: Color, _ label: String) -> some View {
-        HStack(spacing: 3) {
-            Capsule().fill(color).frame(width: 14, height: 4)
-            Text(label)
-        }
     }
 
     private var statsGrid: some View {

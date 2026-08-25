@@ -33,6 +33,9 @@ final class DriveSessionManager {
     private let store: TripStore?
     private var tracker = TripTracker()
     private var alertEngine = SpeedAlertEngine()
+    /// Always-on recorder for the Drive Score: counts posted-limit and
+    /// +5-over crossings regardless of whether the user enabled alerts.
+    private var scoreRecorder = SpeedAlertEngine()
     private var updatesTask: Task<Void, Never>?
     private var currentTrip: Trip?
     private var stationarySince: Date?
@@ -71,6 +74,8 @@ final class DriveSessionManager {
         stationarySince = nil
         alertEngine.config = AlertCenter.configFromDefaults()
         alertEngine.reset()
+        scoreRecorder.config = SpeedAlertEngine.Config(alertOverPostedLimit: true, postedMarginMph: 5)
+        scoreRecorder.reset()
         tracker.start()
         context = tracker.context
         isDriving = true
@@ -177,6 +182,19 @@ final class DriveSessionManager {
         if !events.isEmpty {
             alerts.deliver(events)
             watchLink.send(events)
+        }
+
+        // Silent score bookkeeping - never notifies, always records.
+        let mphNow = context.speed.map(mph)
+        for event in scoreRecorder.process(speedMph: mphNow, postedLimitMph: context.road?.speedLimit.map(mph) ?? nil) {
+            switch event {
+            case .overPostedLimit:
+                store?.saveEvent(kind: "overLimit", peakG: 0, coordinate: context.coordinate, speedMph: mphNow)
+            case .overPostedMargin:
+                store?.saveEvent(kind: "wellOverLimit", peakG: 0, coordinate: context.coordinate, speedMph: mphNow)
+            default:
+                break
+            }
         }
     }
 
