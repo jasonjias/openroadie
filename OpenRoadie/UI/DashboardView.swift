@@ -36,7 +36,7 @@ struct DashboardView: View {
                 Button {
                     showsSettings = true
                 } label: {
-                    ProfileAvatar(size: 46)
+                    ProfileAvatar(size: 60)
                 }
                 .frame(maxWidth: .infinity, alignment: .trailing)
             }

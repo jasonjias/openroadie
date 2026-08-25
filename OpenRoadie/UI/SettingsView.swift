@@ -43,39 +43,47 @@ struct SettingsView: View {
                 // Change Photo and a "−" badge; no photo means Add Photo.
                 // Deleting is a quiet minus, not a red warning.
                 Section {
-                    VStack(spacing: 10) {
-                        ProfileAvatar(size: 84)
+                    VStack(spacing: 12) {
+                        // Contacts-detail scale, with the "−" sitting on the
+                        // circle's 45° edge like Contacts' edit mode.
+                        ProfileAvatar(size: 200)
                             .overlay(alignment: .topTrailing) {
-                                if showsPhotoActions && profile.image != nil {
-                                    Button {
-                                        withAnimation {
-                                            profile.clear()
-                                            showsPhotoActions = false
-                                        }
-                                    } label: {
-                                        Image(systemName: "minus")
-                                            .font(.subheadline.weight(.bold))
-                                            .foregroundStyle(.white)
-                                            .frame(width: 26, height: 26)
-                                            .background(Circle().fill(.gray.opacity(0.85)))
+                                Button {
+                                    withAnimation {
+                                        profile.clear()
+                                        showsPhotoActions = false
                                     }
-                                    .buttonStyle(.plain)
-                                    .offset(x: 5, y: -3)
+                                } label: {
+                                    Image(systemName: "minus")
+                                        .font(.headline.weight(.bold))
+                                        .foregroundStyle(.white)
+                                        .frame(width: 30, height: 30)
+                                        .background(Circle().fill(.gray.opacity(0.85)))
                                 }
+                                .buttonStyle(.plain)
+                                .offset(x: -16, y: 14)
+                                .opacity(showsPhotoActions && profile.image != nil ? 1 : 0)
+                                .allowsHitTesting(showsPhotoActions && profile.image != nil)
                             }
                             .contentShape(Circle())
                             .onTapGesture {
                                 guard profile.image != nil else { return }
-                                withAnimation { showsPhotoActions.toggle() }
+                                withAnimation(.easeInOut(duration: 0.15)) { showsPhotoActions.toggle() }
                             }
 
-                        if profile.image == nil {
-                            PhotosPicker("Add Photo", selection: $photoSelection, matching: .images)
-                                .font(.subheadline.weight(.medium))
-                        } else if showsPhotoActions {
-                            PhotosPicker("Change Photo", selection: $photoSelection, matching: .images)
-                                .font(.subheadline.weight(.medium))
+                        // Fixed-height slot: revealing the action must never
+                        // push the rest of the form down.
+                        Group {
+                            if profile.image == nil {
+                                PhotosPicker("Add Photo", selection: $photoSelection, matching: .images)
+                            } else {
+                                PhotosPicker("Change Photo", selection: $photoSelection, matching: .images)
+                                    .opacity(showsPhotoActions ? 1 : 0)
+                                    .allowsHitTesting(showsPhotoActions)
+                            }
                         }
+                        .font(.subheadline.weight(.medium))
+                        .frame(height: 22)
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 6)
