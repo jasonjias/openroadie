@@ -128,6 +128,15 @@ final class AlertCenter: NSObject, UNUserNotificationCenterDelegate {
         post(content)
     }
 
+    /// Crash-data road warning (bundled NHTSA FARS extract).
+    func deliverHazard(crashes: Int) {
+        let content = UNMutableNotificationContent()
+        content.title = "High-crash area"
+        content.body = "\(crashes) fatal crashes on record near here (NHTSA). Extra care."
+        content.sound = .default
+        post(content)
+    }
+
     func deliverDriveAutoEnded() {
         let content = UNMutableNotificationContent()
         content.title = "Drive saved"

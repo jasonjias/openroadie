@@ -30,6 +30,7 @@ final class DriveSessionManager {
     private let motionService = MotionService()
     private let alerts = AlertCenter()
     private let chime = ChimePlayer()
+    private let hazards = HazardService()
     private let watchLink = PhoneWatchLink()
     private let store: TripStore?
     private var tracker = TripTracker()
@@ -104,6 +105,7 @@ final class DriveSessionManager {
         }
         corneringDetector = CorneringDetector()
         phoneUseDetector = PhoneUseDetector()
+        hazards.startDrive()
         motionService.onRotationSample = { [weak self] yawRate, nonYaw in
             self?.processRotation(yawRate: yawRate, nonYaw: nonYaw)
         }
@@ -172,6 +174,7 @@ final class DriveSessionManager {
                 store?.recordPoint(from: context, in: trip)
             }
             evaluateSpeedRules()
+            checkHazards()
             watchLink.push(context: context, isDriving: isDriving)
         }
 
@@ -278,6 +281,17 @@ final class DriveSessionManager {
                 break
             }
         }
+    }
+
+    /// Crash-data road warnings: approaching a spot where multiple fatal
+    /// crashes are on record (bundled NHTSA FARS extract) chimes and
+    /// notifies, once per zone per drive.
+    private func checkHazards() {
+        guard HazardService.isEnabled, isDriving,
+              let coordinate = context.coordinate,
+              let hazard = hazards.check(coordinate) else { return }
+        chime.play()
+        alerts.deliverHazard(crashes: hazard.crashes)
     }
 
     /// Parked for a while → end and save the drive on the driver's behalf.

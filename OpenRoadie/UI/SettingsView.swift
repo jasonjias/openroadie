@@ -5,6 +5,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @AppStorage(RoadService.enabledKey) private var roadAwarenessEnabled = true
+    @AppStorage(HazardService.enabledKey) private var crashWarnings = true
     @AppStorage(SpeechSpeaker.voiceDefaultsKey) private var voiceIdentifier = ""
     @AppStorage(WakeWordCoordinator.modeKey) private var heyRoadieMode = WakeWordCoordinator.Mode.off.rawValue
     @AppStorage(AlertCenter.overLimitStyleKey) private var overLimitStyle = AlertCenter.overLimitStyle.rawValue
@@ -104,6 +105,12 @@ struct SettingsView: View {
                         }
                         photoSelection = nil
                     }
+                }
+
+                Section {
+                    Toggle("Crash-data road warnings", isOn: $crashWarnings)
+                } footer: {
+                    Text("Chimes and notifies when approaching a spot with multiple fatal crashes on record (U.S. DOT / NHTSA data, bundled — works offline, nothing is sent anywhere). Once per zone per drive.")
                 }
 
                 Section {
