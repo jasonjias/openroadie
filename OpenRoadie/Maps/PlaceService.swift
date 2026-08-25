@@ -173,13 +173,11 @@ final class PlaceService {
     private var cache: [String: CacheEntry] = [:]
     private var loaded = false
 
-    /// How long a cached answer stays fresh. Static infrastructure barely
-    /// changes; food churns a little faster.
+    /// How long a cached answer stays fresh: a day, for everything. Places
+    /// change on the scale of months, not hours — and moving somewhere new
+    /// refetches regardless of age (the drift check, not this one).
     static func timeToLive(for category: PlaceCategory) -> TimeInterval {
-        switch category {
-        case .food, .coffee: 3 * 3600
-        case .fuel, .charger, .supercharger, .landmark: 24 * 3600
-        }
+        24 * 3600
     }
 
     func places(near coordinate: Coordinate, category: PlaceCategory, forceRefresh: Bool = false) async throws -> [Place] {
