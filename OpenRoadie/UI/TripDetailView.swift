@@ -64,8 +64,8 @@ struct TripDetailView: View {
                 RouteLegend(runs: runs, mode: colorMode)
                     .padding(.top, 6)
                 speedChart(route: route)
-                eventsSection
                 statsGrid
+                eventsSection
             }
         }
         .navigationTitle(trip.startDate.formatted(.dateTime.month().day().hour().minute()))

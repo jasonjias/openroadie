@@ -292,10 +292,10 @@ struct TripsListView: View {
             } else {
                 ForEach(dayTrips) { trip in
                     if trip.endDate == nil {
-                        TripRow(trip: trip, events: events(in: trip))
+                        TripRow(trip: trip)
                     } else {
                         NavigationLink(value: trip.persistentModelID) {
-                            TripRow(trip: trip, events: events(in: trip))
+                            TripRow(trip: trip)
                         }
                     }
                 }
@@ -324,14 +324,6 @@ struct TripsListView: View {
                 SectionHeader("Notes")
             }
         }
-    }
-
-    /// The score-affecting events recorded during one trip, in order.
-    private func events(in trip: Trip) -> [DriveEvent] {
-        let end = trip.endDate ?? .distantFuture
-        return events
-            .filter { $0.timestamp >= trip.startDate && $0.timestamp <= end && $0.isMapWorthy }
-            .sorted { $0.timestamp < $1.timestamp }
     }
 
     private func deleteTrips(at offsets: IndexSet) {
@@ -540,7 +532,6 @@ struct AllDrivesMap: View {
 
 private struct TripRow: View {
     let trip: Trip
-    var events: [DriveEvent] = []
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -560,17 +551,6 @@ private struct TripRow: View {
             }
             .font(.caption)
             .foregroundStyle(.secondary)
-
-            // This trip's mistakes right on the row, so scrolling the day
-            // tells the whole story without opening every trip.
-            if !events.isEmpty {
-                VStack(alignment: .leading, spacing: 5) {
-                    ForEach(events) { event in
-                        EventRow(event: event, compact: true)
-                    }
-                }
-                .padding(.top, 4)
-            }
         }
         .padding(.vertical, 2)
     }
