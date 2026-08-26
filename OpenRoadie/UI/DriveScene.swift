@@ -555,16 +555,21 @@ struct DriveSceneView: View {
             }
 
             // Turn lean (#22 v1): the gyroscope's yaw rate banks the car
-            // into real turns and swings the road toward them — the scene
-            // visibly steers with the actual vehicle.
+            // into real turns; and now that the road bends (#22 v2), the
+            // car also YAWS to the road's local tangent at its own
+            // position — GPS course lags the road on bends, which rotates
+            // the drawn curve, and an un-yawed car reads as sliding
+            // sideways down the lane (field feedback).
             let rawYaw = Float(yawProvider?() ?? 0)
             smoothedYaw += (rawYaw - smoothedYaw) * Float(min(1, deltaTime * 6))
-            // The car banks into real turns; the road itself stays put —
-            // yawing a visibly straight ribbon read as broken, not as
-            // steering (field feedback).
             if let car {
+                let step = DriveSceneView.curveStep
+                let slope = (lateral(atZ: -step) - lateral(atZ: step)) / (2 * step)
+                let headingYaw = max(-0.6, min(0.6, -atan(slope)))
                 let lean = max(-0.22, min(0.22, -smoothedYaw * 0.5))
-                car.orientation = carBase * simd_quatf(angle: lean, axis: [0, 0, 1])
+                car.orientation = simd_quatf(angle: headingYaw, axis: [0, 1, 0])
+                    * carBase
+                    * simd_quatf(angle: lean, axis: [0, 0, 1])
             }
 
             if chaseYaw != 0 || chasePitch != 0 {
