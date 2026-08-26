@@ -167,12 +167,16 @@ struct DashboardView: View {
     @AppStorage("showGPSDetails") private var showGPSDetails = false
     @AppStorage("showHeading") private var showHeading = false
 
+    /// Coordinates, GPS accuracy, and altitude are developer telemetry,
+    /// not driver info — absent unless the flag is on, and a FIXED-height
+    /// slot when it is, so the first GPS fix never reflows the dashboard.
+    /// (The "waiting for GPS" state lives in the trip bar, which is always
+    /// present — nothing here may appear or vanish with driving state.)
+    @ViewBuilder
     private var positionSection: some View {
-        VStack(spacing: 2) {
-            if let coordinate = session.context.coordinate {
-                // Coordinates, GPS accuracy, and altitude are developer
-                // telemetry, not driver info — hidden unless the flag is on.
-                if showGPSDetails {
+        if showGPSDetails {
+            VStack(spacing: 2) {
+                if let coordinate = session.context.coordinate {
                     Text(DriveFormatting.coordinate(coordinate))
                         .font(.body.monospaced())
                     HStack(spacing: 10) {
@@ -186,11 +190,8 @@ struct DashboardView: View {
                     .font(.caption.monospaced())
                     .foregroundStyle(.secondary)
                 }
-            } else if session.isDriving {
-                Text("waiting for GPS…")
-                    .font(.body)
-                    .foregroundStyle(.secondary)
             }
+            .frame(height: 42)
         }
     }
 
@@ -208,10 +209,14 @@ struct DashboardView: View {
                     systemImage: "road.lanes"
                 )
                 if session.isDriving {
-                    Label(
-                        session.isStationary ? "Stationary" : "Moving",
-                        systemImage: session.isStationary ? "parkingsign" : "car.fill"
-                    )
+                    if session.context.coordinate == nil {
+                        Label("GPS…", systemImage: "antenna.radiowaves.left.and.right")
+                    } else {
+                        Label(
+                            session.isStationary ? "Stationary" : "Moving",
+                            systemImage: session.isStationary ? "parkingsign" : "car.fill"
+                        )
+                    }
                 }
             }
             .font(.callout.weight(.medium))
