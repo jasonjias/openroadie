@@ -1,21 +1,40 @@
 import AVFoundation
 import Foundation
 
-/// The Tesla-style limit chime: a short two-tone ding through whatever the
-/// phone is playing to (the car, usually), mixed over music without ducking
-/// it. Generated in code — no audio asset, fully deterministic.
+/// The Tesla-style limit chime, through whatever the phone is playing to
+/// (the car, usually), mixed over music without ducking it.
+///
+/// Sound source: a bundled audio file named `chime-limit` (wav/caf/mp3)
+/// wins if present — drop one into OpenRoadie/Audio/ to replace the
+/// sound with zero code changes. Fallback is the generated two-tone
+/// ding below (no asset, fully deterministic).
 @MainActor
 final class ChimePlayer {
     private var player: AVAudioPlayer?
 
+    /// The bundled custom chime, if the project carries one.
+    static func customChimeURL() -> URL? {
+        for ext in ["wav", "caf", "mp3", "m4a"] {
+            if let url = Bundle.main.url(forResource: "chime-limit", withExtension: ext) {
+                return url
+            }
+        }
+        return nil
+    }
+
     func play() {
-        // Mix over music; a 0.4s chime shouldn't duck anything.
+        // Mix over music; a short chime shouldn't duck anything.
         try? AVAudioSession.sharedInstance().setCategory(
             .playback, mode: .default, options: [.mixWithOthers]
         )
         try? AVAudioSession.sharedInstance().setActive(true)
         if player == nil {
-            player = try? AVAudioPlayer(data: Self.chimeWAV())
+            if let url = Self.customChimeURL() {
+                player = try? AVAudioPlayer(contentsOf: url)
+            }
+            if player == nil {
+                player = try? AVAudioPlayer(data: Self.chimeWAV())
+            }
             player?.prepareToPlay()
         }
         player?.currentTime = 0
