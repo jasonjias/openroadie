@@ -51,13 +51,13 @@ struct RainbowTextureTests {
 
     @Test func everyRoadStyleBuildsARibbon() {
         for style in RoadStyle.allCases {
-            let road = DriveSceneView.makeRoad(style: style, lamps: false)
+            let road = DriveSceneView.makeRoad(style: style, lamps: false, season: .off)
             #expect(road.children.count == 1, "style \(style.rawValue)")
         }
     }
 
     @Test func lampsLineTheRoadWhenEnabled() {
-        let road = DriveSceneView.makeRoad(style: .night, lamps: true)
+        let road = DriveSceneView.makeRoad(style: .night, lamps: true, season: .off)
         // One ribbon plus a lamp per texture period.
         let expectedLamps = Int((DriveSceneView.roadLength + DriveSceneView.rainbowPeriod) / DriveSceneView.rainbowPeriod)
         #expect(road.children.count == 1 + expectedLamps)
@@ -65,6 +65,29 @@ struct RainbowTextureTests {
         let nightLamp = DriveSceneView.makeStreetLamp(lit: true)
         let dayLamp = DriveSceneView.makeStreetLamp(lit: false)
         #expect(nightLamp.children.count == dayLamp.children.count + 1)
+    }
+
+    @Test func everySeasonPlantsTrees() {
+        for season in RoadSeason.allCases where season != .off {
+            let road = DriveSceneView.makeRoad(style: .standard, lamps: false, season: season)
+            // One ribbon + two trees per period (plus presents at Christmas).
+            let periods = Int((DriveSceneView.roadLength + DriveSceneView.rainbowPeriod) / DriveSceneView.rainbowPeriod)
+            let expected = season == .christmas ? 1 + periods * 4 : 1 + periods * 2
+            #expect(road.children.count == expected, "season \(season.rawValue)")
+        }
+    }
+
+    @Test func sceneryModelsLoad() {
+        for name in ["scenery-tree-spring", "scenery-tree-summer", "scenery-tree-fall",
+                     "scenery-tree-winter", "scenery-tree-christmas", "scenery-lamp-curved",
+                     "scenery-lantern", "scenery-present-a", "scenery-present-b"] {
+            let entity = DriveSceneView.loadScenery(name, height: 2)
+            #expect(entity != nil, "\(name) failed to load")
+            if let entity {
+                let height = entity.visualBounds(relativeTo: nil).extents.y
+                #expect(abs(height - 2) < 0.05, "\(name) height \(height)")
+            }
+        }
     }
 
     @Test func unknownRoadStyleFallsBackToStandard() {

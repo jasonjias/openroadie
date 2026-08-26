@@ -21,6 +21,7 @@ struct SettingsView: View {
     @AppStorage(DrivingBackground.defaultsKey) private var drivingBackground = DrivingBackground.green.rawValue
     @AppStorage(RoadStyle.defaultsKey) private var roadStyle = RoadStyle.standard.rawValue
     @AppStorage(DriveSceneView.lampsKey) private var roadLamps = false
+    @AppStorage(RoadSeason.defaultsKey) private var roadSeason = RoadSeason.off.rawValue
     @AppStorage(Vehicle.defaultsKey) private var sceneVehicle = Vehicle.classic.id
     @AppStorage("showGPSDetails") private var showGPSDetails = false
     @AppStorage("showHeading") private var showHeading = false
@@ -230,6 +231,11 @@ struct SettingsView: View {
                         }
                     }
                     Toggle("Street lamps", isOn: $roadLamps)
+                    Picker("Season", selection: $roadSeason) {
+                        ForEach(RoadSeason.allCases) { season in
+                            Text(season.title).tag(season.rawValue)
+                        }
+                    }
                     Picker("Background while driving", selection: $drivingBackground) {
                         ForEach(DrivingBackground.allCases) { choice in
                             Text(choice.title).tag(choice.rawValue)

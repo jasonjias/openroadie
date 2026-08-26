@@ -131,6 +131,48 @@ enum RoadStyle: String, CaseIterable, Identifiable {
     }
 }
 
+/// Roadside season: which trees line the drive. Christmas swaps the
+/// street lamps for lanterns and drops presents under the trees.
+enum RoadSeason: String, CaseIterable, Identifiable {
+    case off
+    case spring
+    case summer
+    case fall
+    case winter
+    case christmas
+
+    static let defaultsKey = "driveRoadSeason"
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .off: "Off"
+        case .spring: "Spring"
+        case .summer: "Summer"
+        case .fall: "Fall"
+        case .winter: "Winter"
+        case .christmas: "Christmas"
+        }
+    }
+
+    /// Bundled model + display height (meters, toy scale) for the tree.
+    var tree: (model: String, height: Float)? {
+        switch self {
+        case .off: nil
+        case .spring: ("scenery-tree-spring", 1.9)
+        case .summer: ("scenery-tree-summer", 2.6)
+        case .fall: ("scenery-tree-fall", 2.0)
+        case .winter: ("scenery-tree-winter", 2.0)
+        case .christmas: ("scenery-tree-christmas", 2.2)
+        }
+    }
+
+    static var current: RoadSeason {
+        RoadSeason(rawValue: UserDefaults.standard.string(forKey: defaultsKey) ?? "") ?? .off
+    }
+}
+
 /// The 3D drive scene — a real engine this time, not a flat canvas.
 ///
 /// Parked: the car sits under studio light, camera at a front three-quarter
@@ -151,6 +193,7 @@ struct DriveSceneView: View {
     @State private var coordinator = Coordinator()
     @AppStorage(RoadStyle.defaultsKey) private var roadStyleRaw = RoadStyle.standard.rawValue
     @AppStorage(DriveSceneView.lampsKey) private var roadLamps = false
+    @AppStorage(RoadSeason.defaultsKey) private var roadSeasonRaw = RoadSeason.off.rawValue
 
     var body: some View {
         RealityView { content in
@@ -167,7 +210,8 @@ struct DriveSceneView: View {
 
             coordinator.roadStyle = RoadStyle(rawValue: roadStyleRaw) ?? .standard
             coordinator.roadLamps = roadLamps
-            let road = Self.makeRoad(style: coordinator.roadStyle, lamps: roadLamps)
+            coordinator.roadSeason = RoadSeason(rawValue: roadSeasonRaw) ?? .off
+            let road = Self.makeRoad(style: coordinator.roadStyle, lamps: roadLamps, season: coordinator.roadSeason)
             // The rainbow reveals itself only once the car has settled into
             // the driving position — the fade lives in Coordinator.tick.
             road.isEnabled = Self.debugRainbowParked
@@ -175,7 +219,9 @@ struct DriveSceneView: View {
             root.addChild(road)
             coordinator.road = road
 
-            root.addChild(Self.makeGround())
+            let ground = Self.makeGround()
+            root.addChild(ground)
+            coordinator.ground = ground
             root.addChild(Self.makeLights())
 
             let camera = PerspectiveCamera()
@@ -205,10 +251,12 @@ struct DriveSceneView: View {
                 coordinator.carBase = fresh.orientation
             }
             let style = RoadStyle(rawValue: roadStyleRaw) ?? .standard
-            if coordinator.roadStyle != style || coordinator.roadLamps != roadLamps {
+            let season = RoadSeason(rawValue: roadSeasonRaw) ?? .off
+            if coordinator.roadStyle != style || coordinator.roadLamps != roadLamps || coordinator.roadSeason != season {
                 coordinator.roadStyle = style
                 coordinator.roadLamps = roadLamps
-                coordinator.replaceRoad(with: Self.makeRoad(style: style, lamps: roadLamps))
+                coordinator.roadSeason = season
+                coordinator.replaceRoad(with: Self.makeRoad(style: style, lamps: roadLamps, season: season))
             }
             if coordinator.isDriving != isDriving {
                 coordinator.isDriving = isDriving
@@ -261,8 +309,10 @@ struct DriveSceneView: View {
         var carBase = simd_quatf(angle: 0, axis: [0, 1, 0])
         var camera: PerspectiveCamera?
         var road: Entity?
+        var ground: Entity?
         var roadStyle: RoadStyle = .standard
         var roadLamps = false
+        var roadSeason: RoadSeason = .off
         var subscription: EventSubscription?
         /// The camera lives on a sphere around the car (yaw, pitch, fixed
         /// radius) looking at a target that slides from the car (parked) to
@@ -370,6 +420,10 @@ struct DriveSceneView: View {
                     roadFade = wantRoad ? min(1, roadFade + rate) : max(0, roadFade - rate)
                     road.isEnabled = roadFade > 0.001
                     road.components.set(OpacityComponent(opacity: roadFade))
+                    // The showroom's soft shadow disc yields to the road —
+                    // left on, it alpha-sorts over the asphalt as a pale
+                    // ring that makes the car look like it's hovering.
+                    ground?.components.set(OpacityComponent(opacity: 1 - roadFade))
                 }
             }
 
@@ -398,12 +452,13 @@ struct DriveSceneView: View {
             // visibly steers with the actual vehicle.
             let rawYaw = Float(yawProvider?() ?? 0)
             smoothedYaw += (rawYaw - smoothedYaw) * Float(min(1, deltaTime * 6))
+            // The car banks into real turns; the road itself stays put —
+            // yawing a visibly straight ribbon read as broken, not as
+            // steering (field feedback).
             if let car {
                 let lean = max(-0.22, min(0.22, -smoothedYaw * 0.5))
                 car.orientation = carBase * simd_quatf(angle: lean, axis: [0, 0, 1])
             }
-            let bend = max(-0.35, min(0.35, smoothedYaw * 0.8))
-            road.orientation = simd_quatf(angle: bend, axis: [0, 1, 0])
 
             if chaseYaw != 0 || chasePitch != 0 {
                 if Date.now > chaseReturnAt {
@@ -535,7 +590,7 @@ struct DriveSceneView: View {
     /// chosen style. Rainbow keeps the field-approved heavy Gaussian halo
     /// (soft watercolor bands bleeding wide past the vehicle); the asphalt
     /// styles render crisp — a road, not a glow.
-    static func makeRoad(style: RoadStyle = .current, lamps: Bool = roadLampsEnabled) -> Entity {
+    static func makeRoad(style: RoadStyle = .current, lamps: Bool = roadLampsEnabled, season: RoadSeason = .current) -> Entity {
         let road = Entity()
         let depth = roadLength + rainbowPeriod // slack so the wrap never shows
         let tiles = depth / rainbowPeriod
@@ -565,18 +620,63 @@ struct DriveSceneView: View {
             road.addChild(ribbon)
         }
 
+        // Everything roadside repeats once per texture period, so the
+        // scroll wrap (which jumps the road back by exactly one period)
+        // lands every prop where its predecessor stood — the procession
+        // never visibly resets.
+        let count = Int(depth / rainbowPeriod)
+        let laneEdge = ribbonWidth * 0.8
+
         if lamps {
-            // One lamp per texture period, so the scroll wrap (which jumps
-            // the road back by exactly one period) lands every lamp where
-            // its predecessor stood — the row never visibly resets.
-            let count = Int(depth / rainbowPeriod)
             for index in 0..<count {
-                let lamp = makeStreetLamp(lit: style == .night)
+                let lamp = makeStreetLamp(lit: style == .night, christmas: season == .christmas)
                 lamp.position = [0, 0, stripeRecycleZ - Float(index) * rainbowPeriod]
                 road.addChild(lamp)
             }
         }
+
+        if let tree = season.tree {
+            for index in 0..<count {
+                let baseZ = stripeRecycleZ - Float(index) * rainbowPeriod
+                // Staggered pairs: one on each shoulder per period, offset
+                // half a period so the drive alternates left-right.
+                for (side, offset) in [(Float(-1), Float(-3.5)), (1, -11.3)] {
+                    guard let entity = loadScenery(tree.model, height: tree.height) else { continue }
+                    entity.position = [side * (laneEdge + 1.7), 0, baseZ + offset]
+                    // A touch of yaw variety, deterministic per slot.
+                    entity.orientation = simd_quatf(angle: Float(index) * 1.7 + side, axis: [0, 1, 0])
+                    road.addChild(entity)
+
+                    if season == .christmas {
+                        let names = ["scenery-present-a", "scenery-present-b"]
+                        if let present = loadScenery(names[(index + (side > 0 ? 1 : 0)) % 2], height: 0.42) {
+                            present.position = entity.position + [side * -0.75, 0, 0.55]
+                            present.orientation = simd_quatf(angle: Float(index) * 2.3, axis: [0, 1, 0])
+                            road.addChild(present)
+                        }
+                    }
+                }
+            }
+        }
         return road
+    }
+
+    /// Loads a bundled scenery model, scaled to the given height, centered
+    /// on its footprint, feet on the ground.
+    static func loadScenery(_ name: String, height: Float) -> Entity? {
+        guard let url = Bundle.main.url(forResource: name, withExtension: "usda"),
+              let model = try? Entity.load(contentsOf: url) else { return nil }
+        let wrap = Entity()
+        wrap.addChild(model)
+        let bounds = wrap.visualBounds(relativeTo: nil)
+        if bounds.extents.y > 0 {
+            model.scale *= SIMD3(repeating: height / bounds.extents.y)
+        }
+        let scaled = wrap.visualBounds(relativeTo: nil)
+        model.position.x -= (scaled.min.x + scaled.max.x) / 2
+        model.position.z -= (scaled.min.z + scaled.max.z) / 2
+        model.position.y -= scaled.min.y
+        return wrap
     }
 
     static let lampsKey = "driveRoadLamps"
@@ -585,10 +685,38 @@ struct DriveSceneView: View {
         UserDefaults.standard.bool(forKey: lampsKey)
     }
 
+    /// A street lamp on the right shoulder: Kenney's curved city light
+    /// (arm rotated to reach over the lane), or the holiday lantern at
+    /// Christmas. At night both throw a warm pool onto the asphalt.
+    /// Falls back to the procedural cobra-head if the model won't load.
+    static func makeStreetLamp(lit: Bool, christmas: Bool = false) -> Entity {
+        let poleX: Float = ribbonWidth * 0.8 + (christmas ? 0.55 : 0.3)
+        let model = christmas
+            ? loadScenery("scenery-lantern", height: 1.5)
+            : loadScenery("scenery-lamp-curved", height: 2.9)
+        guard let model else { return makeProceduralLamp(lit: lit) }
+
+        let lamp = Entity()
+        model.position = [poleX, 0, 0]
+        if !christmas {
+            // The city lamp's arm points -z natively; swing it over the road.
+            model.orientation = simd_quatf(angle: .pi / 2, axis: [0, 1, 0])
+        }
+        lamp.addChild(model)
+        if lit {
+            var glow = UnlitMaterial(color: UIColor(red: 1.0, green: 0.85, blue: 0.5, alpha: 0.16))
+            glow.blending = .transparent(opacity: 0.16)
+            let pool = ModelEntity(mesh: .generatePlane(width: 2.4, depth: 3.2, cornerRadius: 1.2), materials: [glow])
+            pool.position = [christmas ? poleX - 0.4 : poleX - 1.0, 0.02, 0]
+            lamp.addChild(pool)
+        }
+        return lamp
+    }
+
     /// A tall highway lamp: straight pole, single arm curving over the
     /// road (three progressively tilted segments fake the bend), cobra
     /// luminaire at the tip. Lit warm at night, off by day.
-    static func makeStreetLamp(lit: Bool) -> Entity {
+    static func makeProceduralLamp(lit: Bool) -> Entity {
         let lamp = Entity()
         let steel = SimpleMaterial(color: UIColor(white: 0.45, alpha: 1), roughness: 0.6, isMetallic: true)
 
