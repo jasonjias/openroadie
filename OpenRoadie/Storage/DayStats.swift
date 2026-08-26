@@ -20,20 +20,42 @@ struct DayStats: Equatable {
     /// Phone handled while moving at road speed.
     var phoneUseEvents: Int = 0
 
-    /// The Drive Score, 0–100 — Tesla-calibrated after field testing: an
-    /// afternoon of ordinary flow-of-traffic driving should score in the
-    /// 80s-90s, not single digits. Crossing the posted limit by a little is
-    /// informational (counted, shown, zero deduction — the chime tier);
-    /// the score reacts to genuinely-over crossings (−5, adaptive margin:
-    /// max of 5 mph and 15% of the limit) and hard maneuvers (−10).
-    /// `nil` on days with no driving — no drive, no ring.
+    /// Severity-weighted event points — the numerator of the score's
+    /// rate. Distracted driving weighs heaviest; crossing the posted
+    /// limit by a little is informational (counted, shown, zero weight —
+    /// the chime tier); genuinely-over crossings weigh 5 (adaptive
+    /// margin: max of 5 mph and 15% of the limit).
+    var weightedEventPoints: Double {
+        Double(hardEvents * 10
+            + harshCornering * 10
+            + wellOverCrossings * 5
+            + phoneUseEvents * 15)
+    }
+
+    /// The Drive Score, 0–100, normalized by EXPOSURE: raw deductions
+    /// punish driving a lot (a 200-mile day collects more events than a
+    /// 2-mile one and everyone trends to 0), so the score grades the
+    /// RATE — weighted points per 100 miles — through an exponential:
+    ///
+    ///     rate  = weighted / max(miles, 20) × 100
+    ///     score = 100 · e^(−rate / 300)
+    ///
+    /// Exponential, not linear-clamped, on purpose: like a graded test
+    /// there's no true 0 — bad days land in the 20s and stay ordered.
+    /// The 20-mile floor keeps one mistake on a short hop from cratering
+    /// the day. Calibration: 1 hard brake in a 40-mile day ≈ 92; that
+    /// same brake plus 2 more and a phone pickup ≈ 69; 10 hard brakes
+    /// in 30 miles ≈ 19. `nil` on days with no driving — no drive, no ring.
     var score: Int? {
         guard tripCount > 0 else { return nil }
-        return max(0, 100
-            - hardEvents * 10
-            - harshCornering * 10
-            - wellOverCrossings * 5
-            - phoneUseEvents * 15) // distracted driving weighs heaviest
+        return Self.score(weightedPoints: weightedEventPoints, miles: miles)
+    }
+
+    /// The rate→score mapping, shared by day scores and the pooled
+    /// multi-day overall score.
+    static func score(weightedPoints: Double, miles: Double) -> Int {
+        let ratePer100Miles = weightedPoints / max(miles, 20) * 100
+        return Int((100 * exp(-ratePer100Miles / 300)).rounded())
     }
 
     static func compute(

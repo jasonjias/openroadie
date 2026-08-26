@@ -120,15 +120,24 @@ struct TripsListView: View {
         DayStats.compute(trips: trips, events: events, on: day, calendar: calendar)
     }
 
-    /// Average of the last 30 days that had any driving — the overall score.
+    /// The last 30 days POOLED into one rate — a 200-mile clean day
+    /// properly outweighs a 3-mile errand day, which a plain average of
+    /// day scores would not.
     private var overallScore: Int? {
         let today = calendar.startOfDay(for: .now)
-        let scores = (0..<30).compactMap { offset -> Int? in
-            guard let day = calendar.date(byAdding: .day, value: -offset, to: today) else { return nil }
-            return stats(on: day).score
+        var weighted = 0.0
+        var miles = 0.0
+        var droveAtAll = false
+        for offset in 0..<30 {
+            guard let day = calendar.date(byAdding: .day, value: -offset, to: today) else { continue }
+            let stats = stats(on: day)
+            guard stats.tripCount > 0 else { continue }
+            droveAtAll = true
+            weighted += stats.weightedEventPoints
+            miles += stats.miles
         }
-        guard !scores.isEmpty else { return nil }
-        return scores.reduce(0, +) / scores.count
+        guard droveAtAll else { return nil }
+        return DayStats.score(weightedPoints: weighted, miles: miles)
     }
 
     private var dayTrips: [Trip] {

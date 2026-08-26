@@ -256,7 +256,7 @@ struct LearnMoreView: View {
         indicator(.yellow, "A few", "One or two events — worth a glance at where they happened on the trip map.")
         indicator(.red, "Several", "Three or more — the day's map and events list will show the pattern.")
 
-        Text("The Drive Score itself is deterministic: it starts each day at 100 and reflects these counts. No fleet comparison, no black box — your driving against the road's own rules.")
+        Text("The Drive Score itself is deterministic: it reflects how often these happen for the amount you actually drive — the same few mistakes score better spread over a long day than packed into a short one. No fleet comparison, no black box (the app is open source; the exact formula is in the code) — your driving against the road's own rules.")
             .font(.footnote)
             .foregroundStyle(.secondary)
     }
