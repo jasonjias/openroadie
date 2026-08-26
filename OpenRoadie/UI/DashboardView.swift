@@ -109,6 +109,10 @@ struct DashboardView: View {
         // dots (and everything below) at the same vertical position no
         // matter which face is showing.
         .frame(height: styles.contains(.rainbowRoad) ? 430 : 205)
+        // Full-bleed: cancel the dashboard's side padding so the 3D scene
+        // reaches the screen edges — roadside trees and lamps shouldn't
+        // vanish at an invisible wall 16pt early.
+        .padding(.horizontal, -16)
         // With the tall 3D zone, flat faces have slack at the top — the
         // road info overlays there (matching the scene face's own HUD
         // position) instead of occupying outside layout, so swiping
