@@ -72,9 +72,14 @@ struct RainbowTextureTests {
     @Test func everySeasonPlantsTrees() {
         for season in RoadSeason.allCases where season != .off {
             let road = DriveSceneView.makeRoad(style: .standard, lamps: false, season: season)
-            // One ribbon + two trees per period (plus presents at Christmas).
+            // One ribbon + two trees per period (presents double Christmas;
+            // spring runs the dense 4-per-side avenue).
             let periods = Int((DriveSceneView.roadLength + DriveSceneView.rainbowPeriod) / DriveSceneView.rainbowPeriod)
-            let expected = season == .christmas ? 1 + periods * 4 : 1 + periods * 2
+            let expected = switch season {
+            case .christmas: 1 + periods * 4
+            case .spring: 1 + periods * 8
+            default: 1 + periods * 2
+            }
             #expect(road.children.count == expected, "season \(season.rawValue)")
         }
     }

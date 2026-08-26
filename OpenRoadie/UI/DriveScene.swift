@@ -650,7 +650,22 @@ struct DriveSceneView: View {
         }
 
         let trees = season.trees
-        if !trees.isEmpty {
+        if !trees.isEmpty, season == .spring {
+            // Dense-avenue trial: matched rows on BOTH shoulders, four per
+            // period per side — the tree-lined-lane look.
+            for index in 0..<count {
+                let baseZ = stripeRecycleZ - Float(index) * rainbowPeriod
+                for row in 0..<4 {
+                    for side in [Float(-1), 1] {
+                        let tree = trees[0]
+                        guard let entity = loadScenery(tree.model, height: tree.height) else { continue }
+                        entity.position = [side * (laneEdge + 1.7), 0, baseZ - Float(row) * rainbowPeriod / 4 - 1.5]
+                        entity.orientation = simd_quatf(angle: Float(index * 4 + row) * 1.7 + side, axis: [0, 1, 0])
+                        road.addChild(entity)
+                    }
+                }
+            }
+        } else if !trees.isEmpty {
             for index in 0..<count {
                 let baseZ = stripeRecycleZ - Float(index) * rainbowPeriod
                 // Staggered pairs: one on each shoulder per period, offset
@@ -666,7 +681,9 @@ struct DriveSceneView: View {
                     if season == .christmas {
                         let names = ["scenery-present-a", "scenery-present-b"]
                         if let present = loadScenery(names[(index + (side > 0 ? 1 : 0)) % 2], height: 0.42) {
-                            present.position = entity.position + [side * -0.75, 0, 0.55]
+                            // Beside the trunk on the grass — nudged only
+                            // slightly roadward so it clears the sidewalk.
+                            present.position = entity.position + [side * -0.5, 0, 0.55]
                             present.orientation = simd_quatf(angle: Float(index) * 2.3, axis: [0, 1, 0])
                             road.addChild(present)
                         }
@@ -715,7 +732,11 @@ struct DriveSceneView: View {
         guard let model else { return makeProceduralLamp(lit: lit) }
 
         let lamp = Entity()
-        model.position = [side * poleX, 0, 0]
+        // loadScenery centers the FOOTPRINT — pole plus arm — so the pole
+        // itself sits half the arm's reach off-center. Compensate so the
+        // pole base stands mid-sidewalk instead of straddling its edge.
+        let poleOffset: Float = christmas ? 0 : 0.36
+        model.position = [side * (poleX - poleOffset), 0, 0]
         if !christmas {
             // The city lamp's arm points -z natively; swing it over the
             // road — mirrored on the left sidewalk.
@@ -814,7 +835,7 @@ struct DriveSceneView: View {
 
         context.setFillColor(UIColor(red: 0.99, green: 0.80, blue: 0.20, alpha: 1).cgColor)
         for y in [0.04, 0.54] {
-            context.fill(CGRect(x: w * 0.488, y: h * y, width: w * 0.024, height: h * 0.28))
+            context.fill(CGRect(x: w * 0.488, y: h * y, width: w * 0.024, height: h * 0.196))
         }
         return context.makeImage()
     }
