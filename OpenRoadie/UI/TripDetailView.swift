@@ -110,25 +110,28 @@ struct TripDetailView: View {
         // Notes spoken during this drive, as speech bubbles.
         ForEach(tripNotes) { note in
             if let anchor = note.coordinate {
-                Annotation(
+                Marker(
                     note.text,
+                    systemImage: "quote.bubble.fill",
                     coordinate: CLLocationCoordinate2D(latitude: anchor.latitude, longitude: anchor.longitude)
-                ) {
-                    MapPinBadge(systemImage: "quote.bubble.fill", color: .indigo)
-                }
-                .tag(TripMapPin.note(note.persistentModelID))
+                )
+                .tint(.indigo)
             }
         }
     }
 
     /// The tapped-open interactive map: same content, full screen, pannable.
     /// Tapping a pin slides up a small info card; tapping the map dismisses it.
+    /// MKMapView-backed so the balloon markers select without bouncing.
     private var fullMap: some View {
         NavigationStack {
-            Map(initialPosition: .automatic, selection: $selectedPin) {
-                routeContent
-            }
-            .mapStyle(.standard(elevation: .flat))
+            TripMapView(
+                route: trip.route,
+                mode: colorMode,
+                events: tripEvents,
+                notes: tripNotes,
+                selectedPin: $selectedPin
+            )
             .ignoresSafeArea(edges: .bottom)
             .safeAreaInset(edge: .bottom) {
                 if let selectedPin {
