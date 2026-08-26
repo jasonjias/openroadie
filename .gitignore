@@ -63,3 +63,4 @@ fastlane/test_output
 
 # Personal signing configuration (see Config/Shared.xcconfig)
 Config/Local.xcconfig
+.DS_Store
