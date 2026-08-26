@@ -26,7 +26,12 @@ def parse_mtl(path):
             current = parts[1]
             materials[current] = {"kd": (0.8, 0.8, 0.8), "map": None}
         elif parts[0] == "Kd" and current:
-            materials[current]["kd"] = tuple(float(x) for x in parts[1:4])
+            # MTL colors are sRGB; USD color3f inputs are linear. Feeding
+            # sRGB straight in gets gamma applied twice and washes the
+            # color out (saturated orange renders as faint yellow).
+            def srgb_to_linear(c):
+                return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+            materials[current]["kd"] = tuple(srgb_to_linear(float(x)) for x in parts[1:4])
         elif parts[0] == "map_Kd" and current:
             materials[current]["map"] = parts[1]
     return materials

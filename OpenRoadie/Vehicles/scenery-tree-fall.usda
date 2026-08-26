@@ -30,7 +30,7 @@ def Xform "Vehicle" {
                 uniform token info:id = "UsdPreviewSurface"
                 float inputs:roughness = 0.7
                 float inputs:metallic = 0
-                color3f inputs:diffuseColor = (1, 0.94902, 0.870588)
+                color3f inputs:diffuseColor = (1, 0.887923, 0.730461)
                 token outputs:surface
             }
         }
@@ -40,7 +40,7 @@ def Xform "Vehicle" {
                 uniform token info:id = "UsdPreviewSurface"
                 float inputs:roughness = 0.7
                 float inputs:metallic = 0
-                color3f inputs:diffuseColor = (1, 0.572549, 0.254902)
+                color3f inputs:diffuseColor = (1, 0.287441, 0.0528607)
                 token outputs:surface
             }
         }

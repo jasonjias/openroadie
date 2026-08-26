@@ -156,15 +156,21 @@ enum RoadSeason: String, CaseIterable, Identifiable {
         }
     }
 
-    /// Bundled model + display height (meters, toy scale) for the tree.
-    var tree: (model: String, height: Float)? {
+    /// Bundled tree models + display heights (meters, toy scale). Seasons
+    /// with several variants cycle through them slot by slot — fall gets
+    /// the full golden-avenue mix (default, detailed, fat crowns).
+    var trees: [(model: String, height: Float)] {
         switch self {
-        case .off: nil
-        case .spring: ("scenery-tree-spring", 1.9)
-        case .summer: ("scenery-tree-summer", 2.6)
-        case .fall: ("scenery-tree-fall", 2.0)
-        case .winter: ("scenery-tree-winter", 2.0)
-        case .christmas: ("scenery-tree-christmas", 2.2)
+        case .off: []
+        case .spring: [("scenery-tree-spring", 1.9)]
+        case .summer: [("scenery-tree-summer", 2.6)]
+        case .fall: [
+            ("scenery-tree-fall-c", 2.2),
+            ("scenery-tree-fall", 2.0),
+            ("scenery-tree-fall-b", 2.3),
+        ]
+        case .winter: [("scenery-tree-winter", 2.0)]
+        case .christmas: [("scenery-tree-christmas", 2.2)]
         }
     }
 
@@ -615,7 +621,10 @@ struct DriveSceneView: View {
             material.color = .init(tint: UIColor(white: 1, alpha: CGFloat(alpha)), texture: .init(texture))
             material.blending = .transparent(opacity: .init(floatLiteral: alpha))
             material.textureCoordinateTransform.scale = SIMD2(1, tiles)
-            let ribbon = ModelEntity(mesh: .generatePlane(width: ribbonWidth * 1.6, depth: depth), materials: [material])
+            // Asphalt styles carry a sidewalk on each side for the lamps;
+            // the rainbow stays a bare ribbon.
+            let meshWidth = style == .rainbow ? ribbonWidth * 1.6 : ribbonWidth * 1.6 + sidewalkWidth * 2
+            let ribbon = ModelEntity(mesh: .generatePlane(width: meshWidth, depth: depth), materials: [material])
             ribbon.position = [0, 0.012, stripeRecycleZ - depth / 2]
             road.addChild(ribbon)
         }
@@ -628,19 +637,26 @@ struct DriveSceneView: View {
         let laneEdge = ribbonWidth * 0.8
 
         if lamps {
+            // Both sidewalks, alternating: right lamp on the period mark,
+            // left lamp half a period later.
             for index in 0..<count {
-                let lamp = makeStreetLamp(lit: style == .night, christmas: season == .christmas)
-                lamp.position = [0, 0, stripeRecycleZ - Float(index) * rainbowPeriod]
-                road.addChild(lamp)
+                let baseZ = stripeRecycleZ - Float(index) * rainbowPeriod
+                for (side, offset) in [(Float(1), Float(0)), (-1, -rainbowPeriod / 2)] {
+                    let lamp = makeStreetLamp(lit: style == .night, christmas: season == .christmas, side: side)
+                    lamp.position = [0, 0, baseZ + offset]
+                    road.addChild(lamp)
+                }
             }
         }
 
-        if let tree = season.tree {
+        let trees = season.trees
+        if !trees.isEmpty {
             for index in 0..<count {
                 let baseZ = stripeRecycleZ - Float(index) * rainbowPeriod
                 // Staggered pairs: one on each shoulder per period, offset
                 // half a period so the drive alternates left-right.
-                for (side, offset) in [(Float(-1), Float(-3.5)), (1, -11.3)] {
+                for (slot, (side, offset)) in [(Float(-1), Float(-3.5)), (1, -11.3)].enumerated() {
+                    let tree = trees[(index * 2 + slot) % trees.count]
                     guard let entity = loadScenery(tree.model, height: tree.height) else { continue }
                     entity.position = [side * (laneEdge + 1.7), 0, baseZ + offset]
                     // A touch of yaw variety, deterministic per slot.
@@ -685,29 +701,32 @@ struct DriveSceneView: View {
         UserDefaults.standard.bool(forKey: lampsKey)
     }
 
-    /// A street lamp on the right shoulder: Kenney's curved city light
+    /// A street lamp standing on the sidewalk: Kenney's curved city light
     /// (arm rotated to reach over the lane), or the holiday lantern at
-    /// Christmas. At night both throw a warm pool onto the asphalt.
-    /// Falls back to the procedural cobra-head if the model won't load.
-    static func makeStreetLamp(lit: Bool, christmas: Bool = false) -> Entity {
-        let poleX: Float = ribbonWidth * 0.8 + (christmas ? 0.55 : 0.3)
+    /// Christmas. `side` is +1 for the right sidewalk, -1 for the left
+    /// (mirrored so the arm always reaches toward the road). At night
+    /// both throw a warm pool onto the asphalt. Falls back to the
+    /// procedural cobra-head if the model won't load.
+    static func makeStreetLamp(lit: Bool, christmas: Bool = false, side: Float = 1) -> Entity {
+        let poleX: Float = ribbonWidth * 0.8 + sidewalkWidth / 2
         let model = christmas
             ? loadScenery("scenery-lantern", height: 1.5)
             : loadScenery("scenery-lamp-curved", height: 2.9)
         guard let model else { return makeProceduralLamp(lit: lit) }
 
         let lamp = Entity()
-        model.position = [poleX, 0, 0]
+        model.position = [side * poleX, 0, 0]
         if !christmas {
-            // The city lamp's arm points -z natively; swing it over the road.
-            model.orientation = simd_quatf(angle: .pi / 2, axis: [0, 1, 0])
+            // The city lamp's arm points -z natively; swing it over the
+            // road — mirrored on the left sidewalk.
+            model.orientation = simd_quatf(angle: side * .pi / 2, axis: [0, 1, 0])
         }
         lamp.addChild(model)
         if lit {
             var glow = UnlitMaterial(color: UIColor(red: 1.0, green: 0.85, blue: 0.5, alpha: 0.16))
             glow.blending = .transparent(opacity: 0.16)
             let pool = ModelEntity(mesh: .generatePlane(width: 2.4, depth: 3.2, cornerRadius: 1.2), materials: [glow])
-            pool.position = [christmas ? poleX - 0.4 : poleX - 1.0, 0.02, 0]
+            pool.position = [side * (poleX - (christmas ? 0.4 : 1.0)), 0.02, 0]
             lamp.addChild(pool)
         }
         return lamp
@@ -761,11 +780,14 @@ struct DriveSceneView: View {
         return lamp
     }
 
-    /// A normal road: asphalt with dashed yellow center stripes and solid
-    /// white edge lines. Transparent margins let the blur feather the
-    /// edges. One texture tile spans one rainbowPeriod (15.6 m) of road,
-    /// so each tile carries two dash cycles (~4.5 m paint, ~3.3 m gap).
-    static func asphaltImage(dark: Bool, width: Int = 64, size: Int = 512) -> CGImage? {
+    /// Sidewalk width (meters, each side) on the asphalt road styles.
+    static let sidewalkWidth: Float = 0.9
+
+    /// A normal street: sidewalk, asphalt with dashed yellow center
+    /// stripes and solid white edge lines, sidewalk. One texture tile
+    /// spans one rainbowPeriod (15.6 m) of road, so each tile carries
+    /// two dash cycles (~4.5 m paint, ~3.3 m gap).
+    static func asphaltImage(dark: Bool, width: Int = 96, size: Int = 512) -> CGImage? {
         guard let context = CGContext(
             data: nil, width: width, height: size, bitsPerComponent: 8, bytesPerRow: 0,
             space: CGColorSpaceCreateDeviceRGB(),
@@ -773,18 +795,26 @@ struct DriveSceneView: View {
         ) else { return nil }
         let w = CGFloat(width)
         let h = CGFloat(size)
+        // Horizontal layout must match the mesh: sidewalkWidth on each
+        // side of a ribbonWidth*1.6 roadway.
+        let roadFraction = CGFloat(ribbonWidth * 1.6 / (ribbonWidth * 1.6 + sidewalkWidth * 2))
+        let roadStart = (1 - roadFraction) / 2
+
+        // Sidewalks (full width first, road painted over the middle).
+        context.setFillColor(UIColor(white: dark ? 0.24 : 0.62, alpha: 1).cgColor)
+        context.fill(CGRect(x: 0, y: 0, width: w, height: h))
 
         context.setFillColor(UIColor(white: dark ? 0.13 : 0.42, alpha: 1).cgColor)
-        context.fill(CGRect(x: w * 0.06, y: 0, width: w * 0.88, height: h))
+        context.fill(CGRect(x: w * roadStart, y: 0, width: w * roadFraction, height: h))
 
         context.setFillColor(UIColor(white: 0.92, alpha: 1).cgColor)
-        for x in [0.075, 0.905] {
-            context.fill(CGRect(x: w * x, y: 0, width: w * 0.02, height: h))
+        for x in [roadStart + 0.008, 1 - roadStart - 0.022] {
+            context.fill(CGRect(x: w * x, y: 0, width: w * 0.014, height: h))
         }
 
         context.setFillColor(UIColor(red: 0.99, green: 0.80, blue: 0.20, alpha: 1).cgColor)
         for y in [0.04, 0.54] {
-            context.fill(CGRect(x: w * 0.4825, y: h * y, width: w * 0.035, height: h * 0.28))
+            context.fill(CGRect(x: w * 0.488, y: h * y, width: w * 0.024, height: h * 0.28))
         }
         return context.makeImage()
     }

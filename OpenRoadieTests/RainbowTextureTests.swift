@@ -60,9 +60,9 @@ struct RainbowTextureTests {
 
     @Test func lampsLineTheRoadWhenEnabled() {
         let road = DriveSceneView.makeRoad(style: .night, lamps: true, season: .off)
-        // One ribbon plus a lamp per texture period.
-        let expectedLamps = Int((DriveSceneView.roadLength + DriveSceneView.rainbowPeriod) / DriveSceneView.rainbowPeriod)
-        #expect(road.children.count == 1 + expectedLamps)
+        // One ribbon plus two lamps (one per sidewalk) per texture period.
+        let periods = Int((DriveSceneView.roadLength + DriveSceneView.rainbowPeriod) / DriveSceneView.rainbowPeriod)
+        #expect(road.children.count == 1 + periods * 2)
         // Night lamps carry the glow pool; day lamps don't.
         let nightLamp = DriveSceneView.makeStreetLamp(lit: true)
         let dayLamp = DriveSceneView.makeStreetLamp(lit: false)
@@ -81,6 +81,7 @@ struct RainbowTextureTests {
 
     @Test func sceneryModelsLoad() {
         for name in ["scenery-tree-spring", "scenery-tree-summer", "scenery-tree-fall",
+                     "scenery-tree-fall-b", "scenery-tree-fall-c",
                      "scenery-tree-winter", "scenery-tree-christmas", "scenery-lamp-curved",
                      "scenery-lantern", "scenery-present-a", "scenery-present-b"] {
             let entity = DriveSceneView.loadScenery(name, height: 2)
