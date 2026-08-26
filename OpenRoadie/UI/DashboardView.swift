@@ -46,11 +46,12 @@ struct DashboardView: View {
 
             Spacer()
 
-            // Road info rides above the odometer — except on the 3D scene
-            // face, which carries it inside its own overlay. The slot keeps
-            // a FIXED height so the road resolving never shoves the
-            // odometer down and the drive button into the tab bar.
-            if selectedFace != OdometerStyle.rainbowRoad.rawValue {
+            // NOTHING in this stack may depend on the selected face —
+            // swiping faces must never move the wordmark, page dots, or
+            // drive button. When the 3D scene face is enabled the road
+            // info lives INSIDE the fixed odometer zone (see speedSection);
+            // otherwise it gets its own fixed-height slot here.
+            if !OdometerStyle.enabled.contains(.rainbowRoad) {
                 roadSection
             }
             speedSection
@@ -108,6 +109,17 @@ struct DashboardView: View {
         // dots (and everything below) at the same vertical position no
         // matter which face is showing.
         .frame(height: styles.contains(.rainbowRoad) ? 430 : 205)
+        // With the tall 3D zone, flat faces have slack at the top — the
+        // road info overlays there (matching the scene face's own HUD
+        // position) instead of occupying outside layout, so swiping
+        // faces never reflows the screen. Hidden on the scene face,
+        // which draws its own.
+        .overlay(alignment: .top) {
+            if styles.contains(.rainbowRoad) {
+                roadSection
+                    .opacity(selectedFace == OdometerStyle.rainbowRoad.rawValue ? 0 : 1)
+            }
+        }
         .onAppear {
             if selectedFace.isEmpty { selectedFace = styles.first?.rawValue ?? "" }
         }
