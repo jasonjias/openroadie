@@ -115,6 +115,7 @@ struct OdometerView: View {
     var sceneVehicle: Vehicle = .classic
     var roadName: String?
     var yawProvider: (() -> Double)? = nil
+    var roadCurve: [Double]? = nil
 
     private var speedColor: Color { isOverLimit ? .red : .primary }
 
@@ -126,7 +127,7 @@ struct OdometerView: View {
         case .gauge: gauge
         case .racing: racing
         case .rainbowRoad:
-            DriveSceneView(isDriving: isDriving, speedMps: speedMps, vehicle: sceneVehicle, yawProvider: yawProvider)
+            DriveSceneView(isDriving: isDriving, speedMps: speedMps, vehicle: sceneVehicle, yawProvider: yawProvider, roadCurve: roadCurve)
                 .overlay(alignment: .topLeading) {
                     VStack(alignment: .leading, spacing: 0) {
                         Text(speedMph.map(String.init) ?? "—")

@@ -56,6 +56,9 @@ struct DrivingContext: Equatable, Sendable {
     /// The road currently being driven, when road awareness is enabled and
     /// OpenStreetMap knows it. Populated by `RoadService`, not by telemetry.
     var road: RoadInfo?
+    /// Upcoming road curve in the vehicle's frame: lateral meters per
+    /// 4 m step, spanning 8 m behind to 68 m ahead. Drives the 3D scene.
+    var roadCurve: [Double]?
 
     /// When the current (or most recently ended) drive started.
     var tripStart: Date?

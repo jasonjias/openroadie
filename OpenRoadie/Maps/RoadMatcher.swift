@@ -1,4 +1,5 @@
 import Foundation
+import simd
 
 /// Pure geometry and tag-parsing logic for turning Overpass ways into
 /// "the road I'm on right now". No networking, no state — fully unit-testable.
@@ -45,6 +46,118 @@ enum RoadMatcher {
         if value.contains("mph") { return number * 0.44704 }
         if value.contains("knots") { return number * 0.514444 }
         return number / 3.6 // km/h
+    }
+
+    /// Samples the road's centerline in the VEHICLE's frame: lateral
+    /// offset in meters (+ = right of travel) at fixed arc-length steps,
+    /// from `behindMeters` behind the car to `aheadMeters` ahead. This is
+    /// what bends the 3D drive scene's road to match the real one.
+    ///
+    /// The way's node order is arbitrary — the walk direction is chosen
+    /// by whichever best agrees with the GPS course. Past either end of
+    /// the way the road continues straight along its final heading.
+    static func upcomingCurve(
+        at coordinate: Coordinate,
+        courseDegrees: Double,
+        along way: OverpassWay,
+        stepMeters: Double = 4,
+        behindMeters: Double = 8,
+        aheadMeters: Double = 68
+    ) -> [Double] {
+        let sampleCount = Int(((behindMeters + aheadMeters) / stepMeters).rounded()) + 1
+        let straight = [Double](repeating: 0, count: sampleCount)
+        guard way.geometry.count >= 2 else { return straight }
+
+        // Local flat-earth frame centered on the car: x = east, y = north.
+        let metersPerDegreeLat = 111_320.0
+        let metersPerDegreeLon = 111_320.0 * cos(coordinate.latitude * .pi / 180)
+        var points = way.geometry.map { node in
+            SIMD2(
+                (node.longitude - coordinate.longitude) * metersPerDegreeLon,
+                (node.latitude - coordinate.latitude) * metersPerDegreeLat
+            )
+        }
+
+        // Vehicle frame axes from the GPS course (0° = north, clockwise).
+        let theta = courseDegrees * .pi / 180
+        let forward = SIMD2(sin(theta), cos(theta))
+        let right = SIMD2(cos(theta), -sin(theta))
+
+        // Nearest point on the polyline = the car's on-road anchor.
+        var bestSegment = 0
+        var bestT = 0.0
+        var bestDistance = Double.infinity
+        for index in 0..<(points.count - 1) {
+            let a = points[index], b = points[index + 1]
+            let d = b - a
+            let lengthSquared = simd_length_squared(d)
+            let t = lengthSquared > 0 ? max(0, min(1, -simd_dot(a, d) / lengthSquared)) : 0
+            let p = a + t * d
+            let distance = simd_length(p)
+            if distance < bestDistance {
+                bestDistance = distance
+                bestSegment = index
+                bestT = t
+            }
+        }
+
+        // Walk with, not against, traffic: if the way's node order opposes
+        // the course, flip it.
+        let segmentDirection = points[bestSegment + 1] - points[bestSegment]
+        if simd_dot(segmentDirection, forward) < 0 {
+            points.reverse()
+            bestSegment = points.count - 2 - bestSegment
+            bestT = 1 - bestT
+        }
+
+        let anchor = points[bestSegment] + bestT * (points[bestSegment + 1] - points[bestSegment])
+
+        // Positions along the way by signed arc length from the anchor.
+        func position(atArcLength s: Double) -> SIMD2<Double> {
+            if s >= 0 {
+                var remaining = s
+                var index = bestSegment
+                var from = anchor
+                while index < points.count - 1 {
+                    let to = points[index + 1]
+                    let length = simd_length(to - from)
+                    if remaining <= length || length == 0 {
+                        return length == 0 ? from : from + (remaining / length) * (to - from)
+                    }
+                    remaining -= length
+                    from = to
+                    index += 1
+                }
+                // Past the way's end: continue straight.
+                let a = points[points.count - 2], b = points[points.count - 1]
+                let d = b - a
+                let length = simd_length(d)
+                return length == 0 ? from : from + (remaining / length) * d
+            } else {
+                var remaining = -s
+                var index = bestSegment
+                var from = anchor
+                while index >= 0 {
+                    let to = points[index]
+                    let length = simd_length(to - from)
+                    if remaining <= length || length == 0 {
+                        return length == 0 ? from : from + (remaining / length) * (to - from)
+                    }
+                    remaining -= length
+                    from = to
+                    index -= 1
+                }
+                let a = points[1], b = points[0]
+                let d = b - a
+                let length = simd_length(d)
+                return length == 0 ? from : from + (remaining / length) * d
+            }
+        }
+
+        return (0..<sampleCount).map { index in
+            let s = -behindMeters + Double(index) * stepMeters
+            return simd_dot(position(atArcLength: s) - anchor, right)
+        }
     }
 
     /// Minimum distance in meters from a point to a polyline.

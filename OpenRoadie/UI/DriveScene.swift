@@ -198,6 +198,9 @@ struct DriveSceneView: View {
     /// Live yaw rate (rad/s) from the gyroscope — polled per frame for
     /// turn lean, so it never churns SwiftUI.
     var yawProvider: (() -> Double)? = nil
+    /// The real road's upcoming curve (lateral meters per 4 m step, from
+    /// OSM geometry) — the scene's road bends to match. Nil = straight.
+    var roadCurve: [Double]? = nil
 
     /// Bridges live values into the per-frame update closure without
     /// re-subscribing, and retains the scene-update subscription.
@@ -229,6 +232,7 @@ struct DriveSceneView: View {
             road.components.set(OpacityComponent(opacity: Self.debugRainbowParked ? 1 : 0))
             root.addChild(road)
             coordinator.road = road
+            coordinator.captureRoadParts()
 
             let ground = Self.makeGround()
             root.addChild(ground)
@@ -252,6 +256,7 @@ struct DriveSceneView: View {
         } update: { _ in
             coordinator.speedMps = max(0, speedMps ?? 0)
             coordinator.yawProvider = yawProvider
+            coordinator.setCurveTarget(isDriving ? roadCurve : nil)
             if coordinator.vehicle != vehicle {
                 coordinator.vehicle = vehicle
                 coordinator.sizeScale = max(1, vehicle.targetLength / 3.4)
@@ -321,6 +326,27 @@ struct DriveSceneView: View {
         var camera: PerspectiveCamera?
         var road: Entity?
         var ground: Entity?
+        /// Curved-road plumbing (#22): the ribbon re-meshes against the
+        /// eased curve; props slide sideways to hug the centerline.
+        var ribbon: ModelEntity?
+        var ribbonWidth: Float = DriveSceneView.ribbonWidth * 1.6
+        var propsRoot: Entity?
+        var props: [(entity: Entity, base: SIMD3<Float>)] = []
+        var curveCurrent = [Float](repeating: 0, count: DriveSceneView.curveSampleCount)
+        var curveTarget = [Float](repeating: 0, count: DriveSceneView.curveSampleCount)
+
+        /// New GPS-derived curve (lateral meters per 4 m step) — nil or
+        /// short arrays straighten the road.
+        func setCurveTarget(_ laterals: [Double]?) {
+            let count = DriveSceneView.curveSampleCount
+            guard let laterals, laterals.count >= 2 else {
+                curveTarget = [Float](repeating: 0, count: count)
+                return
+            }
+            curveTarget = (0..<count).map { index in
+                Float(laterals[min(index, laterals.count - 1)])
+            }
+        }
         var roadStyle: RoadStyle = .standard
         var roadLamps = false
         var roadSeason: RoadSeason = .off
@@ -393,6 +419,32 @@ struct DriveSceneView: View {
             old.removeFromParent()
             root?.addChild(fresh)
             road = fresh
+            captureRoadParts()
+        }
+
+        /// Cache the ribbon + prop references and each prop's laid-out
+        /// position, so per-frame curve updates never search the tree.
+        func captureRoadParts() {
+            ribbon = road?.findEntity(named: "ribbon") as? ModelEntity
+            ribbonWidth = {
+                guard let bounds = ribbon?.model?.mesh.bounds else { return DriveSceneView.ribbonWidth * 1.6 }
+                return bounds.max.x - bounds.min.x
+            }()
+            propsRoot = road?.findEntity(named: "props")
+            props = propsRoot?.children.map { ($0, $0.position) } ?? []
+            curveCurrent = [Float](repeating: 0, count: DriveSceneView.curveSampleCount)
+            curveTarget = curveCurrent
+        }
+
+        /// Lateral offset of the road centerline at scene depth z,
+        /// interpolated from the eased curve samples.
+        private func lateral(atZ z: Float) -> Float {
+            let position = (DriveSceneView.stripeRecycleZ - z) / DriveSceneView.curveStep
+            let lower = Int(position.rounded(.down))
+            guard lower >= 0 else { return curveCurrent.first ?? 0 }
+            guard lower < curveCurrent.count - 1 else { return curveCurrent.last ?? 0 }
+            let t = position - Float(lower)
+            return curveCurrent[lower] * (1 - t) + curveCurrent[lower + 1] * t
         }
 
         func beginTransition(driving: Bool) {
@@ -401,10 +453,23 @@ struct DriveSceneView: View {
             transitionStart = .now
             chaseYaw = 0
             chasePitch = 0
-            // Straighten out: no leftover turn lean in the showroom.
+            // Straighten out: no leftover turn lean in the showroom, and
+            // the road resets straight for the next drive (it's hidden
+            // while parked, so the snap is invisible).
             smoothedYaw = 0
             car?.orientation = carBase
             road?.orientation = simd_quatf(angle: 0, axis: [0, 1, 0])
+            if !driving {
+                curveTarget = [Float](repeating: 0, count: DriveSceneView.curveSampleCount)
+                curveCurrent = curveTarget
+                if let ribbon,
+                   let mesh = DriveSceneView.curvedRibbonMesh(width: ribbonWidth, laterals: curveCurrent) {
+                    ribbon.model?.mesh = mesh
+                }
+                for (prop, base) in props {
+                    prop.position = base
+                }
+            }
         }
 
         func tick(deltaTime: TimeInterval) {
@@ -451,12 +516,43 @@ struct DriveSceneView: View {
                 }
             }
 
-            guard isDriving, let road else { return }
-            // Slide the textured ribbon toward the camera at true speed;
-            // wrapping by one texture period is invisible.
+            guard isDriving, road != nil else { return }
+            // Slide the road toward the camera at true speed. The ribbon
+            // scrolls in TEXTURE space (so its curve stays anchored to the
+            // car); the physical props scroll and recycle by one period.
             phase = (phase + Float(speedMps * deltaTime))
                 .truncatingRemainder(dividingBy: DriveSceneView.rainbowPeriod)
-            road.position.z = phase
+            propsRoot?.position.z = phase
+            if let ribbon, var model = ribbon.model,
+               var material = model.materials.first as? UnlitMaterial {
+                material.textureCoordinateTransform.offset = SIMD2(0, phase / DriveSceneView.rainbowPeriod)
+                model.materials = [material]
+                ribbon.model = model
+            }
+
+            // #22: bend the road to the real one. Ease toward the latest
+            // GPS-derived curve, re-mesh the ribbon, and slide every prop
+            // sideways to hug the new centerline.
+            let maxDelta = zip(curveCurrent, curveTarget).map { abs($0 - $1) }.max() ?? 0
+            if maxDelta > 0.01 {
+                let k = Float(1 - exp(-2.5 * deltaTime))
+                for index in curveCurrent.indices {
+                    curveCurrent[index] += (curveTarget[index] - curveCurrent[index]) * k
+                }
+                if let ribbon,
+                   let mesh = DriveSceneView.curvedRibbonMesh(width: ribbonWidth, laterals: curveCurrent) {
+                    ribbon.model?.mesh = mesh
+                }
+                for (prop, base) in props {
+                    prop.position.x = base.x + lateral(atZ: base.z + phase)
+                }
+            } else if !props.isEmpty, speedMps > 0.1 {
+                // Curve steady but the props still stream past — keep them
+                // pinned to the centerline at their moving positions.
+                for (prop, base) in props {
+                    prop.position.x = base.x + lateral(atZ: base.z + phase)
+                }
+            }
 
             // Turn lean (#22 v1): the gyroscope's yaw rate banks the car
             // into real turns and swings the road toward them — the scene
@@ -585,6 +681,48 @@ struct DriveSceneView: View {
     static let roadLength: Float = 60
     static let stripeRecycleZ: Float = 8
 
+    /// Road-curve sampling (#22): lateral offsets every `curveStep` meters,
+    /// covering the full ribbon from z = stripeRecycleZ (behind the car)
+    /// to the far end. Must agree with RoadMatcher.upcomingCurve's defaults
+    /// (4 m steps, 8 m behind, 68 m ahead).
+    static let curveStep: Float = 4
+    static var curveSampleCount: Int {
+        Int(((roadLength + rainbowPeriod) / curveStep).rounded()) + 1
+    }
+
+    /// A ribbon following the given centerline laterals: two vertices per
+    /// sample row, straight edges between rows. UVs run 0…1 along the
+    /// full depth so the material's (1, tiles) scale keeps the exact
+    /// texture repeat the flat plane had.
+    static func curvedRibbonMesh(width: Float, laterals: [Float]) -> MeshResource? {
+        guard laterals.count >= 2 else { return nil }
+        let depth = roadLength + rainbowPeriod
+        var positions: [SIMD3<Float>] = []
+        var normals: [SIMD3<Float>] = []
+        var uvs: [SIMD2<Float>] = []
+        for (index, lateral) in laterals.enumerated() {
+            let z = stripeRecycleZ - Float(index) * curveStep
+            positions.append([lateral - width / 2, 0, z])
+            positions.append([lateral + width / 2, 0, z])
+            let v = Float(index) * curveStep / depth
+            uvs.append([0, v])
+            uvs.append([1, v])
+            normals.append([0, 1, 0])
+            normals.append([0, 1, 0])
+        }
+        var indices: [UInt32] = []
+        for row in 0..<(laterals.count - 1) {
+            let a = UInt32(row * 2), b = a + 1, c = a + 2, d = a + 3
+            indices += [a, b, c, b, d, c]
+        }
+        var descriptor = MeshDescriptor(name: "ribbon")
+        descriptor.positions = MeshBuffer(positions)
+        descriptor.normals = MeshBuffer(normals)
+        descriptor.textureCoordinates = MeshBuffer(uvs)
+        descriptor.primitives = .triangles(indices)
+        return try? MeshResource.generate(from: [descriptor])
+    }
+
     /// One rainbow cycle along the road: six car-half-length bands.
     static let rainbowPeriod: Float = 15.6
     /// Ribbon width — a lane's worth; the vehicle overlaps its edges and
@@ -629,10 +767,23 @@ struct DriveSceneView: View {
             // Asphalt styles carry a sidewalk on each side for the lamps;
             // the rainbow stays a bare ribbon.
             let meshWidth = style == .rainbow ? ribbonWidth * 1.6 : ribbonWidth * 1.6 + sidewalkWidth * 2
-            let ribbon = ModelEntity(mesh: .generatePlane(width: meshWidth, depth: depth), materials: [material])
-            ribbon.position = [0, 0.012, stripeRecycleZ - depth / 2]
+            // Starts straight; the Coordinator re-meshes it against the
+            // real road's curve while driving (#22). The geometry carries
+            // its own z placement, and scrolling is done in TEXTURE space
+            // so the curve stays anchored to the car.
+            let mesh = curvedRibbonMesh(width: meshWidth, laterals: [Float](repeating: 0, count: curveSampleCount))
+                ?? .generatePlane(width: meshWidth, depth: depth)
+            let ribbon = ModelEntity(mesh: mesh, materials: [material])
+            ribbon.name = "ribbon"
+            ribbon.position = [0, 0.012, 0]
             road.addChild(ribbon)
         }
+
+        // Everything that physically streams past (lamps, trees, presents)
+        // lives under one scrolling root; the ribbon itself stays put.
+        let props = Entity()
+        props.name = "props"
+        road.addChild(props)
 
         // Everything roadside repeats once per texture period, so the
         // scroll wrap (which jumps the road back by exactly one period)
@@ -649,7 +800,7 @@ struct DriveSceneView: View {
                 for (side, offset) in [(Float(1), Float(0)), (-1, -rainbowPeriod / 2)] {
                     let lamp = makeStreetLamp(lit: style == .night, christmas: season == .christmas, side: side)
                     lamp.position = [0, 0, baseZ + offset]
-                    road.addChild(lamp)
+                    props.addChild(lamp)
                 }
             }
         }
@@ -679,7 +830,7 @@ struct DriveSceneView: View {
                                     angle: Float(index * 4 + row + column * 7) * 1.7 + side,
                                     axis: [0, 1, 0]
                                 )
-                                road.addChild(entity)
+                                props.addChild(entity)
                             }
                         }
                     }
@@ -696,7 +847,7 @@ struct DriveSceneView: View {
                     entity.position = [side * (laneEdge + 1.7), 0, baseZ + offset]
                     // A touch of yaw variety, deterministic per slot.
                     entity.orientation = simd_quatf(angle: Float(index) * 1.7 + side, axis: [0, 1, 0])
-                    road.addChild(entity)
+                    props.addChild(entity)
 
                     if season == .christmas {
                         let names = ["scenery-present-a", "scenery-present-b"]
@@ -705,7 +856,7 @@ struct DriveSceneView: View {
                             // clear of the sidewalk.
                             present.position = entity.position + [side * -0.15, 0, 0.55]
                             present.orientation = simd_quatf(angle: Float(index) * 2.3, axis: [0, 1, 0])
-                            road.addChild(present)
+                            props.addChild(present)
                         }
                     }
                 }

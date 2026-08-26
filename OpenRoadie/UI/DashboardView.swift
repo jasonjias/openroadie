@@ -102,7 +102,8 @@ struct DashboardView: View {
                     isDriving: session.isDriving,
                     sceneVehicle: Vehicle.find(sceneVehicle),
                     roadName: session.context.road?.displayName,
-                    yawProvider: { [weak session] in session?.latestYawRate ?? 0 }
+                    yawProvider: { [weak session] in session?.latestYawRate ?? 0 },
+                    roadCurve: session.context.roadCurve
                 )
                 .tag(style.id)
             }

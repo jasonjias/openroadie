@@ -28,6 +28,16 @@ final class RoadService {
         return RoadMatcher.road(at: coordinate, from: cache.ways)
     }
 
+    /// The upcoming curve of the matched road in the vehicle's frame
+    /// (lateral meters per 4 m of travel) — what bends the 3D scene's
+    /// road. `nil` when off known roads or the course is unknown.
+    func upcomingCurve(at coordinate: Coordinate, courseDegrees: Double?) -> [Double]? {
+        guard let cache, let courseDegrees,
+              let match = RoadMatcher.nearestWay(to: coordinate, in: cache.ways),
+              match.distance <= RoadMatcher.maxMatchDistance else { return nil }
+        return RoadMatcher.upcomingCurve(at: coordinate, courseDegrees: courseDegrees, along: match.way)
+    }
+
     /// Kicks off a background refetch when the cache is missing, stale, or
     /// the drive has moved too far from its center. Never blocks the caller.
     func refreshIfNeeded(around coordinate: Coordinate) {

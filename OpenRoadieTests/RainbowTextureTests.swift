@@ -40,7 +40,8 @@ struct RainbowTextureTests {
         // Pin every option — defaulted parameters read live UserDefaults,
         // which the simulator's manual test-drives may have customized.
         let road = DriveSceneView.makeRoad(style: .rainbow, lamps: false, season: .off)
-        #expect(road.children.count == 1)
+        #expect(road.findEntity(named: "ribbon") != nil)
+        #expect(road.findEntity(named: "props")?.children.isEmpty == true)
     }
 
     @Test func asphaltImagesGenerate() {
@@ -54,15 +55,15 @@ struct RainbowTextureTests {
     @Test func everyRoadStyleBuildsARibbon() {
         for style in RoadStyle.allCases {
             let road = DriveSceneView.makeRoad(style: style, lamps: false, season: .off)
-            #expect(road.children.count == 1, "style \(style.rawValue)")
+            #expect(road.findEntity(named: "ribbon") != nil, "style \(style.rawValue)")
         }
     }
 
     @Test func lampsLineTheRoadWhenEnabled() {
         let road = DriveSceneView.makeRoad(style: .night, lamps: true, season: .off)
-        // One ribbon plus two lamps (one per sidewalk) per texture period.
+        // Two lamps (one per sidewalk) per texture period.
         let periods = Int((DriveSceneView.roadLength + DriveSceneView.rainbowPeriod) / DriveSceneView.rainbowPeriod)
-        #expect(road.children.count == 1 + periods * 2)
+        #expect(road.findEntity(named: "props")?.children.count == periods * 2)
         // Night lamps carry the glow pool; day lamps don't.
         let nightLamp = DriveSceneView.makeStreetLamp(lit: true)
         let dayLamp = DriveSceneView.makeStreetLamp(lit: false)
@@ -72,16 +73,27 @@ struct RainbowTextureTests {
     @Test func everySeasonPlantsTrees() {
         for season in RoadSeason.allCases where season != .off {
             let road = DriveSceneView.makeRoad(style: .standard, lamps: false, season: season)
-            // One ribbon + two trees per period (presents double Christmas;
-            // spring runs the dense 4-per-side avenue).
+            // Two trees per period (presents double Christmas; spring and
+            // fall run the dense 5-column forest).
             let periods = Int((DriveSceneView.roadLength + DriveSceneView.rainbowPeriod) / DriveSceneView.rainbowPeriod)
             let expected = switch season {
-            case .christmas: 1 + periods * 4
-            case .spring, .fall: 1 + periods * 40  // 4 rows × 2 sides × 5 columns
-            default: 1 + periods * 2
+            case .christmas: periods * 4
+            case .spring, .fall: periods * 40  // 4 rows × 2 sides × 5 columns
+            default: periods * 2
             }
-            #expect(road.children.count == expected, "season \(season.rawValue)")
+            #expect(road.findEntity(named: "props")?.children.count == expected, "season \(season.rawValue)")
         }
+    }
+
+    @Test func curvedRibbonMeshFollowsLaterals() {
+        let laterals = [Float](repeating: 0, count: DriveSceneView.curveSampleCount)
+        let straight = DriveSceneView.curvedRibbonMesh(width: 3.5, laterals: laterals)
+        #expect(straight != nil)
+        var bent = laterals
+        bent[bent.count - 1] = 12
+        let curved = DriveSceneView.curvedRibbonMesh(width: 3.5, laterals: bent)
+        // The bend widens the mesh's x extent by the lateral offset.
+        #expect((curved?.bounds.max.x ?? 0) > 10)
     }
 
     @Test func sceneryModelsLoad() {

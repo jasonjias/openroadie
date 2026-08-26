@@ -318,9 +318,11 @@ final class DriveSessionManager {
     private func attachRoadInfo() {
         guard RoadService.isEnabled, let coordinate = context.coordinate else {
             context.road = nil
+            context.roadCurve = nil
             return
         }
         roadService.refreshIfNeeded(around: coordinate)
         context.road = roadService.currentRoad(at: coordinate)
+        context.roadCurve = roadService.upcomingCurve(at: coordinate, courseDegrees: context.course)
     }
 }

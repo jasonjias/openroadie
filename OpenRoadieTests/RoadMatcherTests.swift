@@ -128,3 +128,47 @@ struct RouteColoringTests {
         #expect(RouteColoring.presentBands(in: runs) == [0, 1])
     }
 }
+
+@MainActor
+struct UpcomingCurveTests {
+    /// A straight north–south road through the origin point.
+    private let straightNorth = OverpassWay(
+        tags: ["highway": "residential"],
+        geometry: [Coordinate(latitude: 36.998, longitude: -122.0),
+                   Coordinate(latitude: 37.002, longitude: -122.0)]
+    )
+
+    /// Northbound, then a 90° turn to the east ~40 m ahead of the origin.
+    private let rightTurn = OverpassWay(
+        tags: ["highway": "residential"],
+        geometry: [Coordinate(latitude: 36.999, longitude: -122.0),
+                   Coordinate(latitude: 37.00036, longitude: -122.0),   // ~40 m north
+                   Coordinate(latitude: 37.00036, longitude: -121.998)] // then east
+    )
+
+    private let origin = Coordinate(latitude: 37.0, longitude: -122.0)
+
+    @Test func straightRoadIsAllZeros() {
+        let curve = RoadMatcher.upcomingCurve(at: origin, courseDegrees: 0, along: straightNorth)
+        #expect(curve.count == 20)
+        #expect(curve.allSatisfy { abs($0) < 0.1 })
+    }
+
+    @Test func rightTurnBendsRightAhead() {
+        let curve = RoadMatcher.upcomingCurve(at: origin, courseDegrees: 0, along: rightTurn)
+        // Behind and near samples straight; far samples bend right (+).
+        #expect(abs(curve[2]) < 0.1)              // z = 0, under the car
+        #expect(curve[11] < 0.5)                  // 36 m ahead, still before the corner
+        #expect(curve.last! > 20)                 // deep into the east leg
+    }
+
+    @Test func travelingSouthMirrorsTheTurn() {
+        // Approaching the same corner from the north, heading south, the
+        // way's node order opposes travel — the walk must flip, and the
+        // east leg is now behind, so ahead stays straight.
+        let north = Coordinate(latitude: 37.0007, longitude: -122.0)
+        let curve = RoadMatcher.upcomingCurve(at: north, courseDegrees: 180, along: rightTurn)
+        #expect(abs(curve[2]) < 0.1)
+        #expect(curve[19] < 0.1) // ahead extends straight past the way's south end
+    }
+}
