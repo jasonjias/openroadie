@@ -44,7 +44,12 @@ struct DashboardView: View {
             }
             .padding(.top, 4)
 
-            Spacer()
+            // With the 3D scene in the rotation the odometer zone is
+            // flexible and swallows all spare height itself; otherwise a
+            // spacer holds the flat faces in the middle.
+            if !OdometerStyle.enabled.contains(.rainbowRoad) {
+                Spacer()
+            }
 
             // NOTHING in this stack may depend on the selected face —
             // swiping faces must never move the wordmark, page dots, or
@@ -104,11 +109,14 @@ struct DashboardView: View {
         }
         .tabViewStyle(.page(indexDisplayMode: styles.count > 1 ? .automatic : .never))
         .indexViewStyle(.page(backgroundDisplayMode: .never))
-        // Constant height per enabled set — tall when the 3D scene face is
-        // in the rotation, standard otherwise. A fixed height keeps the page
-        // dots (and everything below) at the same vertical position no
-        // matter which face is showing.
-        .frame(height: styles.contains(.rainbowRoad) ? 430 : 205)
+        // Constant height per enabled set — with the 3D scene in the
+        // rotation the zone stretches to swallow ALL spare height (the
+        // bottom cluster is pinned by its capped spacers, so this only
+        // grows upward); flat-only setups keep the standard 205. Either
+        // way the zone is identical for every face, so the page dots
+        // and everything below never move between swipes.
+        .frame(height: styles.contains(.rainbowRoad) ? nil : 205)
+        .frame(maxHeight: styles.contains(.rainbowRoad) ? .infinity : 205)
         // Full-bleed: cancel the dashboard's side padding so the 3D scene
         // reaches the screen edges — roadside trees and lamps shouldn't
         // vanish at an invisible wall 16pt early.

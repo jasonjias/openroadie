@@ -651,11 +651,11 @@ struct DriveSceneView: View {
 
         let trees = season.trees
         if !trees.isEmpty, season == .spring || season == .fall {
-            // Dense avenue: matched rows on BOTH shoulders, four per period
-            // per side. Fall goes full forest — five columns deep each
-            // side, checkerboarded. One template entity, cloned per slot:
-            // loading from disk 200 times would stall the scene.
-            let columns = season == .fall ? 5 : 1
+            // Full forest: five checkerboarded columns deep on BOTH
+            // shoulders, four trees per period per column. One template
+            // entity, cloned per slot: loading from disk 200 times would
+            // stall the scene.
+            let columns = 5
             let tree = trees[0]
             if let template = loadScenery(tree.model, height: tree.height) {
                 for index in 0..<count {

@@ -161,7 +161,6 @@ struct OdometerView: View {
                             .padding(.top, 12)
                     }
                 }
-                .padding(.horizontal, 12)
         }
     }
 
