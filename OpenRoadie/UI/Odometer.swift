@@ -220,6 +220,11 @@ struct OdometerView: View {
         )
         .animation(.easeOut(duration: 0.8), value: speedMph)
         .aspectRatio(1, contentMode: .fit)
+        // This is the one face that fills the whole odometer zone, where
+        // the street name + limit sign overlay rides the top — cap the
+        // dial a touch and push it below the sign's reach.
+        .frame(maxWidth: 360)
+        .padding(.top, 68)
     }
 }
 

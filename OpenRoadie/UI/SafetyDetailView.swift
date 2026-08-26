@@ -344,12 +344,17 @@ struct FactorRadar: View {
             context.fill(shape, with: .color(fill.opacity(0.35)))
             context.stroke(shape, with: .color(fill), lineWidth: 2)
 
-            // Labels just past each axis tip.
+            // Labels just past each axis tip, anchored AWAY from the
+            // center — a centered anchor lets long words ("Acceleration")
+            // spill inward across the pentagon.
             for (i, axis) in axes.enumerated() {
-                let p = point(axis: i, r: radius + 20)
+                let angle = -CGFloat.pi / 2 + CGFloat(i) * 2 * .pi / CGFloat(n)
+                let p = point(axis: i, r: radius + 12)
+                let anchor = UnitPoint(x: 0.5 - cos(angle) * 0.5, y: 0.5 - sin(angle) * 0.5)
                 context.draw(
                     Text(axis.label).font(.caption2.weight(.medium)).foregroundStyle(.secondary),
-                    at: p
+                    at: p,
+                    anchor: anchor
                 )
             }
         }
