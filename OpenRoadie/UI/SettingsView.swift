@@ -19,6 +19,7 @@ struct SettingsView: View {
     @State private var exportURL: URL?
     @State private var exportError: String?
     @AppStorage(DrivingBackground.defaultsKey) private var drivingBackground = DrivingBackground.green.rawValue
+    @AppStorage(RoadStyle.defaultsKey) private var roadStyle = RoadStyle.standard.rawValue
     @AppStorage(Vehicle.defaultsKey) private var sceneVehicle = Vehicle.classic.id
     @AppStorage("showGPSDetails") private var showGPSDetails = false
     @AppStorage("showHeading") private var showHeading = false
@@ -222,6 +223,11 @@ struct SettingsView: View {
                         }
                     }
                     .pickerStyle(.navigationLink)
+                    Picker("Road", selection: $roadStyle) {
+                        ForEach(RoadStyle.allCases) { style in
+                            Text(style.title).tag(style.rawValue)
+                        }
+                    }
                     Picker("Background while driving", selection: $drivingBackground) {
                         ForEach(DrivingBackground.allCases) { choice in
                             Text(choice.title).tag(choice.rawValue)
@@ -232,7 +238,7 @@ struct SettingsView: View {
                 } header: {
                     Text("Dashboard")
                 } footer: {
-                    Text("\u{201C}Vehicle\u{201D} is what appears on the Rainbow Road scene (models from Kenney's wonderful CC0 kits — kenney.nl); drag to spin it while parked. The background tints while a drive is live.")
+                    Text("\u{201C}Vehicle\u{201D} is what appears on the Vehicle odometer face (models from Kenney's wonderful CC0 kits — kenney.nl); drag to spin it while parked. \u{201C}Road\u{201D} is what it drives on. The background tints while a drive is live.")
                 }
 
                 Section {

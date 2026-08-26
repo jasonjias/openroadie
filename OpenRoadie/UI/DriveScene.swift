@@ -106,6 +106,31 @@ struct Vehicle: Identifiable, Equatable, Hashable {
     }
 }
 
+/// What the vehicle drives on. Standard is a plain asphalt ribbon with
+/// dashed yellow center stripes; Rainbow Road is the Tesla-style party
+/// mode it started as.
+enum RoadStyle: String, CaseIterable, Identifiable {
+    case standard
+    case night
+    case rainbow
+
+    static let defaultsKey = "driveRoadStyle"
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .standard: "Standard"
+        case .night: "Night"
+        case .rainbow: "Rainbow Road"
+        }
+    }
+
+    static var current: RoadStyle {
+        RoadStyle(rawValue: UserDefaults.standard.string(forKey: defaultsKey) ?? "") ?? .standard
+    }
+}
+
 /// The 3D drive scene — a real engine this time, not a flat canvas.
 ///
 /// Parked: the car sits under studio light, camera at a front three-quarter
@@ -124,6 +149,7 @@ struct DriveSceneView: View {
     /// Bridges live values into the per-frame update closure without
     /// re-subscribing, and retains the scene-update subscription.
     @State private var coordinator = Coordinator()
+    @AppStorage(RoadStyle.defaultsKey) private var roadStyleRaw = RoadStyle.standard.rawValue
 
     var body: some View {
         RealityView { content in
@@ -134,10 +160,12 @@ struct DriveSceneView: View {
             let car = vehicle.makeEntity()
             root.addChild(car)
             coordinator.car = car
+            coordinator.carBase = car.orientation
             coordinator.vehicle = vehicle
             coordinator.sizeScale = max(1, vehicle.targetLength / 3.4)
 
-            let road = Self.makeRoad()
+            coordinator.roadStyle = RoadStyle(rawValue: roadStyleRaw) ?? .standard
+            let road = Self.makeRoad(style: coordinator.roadStyle)
             // The rainbow reveals itself only once the car has settled into
             // the driving position — the fade lives in Coordinator.tick.
             road.isEnabled = Self.debugRainbowParked
@@ -167,11 +195,17 @@ struct DriveSceneView: View {
             coordinator.yawProvider = yawProvider
             if coordinator.vehicle != vehicle {
                 coordinator.vehicle = vehicle
-            coordinator.sizeScale = max(1, vehicle.targetLength / 3.4)
+                coordinator.sizeScale = max(1, vehicle.targetLength / 3.4)
                 coordinator.car?.removeFromParent()
                 let fresh = vehicle.makeEntity()
                 coordinator.root?.addChild(fresh)
                 coordinator.car = fresh
+                coordinator.carBase = fresh.orientation
+            }
+            let style = RoadStyle(rawValue: roadStyleRaw) ?? .standard
+            if coordinator.roadStyle != style {
+                coordinator.roadStyle = style
+                coordinator.replaceRoad(with: Self.makeRoad(style: style))
             }
             if coordinator.isDriving != isDriving {
                 coordinator.isDriving = isDriving
@@ -217,8 +251,14 @@ struct DriveSceneView: View {
         private var smoothedYaw: Float = 0
         var root: Entity?
         var car: Entity?
+        /// The car's rest orientation, captured when the entity is built.
+        /// Kenney models need a π flip to face down-road; the procedural
+        /// classic is modeled facing down-road already — hard-coding π
+        /// here is what once turned it backwards.
+        var carBase = simd_quatf(angle: 0, axis: [0, 1, 0])
         var camera: PerspectiveCamera?
         var road: Entity?
+        var roadStyle: RoadStyle = .standard
         var subscription: EventSubscription?
         /// The camera lives on a sphere around the car (yaw, pitch, fixed
         /// radius) looking at a target that slides from the car (parked) to
@@ -277,6 +317,19 @@ struct DriveSceneView: View {
             applyCamera()
         }
 
+        /// Swap the road entity in place (style change from Settings),
+        /// carrying over the current fade so it doesn't blink.
+        func replaceRoad(with fresh: Entity) {
+            guard let old = road else { return }
+            fresh.isEnabled = old.isEnabled
+            fresh.components.set(OpacityComponent(opacity: roadFade))
+            fresh.position = old.position
+            fresh.orientation = old.orientation
+            old.removeFromParent()
+            root?.addChild(fresh)
+            road = fresh
+        }
+
         func beginTransition(driving: Bool) {
             transitionFrom = pose
             transitionTo = driving ? .driving : .parked
@@ -285,7 +338,7 @@ struct DriveSceneView: View {
             chasePitch = 0
             // Straighten out: no leftover turn lean in the showroom.
             smoothedYaw = 0
-            car?.orientation = simd_quatf(angle: .pi, axis: [0, 1, 0])
+            car?.orientation = carBase
             road?.orientation = simd_quatf(angle: 0, axis: [0, 1, 0])
         }
 
@@ -343,8 +396,7 @@ struct DriveSceneView: View {
             smoothedYaw += (rawYaw - smoothedYaw) * Float(min(1, deltaTime * 6))
             if let car {
                 let lean = max(-0.22, min(0.22, -smoothedYaw * 0.5))
-                car.orientation = simd_quatf(angle: .pi, axis: [0, 1, 0])
-                    * simd_quatf(angle: lean, axis: [0, 0, 1])
+                car.orientation = carBase * simd_quatf(angle: lean, axis: [0, 0, 1])
             }
             let bend = max(-0.35, min(0.35, smoothedYaw * 0.8))
             road.orientation = simd_quatf(angle: bend, axis: [0, 1, 0])
@@ -475,27 +527,73 @@ struct DriveSceneView: View {
         UserDefaults.standard.bool(forKey: "debugRainbowParked")
     }
 
-    /// The rainbow, field-approved: a single flat ribbon carrying a
-    /// Gaussian-blurred copy of the band texture — soft watercolor bands
-    /// bleeding wide past the vehicle. (An earlier build layered sharp
-    /// bands on top; the blur alone looked better and won.)
-    static func makeRoad() -> Entity {
+    /// One flat scrolling ribbon; the texture and finish come from the
+    /// chosen style. Rainbow keeps the field-approved heavy Gaussian halo
+    /// (soft watercolor bands bleeding past the vehicle); the asphalt
+    /// styles get just enough blur to feather their edges.
+    static func makeRoad(style: RoadStyle = .current) -> Entity {
         let road = Entity()
         let depth = roadLength + rainbowPeriod // slack so the wrap never shows
         let tiles = depth / rainbowPeriod
 
-        if let sharp = rainbowBandImage(),
-           let haloImage = blurred(sharp, radius: 34),
-           let haloTexture = try? TextureResource(image: haloImage, options: .init(semantic: .color)) {
-            var halo = UnlitMaterial()
-            halo.color = .init(tint: UIColor(white: 1, alpha: 0.42), texture: .init(haloTexture))
-            halo.blending = .transparent(opacity: 0.42)
-            halo.textureCoordinateTransform.scale = SIMD2(1, tiles)
-            let ribbon = ModelEntity(mesh: .generatePlane(width: ribbonWidth * 1.6, depth: depth), materials: [halo])
+        let sharp: CGImage?
+        let blurRadius: Double
+        let alpha: Float
+        switch style {
+        case .rainbow:
+            sharp = rainbowBandImage()
+            blurRadius = 34
+            alpha = 0.42
+        case .standard:
+            sharp = asphaltImage(dark: false)
+            blurRadius = 5
+            alpha = 0.92
+        case .night:
+            sharp = asphaltImage(dark: true)
+            blurRadius = 5
+            alpha = 0.92
+        }
+
+        if let sharp,
+           let soft = blurred(sharp, radius: blurRadius),
+           let texture = try? TextureResource(image: soft, options: .init(semantic: .color)) {
+            var material = UnlitMaterial()
+            material.color = .init(tint: UIColor(white: 1, alpha: CGFloat(alpha)), texture: .init(texture))
+            material.blending = .transparent(opacity: .init(floatLiteral: alpha))
+            material.textureCoordinateTransform.scale = SIMD2(1, tiles)
+            let ribbon = ModelEntity(mesh: .generatePlane(width: ribbonWidth * 1.6, depth: depth), materials: [material])
             ribbon.position = [0, 0.012, stripeRecycleZ - depth / 2]
             road.addChild(ribbon)
         }
         return road
+    }
+
+    /// A normal road: asphalt with dashed yellow center stripes and solid
+    /// white edge lines. Transparent margins let the blur feather the
+    /// edges. One texture tile spans one rainbowPeriod (15.6 m) of road,
+    /// so each tile carries two dash cycles (~4.5 m paint, ~3.3 m gap).
+    static func asphaltImage(dark: Bool, width: Int = 64, size: Int = 512) -> CGImage? {
+        guard let context = CGContext(
+            data: nil, width: width, height: size, bitsPerComponent: 8, bytesPerRow: 0,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else { return nil }
+        let w = CGFloat(width)
+        let h = CGFloat(size)
+
+        context.setFillColor(UIColor(white: dark ? 0.13 : 0.42, alpha: 1).cgColor)
+        context.fill(CGRect(x: w * 0.06, y: 0, width: w * 0.88, height: h))
+
+        context.setFillColor(UIColor(white: 0.92, alpha: 1).cgColor)
+        for x in [0.075, 0.905] {
+            context.fill(CGRect(x: w * x, y: 0, width: w * 0.02, height: h))
+        }
+
+        context.setFillColor(UIColor(red: 0.99, green: 0.80, blue: 0.20, alpha: 1).cgColor)
+        for y in [0.04, 0.54] {
+            context.fill(CGRect(x: w * 0.4825, y: h * y, width: w * 0.035, height: h * 0.28))
+        }
+        return context.makeImage()
     }
 
     /// The band texture: six vivid rectangles, solid centers, a soft ~30%

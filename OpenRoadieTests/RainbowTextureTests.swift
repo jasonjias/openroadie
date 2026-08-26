@@ -37,7 +37,27 @@ struct RainbowTextureTests {
     }
 
     @Test func roadHasTheBlurRibbon() {
-        let road = DriveSceneView.makeRoad()
+        let road = DriveSceneView.makeRoad(style: .rainbow)
         #expect(road.children.count == 1)
+    }
+
+    @Test func asphaltImagesGenerate() {
+        for dark in [false, true] {
+            let image = DriveSceneView.asphaltImage(dark: dark)
+            #expect(image != nil)
+            #expect(image?.height == 512)
+        }
+    }
+
+    @Test func everyRoadStyleBuildsARibbon() {
+        for style in RoadStyle.allCases {
+            let road = DriveSceneView.makeRoad(style: style)
+            #expect(road.children.count == 1, "style \(style.rawValue)")
+        }
+    }
+
+    @Test func unknownRoadStyleFallsBackToStandard() {
+        #expect(RoadStyle(rawValue: "disco") == nil)
+        #expect(RoadStyle(rawValue: RoadStyle.standard.rawValue) == .standard)
     }
 }

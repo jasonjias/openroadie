@@ -60,7 +60,9 @@ enum OdometerStyle: String, CaseIterable, Identifiable, Codable {
         case .digital: "Digital"
         case .gauge: "Gauge"
         case .racing: "Racing"
-        case .rainbowRoad: "Rainbow Road"
+        // Historical raw value "rainbowRoad" (kept for stored settings);
+        // the face outgrew the name once road styles became selectable.
+        case .rainbowRoad: "Vehicle"
         }
     }
 
