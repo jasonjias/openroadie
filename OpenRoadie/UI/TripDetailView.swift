@@ -27,6 +27,7 @@ struct TripDetailView: View {
     @State private var colorMode: RouteColorMode = .speed
     @State private var shareURL: URL?
     @State private var showsFullMap = false
+    @State private var selectedPin: TripMapPin?
 
     var body: some View {
         let route = trip.route
@@ -115,18 +116,27 @@ struct TripDetailView: View {
                     coordinate: CLLocationCoordinate2D(latitude: anchor.latitude, longitude: anchor.longitude)
                 )
                 .tint(.indigo)
+                .tag(TripMapPin.note(note.persistentModelID))
             }
         }
     }
 
     /// The tapped-open interactive map: same content, full screen, pannable.
+    /// Tapping a pin slides up a small info card; tapping the map dismisses it.
     private var fullMap: some View {
         NavigationStack {
-            Map(initialPosition: .automatic) {
+            Map(initialPosition: .automatic, selection: $selectedPin) {
                 routeContent
             }
             .mapStyle(.standard(elevation: .flat))
             .ignoresSafeArea(edges: .bottom)
+            .safeAreaInset(edge: .bottom) {
+                if let selectedPin {
+                    pinCard(for: selectedPin)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+            }
+            .animation(.snappy(duration: 0.25), value: selectedPin)
             .navigationTitle(trip.startDate.formatted(.dateTime.month().day().hour().minute()))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -136,6 +146,46 @@ struct TripDetailView: View {
                 }
             }
         }
+    }
+
+    /// The small popup for a tapped marker — the same row language as the
+    /// events list, or the note's text and time.
+    @ViewBuilder
+    private func pinCard(for pin: TripMapPin) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            switch pin {
+            case .event(let id):
+                if let event = tripEvents.first(where: { $0.persistentModelID == id }) {
+                    EventRow(event: event)
+                }
+            case .note(let id):
+                if let note = tripNotes.first(where: { $0.persistentModelID == id }) {
+                    Image(systemName: "quote.bubble.fill")
+                        .foregroundStyle(.indigo)
+                        .frame(width: 24)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(note.text)
+                            .font(.subheadline.weight(.medium))
+                        Text(note.timestamp, format: .dateTime.hour().minute())
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            Spacer(minLength: 0)
+            Button {
+                selectedPin = nil
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+        .padding(.horizontal)
+        .padding(.bottom, 10)
     }
 
     /// What happened on this drive, in order — same rows as the day's

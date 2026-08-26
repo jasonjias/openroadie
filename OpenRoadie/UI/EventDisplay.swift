@@ -1,4 +1,5 @@
 import MapKit
+import SwiftData
 import SwiftUI
 
 /// One vocabulary for drive events everywhere they appear — the safety
@@ -102,7 +103,14 @@ struct EventRow: View {
     }
 }
 
-/// Map pins for the mistakes that have a recorded location.
+/// What a tapped map pin refers to — resolved back to the model by ID.
+enum TripMapPin: Hashable {
+    case event(PersistentIdentifier)
+    case note(PersistentIdentifier)
+}
+
+/// Map pins for the mistakes that have a recorded location. Tagged for
+/// selection — inert on maps without a selection binding.
 struct EventMarkers: MapContent {
     let events: [DriveEvent]
 
@@ -115,6 +123,7 @@ struct EventMarkers: MapContent {
                     coordinate: CLLocationCoordinate2D(latitude: anchor.latitude, longitude: anchor.longitude)
                 )
                 .tint(event.displayColor)
+                .tag(TripMapPin.event(event.persistentModelID))
             }
         }
     }
