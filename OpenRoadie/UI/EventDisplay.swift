@@ -111,20 +111,40 @@ enum TripMapPin: Hashable {
 
 /// Map pins for the mistakes that have a recorded location. Tagged for
 /// selection — inert on maps without a selection binding.
+///
+/// Custom Annotation badges, not system Markers: MapKit's balloon marker
+/// bounces on selection with no way to opt out.
 struct EventMarkers: MapContent {
     let events: [DriveEvent]
 
     var body: some MapContent {
         ForEach(events.filter(\.isMapWorthy)) { event in
             if let anchor = event.coordinate {
-                Marker(
+                Annotation(
                     event.markerTitle,
-                    systemImage: event.displayIcon,
                     coordinate: CLLocationCoordinate2D(latitude: anchor.latitude, longitude: anchor.longitude)
-                )
-                .tint(event.displayColor)
+                ) {
+                    MapPinBadge(systemImage: event.displayIcon, color: event.displayColor)
+                }
                 .tag(TripMapPin.event(event.persistentModelID))
             }
         }
+    }
+}
+
+/// A small round pin: colored disc, white glyph, hairline border. Static —
+/// tapping selects without any animation of its own.
+struct MapPinBadge: View {
+    let systemImage: String
+    let color: Color
+
+    var body: some View {
+        Image(systemName: systemImage)
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundStyle(.white)
+            .frame(width: 26, height: 26)
+            .background(color.gradient, in: Circle())
+            .overlay(Circle().strokeBorder(.white.opacity(0.9), lineWidth: 1.5))
+            .shadow(color: .black.opacity(0.25), radius: 2, y: 1)
     }
 }

@@ -110,12 +110,12 @@ struct TripDetailView: View {
         // Notes spoken during this drive, as speech bubbles.
         ForEach(tripNotes) { note in
             if let anchor = note.coordinate {
-                Marker(
+                Annotation(
                     note.text,
-                    systemImage: "quote.bubble.fill",
                     coordinate: CLLocationCoordinate2D(latitude: anchor.latitude, longitude: anchor.longitude)
-                )
-                .tint(.indigo)
+                ) {
+                    MapPinBadge(systemImage: "quote.bubble.fill", color: .indigo)
+                }
                 .tag(TripMapPin.note(note.persistentModelID))
             }
         }
