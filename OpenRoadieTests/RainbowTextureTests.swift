@@ -37,7 +37,9 @@ struct RainbowTextureTests {
     }
 
     @Test func roadHasTheBlurRibbon() {
-        let road = DriveSceneView.makeRoad(style: .rainbow, lamps: false)
+        // Pin every option — defaulted parameters read live UserDefaults,
+        // which the simulator's manual test-drives may have customized.
+        let road = DriveSceneView.makeRoad(style: .rainbow, lamps: false, season: .off)
         #expect(road.children.count == 1)
     }
 
