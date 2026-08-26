@@ -49,8 +49,24 @@ struct DrivingHistoryTests {
         #expect(history.longestMiles == 60)
         #expect(history.longestSeconds == 90 * 60)
         #expect(abs((history.slowestPaceSecondsPerMile ?? 0) - 720) < 0.01)
-        #expect(history.earliestStartMinute == 6 * 60)
-        #expect(history.latestEndMinute == 23 * 60)
+        // Day 0: first departure 6 AM, last arrival 11 PM.
+        // Day 1: first departure 9 AM, last arrival 12:20 PM.
+        // Medians (2 days → upper middle): 9 AM and 11 PM.
+        #expect(history.typicalFirstDepartureMinute == 9 * 60)
+        #expect(history.typicalLastArrivalMinute == 23 * 60)
+    }
+
+    @Test func afterMidnightArrivalsCountAsLateNotEarly() {
+        // A drive from 11:40 PM to 12:30 AM belongs to the evening: it
+        // must move "last arrival" later, never become an "early" outlier.
+        let trips = [
+            trip(day: 0, hour: 8, minutes: 20, miles: 5),
+            trip(day: 0, hour: 23, minutes: 90, miles: 8), // 11 PM → 12:30 AM
+        ]
+        let history = DrivingHistory.compute(trips: trips, calendar: calendar)
+        #expect(history.typicalFirstDepartureMinute == 8 * 60)
+        // Arrival 00:30 next calendar day, same 4AM-cycle day → 12:30 AM.
+        #expect(history.typicalLastArrivalMinute == 30)
     }
 
     @Test func emptyHistoryIsAllZeros() {
@@ -59,6 +75,6 @@ struct DrivingHistoryTests {
         #expect(history.daysDriven == 0)
         #expect(history.averageMph == nil)
         #expect(history.slowestPaceSecondsPerMile == nil)
-        #expect(history.earliestStartMinute == nil)
+        #expect(history.typicalFirstDepartureMinute == nil)
     }
 }

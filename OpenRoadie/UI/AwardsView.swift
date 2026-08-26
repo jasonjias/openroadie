@@ -92,19 +92,19 @@ struct DrivingHistoryView: View {
                     icon: "car.rear.and.tire.marks"
                 )
                 row(
-                    "Earliest departure",
-                    history.earliestStartMinute.map { DrivingHistory.timeLabel(minute: $0) } ?? "—",
+                    "Typical first departure",
+                    history.typicalFirstDepartureMinute.map { DrivingHistory.timeLabel(minute: $0) } ?? "—",
                     icon: "sunrise"
                 )
                 row(
-                    "Latest arrival",
-                    history.latestEndMinute.map { DrivingHistory.timeLabel(minute: $0) } ?? "—",
+                    "Typical last arrival",
+                    history.typicalLastArrivalMinute.map { DrivingHistory.timeLabel(minute: $0) } ?? "—",
                     icon: "moon.stars"
                 )
             } header: {
                 Text("Records")
             } footer: {
-                Text("Slowest pace is the most time a mile has ever taken you (drives of a mile or more) — a rough traffic gauge. All figures come from the drives stored on this device.")
+                Text("Slowest pace is the most time a mile has ever taken you (drives of a mile or more) — a rough traffic gauge. Departure and arrival are the median of each driving day's first and last drive, with days rolling over at 4 AM. All figures come from the drives stored on this device.")
             }
         }
         .navigationTitle("Driving History")
