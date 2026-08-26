@@ -150,6 +150,7 @@ struct DriveSceneView: View {
     /// re-subscribing, and retains the scene-update subscription.
     @State private var coordinator = Coordinator()
     @AppStorage(RoadStyle.defaultsKey) private var roadStyleRaw = RoadStyle.standard.rawValue
+    @AppStorage(DriveSceneView.lampsKey) private var roadLamps = false
 
     var body: some View {
         RealityView { content in
@@ -165,7 +166,8 @@ struct DriveSceneView: View {
             coordinator.sizeScale = max(1, vehicle.targetLength / 3.4)
 
             coordinator.roadStyle = RoadStyle(rawValue: roadStyleRaw) ?? .standard
-            let road = Self.makeRoad(style: coordinator.roadStyle)
+            coordinator.roadLamps = roadLamps
+            let road = Self.makeRoad(style: coordinator.roadStyle, lamps: roadLamps)
             // The rainbow reveals itself only once the car has settled into
             // the driving position — the fade lives in Coordinator.tick.
             road.isEnabled = Self.debugRainbowParked
@@ -203,9 +205,10 @@ struct DriveSceneView: View {
                 coordinator.carBase = fresh.orientation
             }
             let style = RoadStyle(rawValue: roadStyleRaw) ?? .standard
-            if coordinator.roadStyle != style {
+            if coordinator.roadStyle != style || coordinator.roadLamps != roadLamps {
                 coordinator.roadStyle = style
-                coordinator.replaceRoad(with: Self.makeRoad(style: style))
+                coordinator.roadLamps = roadLamps
+                coordinator.replaceRoad(with: Self.makeRoad(style: style, lamps: roadLamps))
             }
             if coordinator.isDriving != isDriving {
                 coordinator.isDriving = isDriving
@@ -259,6 +262,7 @@ struct DriveSceneView: View {
         var camera: PerspectiveCamera?
         var road: Entity?
         var roadStyle: RoadStyle = .standard
+        var roadLamps = false
         var subscription: EventSubscription?
         /// The camera lives on a sphere around the car (yaw, pitch, fixed
         /// radius) looking at a target that slides from the car (parked) to
@@ -529,34 +533,29 @@ struct DriveSceneView: View {
 
     /// One flat scrolling ribbon; the texture and finish come from the
     /// chosen style. Rainbow keeps the field-approved heavy Gaussian halo
-    /// (soft watercolor bands bleeding past the vehicle); the asphalt
-    /// styles get just enough blur to feather their edges.
-    static func makeRoad(style: RoadStyle = .current) -> Entity {
+    /// (soft watercolor bands bleeding wide past the vehicle); the asphalt
+    /// styles render crisp — a road, not a glow.
+    static func makeRoad(style: RoadStyle = .current, lamps: Bool = roadLampsEnabled) -> Entity {
         let road = Entity()
         let depth = roadLength + rainbowPeriod // slack so the wrap never shows
         let tiles = depth / rainbowPeriod
 
-        let sharp: CGImage?
-        let blurRadius: Double
+        let image: CGImage?
         let alpha: Float
         switch style {
         case .rainbow:
-            sharp = rainbowBandImage()
-            blurRadius = 34
+            image = rainbowBandImage().flatMap { blurred($0, radius: 34) }
             alpha = 0.42
         case .standard:
-            sharp = asphaltImage(dark: false)
-            blurRadius = 5
-            alpha = 0.92
+            image = asphaltImage(dark: false)
+            alpha = 1
         case .night:
-            sharp = asphaltImage(dark: true)
-            blurRadius = 5
-            alpha = 0.92
+            image = asphaltImage(dark: true)
+            alpha = 1
         }
 
-        if let sharp,
-           let soft = blurred(sharp, radius: blurRadius),
-           let texture = try? TextureResource(image: soft, options: .init(semantic: .color)) {
+        if let image,
+           let texture = try? TextureResource(image: image, options: .init(semantic: .color)) {
             var material = UnlitMaterial()
             material.color = .init(tint: UIColor(white: 1, alpha: CGFloat(alpha)), texture: .init(texture))
             material.blending = .transparent(opacity: .init(floatLiteral: alpha))
@@ -565,7 +564,73 @@ struct DriveSceneView: View {
             ribbon.position = [0, 0.012, stripeRecycleZ - depth / 2]
             road.addChild(ribbon)
         }
+
+        if lamps {
+            // One lamp per texture period, so the scroll wrap (which jumps
+            // the road back by exactly one period) lands every lamp where
+            // its predecessor stood — the row never visibly resets.
+            let count = Int(depth / rainbowPeriod)
+            for index in 0..<count {
+                let lamp = makeStreetLamp(lit: style == .night)
+                lamp.position = [0, 0, stripeRecycleZ - Float(index) * rainbowPeriod]
+                road.addChild(lamp)
+            }
+        }
         return road
+    }
+
+    static let lampsKey = "driveRoadLamps"
+
+    static var roadLampsEnabled: Bool {
+        UserDefaults.standard.bool(forKey: lampsKey)
+    }
+
+    /// A tall highway lamp: straight pole, single arm curving over the
+    /// road (three progressively tilted segments fake the bend), cobra
+    /// luminaire at the tip. Lit warm at night, off by day.
+    static func makeStreetLamp(lit: Bool) -> Entity {
+        let lamp = Entity()
+        let steel = SimpleMaterial(color: UIColor(white: 0.45, alpha: 1), roughness: 0.6, isMetallic: true)
+
+        // Chunky proportions on purpose: the chase camera looks down from
+        // ~60°, which forecloses thin vertical geometry to nearly nothing.
+        let poleX: Float = ribbonWidth * 0.8 + 0.55
+        let poleHeight: Float = 2.8
+        let pole = ModelEntity(mesh: .generateCylinder(height: poleHeight, radius: 0.09), materials: [steel])
+        pole.position = [poleX, poleHeight / 2, 0]
+        lamp.addChild(pole)
+
+        // The curve: short segments rotating from vertical toward
+        // horizontal, each starting where the last ended.
+        var cursor: SIMD3<Float> = [poleX, poleHeight, 0]
+        let bendAngles: [Float] = [.pi * 0.12, .pi * 0.30, .pi * 0.44]
+        for angle in bendAngles {
+            let length: Float = 0.62
+            let segment = ModelEntity(mesh: .generateCylinder(height: length, radius: 0.07), materials: [steel])
+            // Tilt the segment toward the road (-x) around z.
+            segment.orientation = simd_quatf(angle: angle, axis: [0, 0, 1])
+            let step: SIMD3<Float> = [-sin(angle) * length, cos(angle) * length, 0]
+            segment.position = cursor + step / 2
+            cursor += step
+            lamp.addChild(segment)
+        }
+
+        let headMaterial: RealityKit.Material = lit
+            ? UnlitMaterial(color: UIColor(red: 1.0, green: 0.87, blue: 0.55, alpha: 1))
+            : SimpleMaterial(color: UIColor(white: 0.28, alpha: 1), roughness: 0.5, isMetallic: false)
+        let head = ModelEntity(mesh: .generateBox(size: [0.62, 0.13, 0.26], cornerRadius: 0.06), materials: [headMaterial])
+        head.position = cursor + [-0.26, 0, 0]
+        lamp.addChild(head)
+
+        if lit {
+            // A soft pool of light on the asphalt under the head.
+            var glow = UnlitMaterial(color: UIColor(red: 1.0, green: 0.85, blue: 0.5, alpha: 0.16))
+            glow.blending = .transparent(opacity: 0.16)
+            let pool = ModelEntity(mesh: .generatePlane(width: 2.4, depth: 3.2, cornerRadius: 1.2), materials: [glow])
+            pool.position = [cursor.x - 0.18, 0.02, 0]
+            lamp.addChild(pool)
+        }
+        return lamp
     }
 
     /// A normal road: asphalt with dashed yellow center stripes and solid

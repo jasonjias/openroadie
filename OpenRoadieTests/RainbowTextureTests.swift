@@ -37,7 +37,7 @@ struct RainbowTextureTests {
     }
 
     @Test func roadHasTheBlurRibbon() {
-        let road = DriveSceneView.makeRoad(style: .rainbow)
+        let road = DriveSceneView.makeRoad(style: .rainbow, lamps: false)
         #expect(road.children.count == 1)
     }
 
@@ -51,9 +51,20 @@ struct RainbowTextureTests {
 
     @Test func everyRoadStyleBuildsARibbon() {
         for style in RoadStyle.allCases {
-            let road = DriveSceneView.makeRoad(style: style)
+            let road = DriveSceneView.makeRoad(style: style, lamps: false)
             #expect(road.children.count == 1, "style \(style.rawValue)")
         }
+    }
+
+    @Test func lampsLineTheRoadWhenEnabled() {
+        let road = DriveSceneView.makeRoad(style: .night, lamps: true)
+        // One ribbon plus a lamp per texture period.
+        let expectedLamps = Int((DriveSceneView.roadLength + DriveSceneView.rainbowPeriod) / DriveSceneView.rainbowPeriod)
+        #expect(road.children.count == 1 + expectedLamps)
+        // Night lamps carry the glow pool; day lamps don't.
+        let nightLamp = DriveSceneView.makeStreetLamp(lit: true)
+        let dayLamp = DriveSceneView.makeStreetLamp(lit: false)
+        #expect(nightLamp.children.count == dayLamp.children.count + 1)
     }
 
     @Test func unknownRoadStyleFallsBackToStandard() {
