@@ -140,23 +140,35 @@ struct TripMapView: UIViewRepresentable {
         }
 
         func mapView(_ mapView: MKMapView, didSelect view: MKAnnotationView) {
+            // Kill the marker's selection wobble. MapKit's PRIVATE selection
+            // path adds explicit spring/sway CAAnimations to the balloon's
+            // internal layers, ignoring setSelected(_:animated:) overrides,
+            // CATransaction.setDisableActions, and performWithoutAnimation.
+            // didSelect fires synchronously before those animations commit,
+            // so removing them here means no bounce frame ever renders.
+            Self.stripAnimations(view)
             parent.selectedPin = (view.annotation as? PinAnnotation)?.pin
         }
 
         func mapView(_ mapView: MKMapView, didDeselect view: MKAnnotationView) {
+            Self.stripAnimations(view)
             parent.selectedPin = nil
+        }
+
+        private static func stripAnimations(_ view: UIView) {
+            var stack: [CALayer] = [view.layer]
+            while let layer = stack.popLast() {
+                layer.removeAllAnimations()
+                stack.append(contentsOf: layer.sublayers ?? [])
+            }
         }
     }
 }
 
-/// The system balloon marker with its selection bounce removed — MapKit
-/// offers no switch for it, so force the state change through unanimated.
+/// Plain system balloon marker; the anti-wobble work happens in the
+/// coordinator's didSelect/didDeselect (see stripAnimations).
 private final class StillMarkerView: MKMarkerAnnotationView {
     static let reuseID = "stillMarker"
-
-    override func setSelected(_ selected: Bool, animated: Bool) {
-        super.setSelected(selected, animated: false)
-    }
 }
 
 /// A polyline that knows the band color it should render with.
