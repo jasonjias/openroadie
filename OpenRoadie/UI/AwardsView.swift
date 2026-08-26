@@ -53,43 +53,65 @@ struct VehiclePickerView: View {
     }
 }
 
-/// Lifetime driving records, straight from the stored trips — total
-/// time behind the wheel, total distance, the all-time top speed, and
-/// the overall average pace.
-struct DrivingRecordsView: View {
+/// Lifetime driving history, straight from the stored trips.
+struct DrivingHistoryView: View {
     @Query private var trips: [Trip]
 
     var body: some View {
-        let finished = trips.filter { $0.endDate != nil }
-        let totalSeconds = finished.reduce(0.0) { $0 + ($1.duration ?? 0) }
-        let totalMiles = finished.reduce(0.0) { $0 + $1.distance } / 1609.344
-        let maxSpeed = finished.compactMap(\.maxSpeed).max()
-        let averageMph = totalSeconds > 0 ? totalMiles / (totalSeconds / 3600) : nil
+        let history = DrivingHistory.compute(trips: trips)
 
         List {
-            Section {
-                record("Drives", "\(finished.count)", icon: "car.2")
-                record("Total drive time", DriveFormatting.duration(totalSeconds), icon: "clock")
-                record("Total distance", String(format: "%.1f mi", totalMiles), icon: "road.lanes")
-                record(
-                    "Top speed",
-                    maxSpeed.map { "\(DriveFormatting.milesPerHour(fromMetersPerSecond: $0)) mph" } ?? "—",
-                    icon: "gauge.high"
-                )
-                record(
+            Section("Totals") {
+                row("Drives", "\(history.drives)", icon: "car.2")
+                row("Days driven", "\(history.daysDriven)", icon: "calendar")
+                row("Drive time", DriveFormatting.duration(history.totalSeconds), icon: "clock")
+                row("Distance", String(format: "%.1f mi", history.totalMiles), icon: "road.lanes")
+                row(
                     "Average speed",
-                    averageMph.map { String(format: "%.0f mph", $0) } ?? "—",
+                    history.averageMph.map { String(format: "%.0f mph", $0) } ?? "—",
                     icon: "speedometer"
                 )
+            }
+
+            Section("Per driving day") {
+                row("Time", DriveFormatting.duration(history.averageSecondsPerDay), icon: "clock.arrow.circlepath")
+                row("Distance", String(format: "%.1f mi", history.averageMilesPerDay), icon: "point.topleft.down.to.point.bottomright.curvepath")
+            }
+
+            Section {
+                row(
+                    "Top speed",
+                    history.maxSpeedMps.map { "\(DriveFormatting.milesPerHour(fromMetersPerSecond: $0)) mph" } ?? "—",
+                    icon: "gauge.high"
+                )
+                row("Longest drive", String(format: "%.1f mi", history.longestMiles), icon: "map")
+                row("Longest time", DriveFormatting.duration(history.longestSeconds), icon: "hourglass")
+                row(
+                    "Slowest pace",
+                    history.slowestPaceSecondsPerMile.map { String(format: "%.1f min/mi", $0 / 60) } ?? "—",
+                    icon: "car.rear.and.tire.marks"
+                )
+                row(
+                    "Earliest departure",
+                    history.earliestStartMinute.map { DrivingHistory.timeLabel(minute: $0) } ?? "—",
+                    icon: "sunrise"
+                )
+                row(
+                    "Latest arrival",
+                    history.latestEndMinute.map { DrivingHistory.timeLabel(minute: $0) } ?? "—",
+                    icon: "moon.stars"
+                )
+            } header: {
+                Text("Records")
             } footer: {
-                Text("All-time totals from every drive stored on this device.")
+                Text("Slowest pace is the most time a mile has ever taken you (drives of a mile or more) — a rough traffic gauge. All figures come from the drives stored on this device.")
             }
         }
-        .navigationTitle("Driving Records")
+        .navigationTitle("Driving History")
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    private func record(_ label: String, _ value: String, icon: String) -> some View {
+    private func row(_ label: String, _ value: String, icon: String) -> some View {
         HStack {
             Label(label, systemImage: icon)
             Spacer()

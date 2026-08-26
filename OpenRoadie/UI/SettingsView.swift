@@ -228,8 +228,8 @@ struct SettingsView: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
-                    NavigationLink("Driving Records") {
-                        DrivingRecordsView()
+                    NavigationLink("Driving History") {
+                        DrivingHistoryView()
                     }
                     Picker("Road", selection: $roadStyle) {
                         ForEach(RoadStyle.allCases) { style in
