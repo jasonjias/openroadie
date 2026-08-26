@@ -77,7 +77,8 @@ struct RainbowTextureTests {
             let periods = Int((DriveSceneView.roadLength + DriveSceneView.rainbowPeriod) / DriveSceneView.rainbowPeriod)
             let expected = switch season {
             case .christmas: 1 + periods * 4
-            case .spring: 1 + periods * 8
+            case .spring: 1 + periods * 8       // 4 rows × 2 sides
+            case .fall: 1 + periods * 40        // 4 rows × 2 sides × 5 columns
             default: 1 + periods * 2
             }
             #expect(road.children.count == expected, "season \(season.rawValue)")

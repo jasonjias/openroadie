@@ -650,18 +650,33 @@ struct DriveSceneView: View {
         }
 
         let trees = season.trees
-        if !trees.isEmpty, season == .spring {
-            // Dense-avenue trial: matched rows on BOTH shoulders, four per
-            // period per side — the tree-lined-lane look.
-            for index in 0..<count {
-                let baseZ = stripeRecycleZ - Float(index) * rainbowPeriod
-                for row in 0..<4 {
-                    for side in [Float(-1), 1] {
-                        let tree = trees[0]
-                        guard let entity = loadScenery(tree.model, height: tree.height) else { continue }
-                        entity.position = [side * (laneEdge + 1.7), 0, baseZ - Float(row) * rainbowPeriod / 4 - 1.5]
-                        entity.orientation = simd_quatf(angle: Float(index * 4 + row) * 1.7 + side, axis: [0, 1, 0])
-                        road.addChild(entity)
+        if !trees.isEmpty, season == .spring || season == .fall {
+            // Dense avenue: matched rows on BOTH shoulders, four per period
+            // per side. Fall goes full forest — five columns deep each
+            // side, checkerboarded. One template entity, cloned per slot:
+            // loading from disk 200 times would stall the scene.
+            let columns = season == .fall ? 5 : 1
+            let tree = trees[0]
+            if let template = loadScenery(tree.model, height: tree.height) {
+                for index in 0..<count {
+                    let baseZ = stripeRecycleZ - Float(index) * rainbowPeriod
+                    for row in 0..<4 {
+                        for column in 0..<columns {
+                            for side in [Float(-1), 1] {
+                                let entity = template.clone(recursive: true)
+                                entity.position = [
+                                    side * (laneEdge + 1.7 + Float(column) * 1.6),
+                                    0,
+                                    baseZ - Float(row) * rainbowPeriod / 4 - 1.5
+                                        - Float(column % 2) * rainbowPeriod / 8,
+                                ]
+                                entity.orientation = simd_quatf(
+                                    angle: Float(index * 4 + row + column * 7) * 1.7 + side,
+                                    axis: [0, 1, 0]
+                                )
+                                road.addChild(entity)
+                            }
+                        }
                     }
                 }
             }
@@ -681,9 +696,9 @@ struct DriveSceneView: View {
                     if season == .christmas {
                         let names = ["scenery-present-a", "scenery-present-b"]
                         if let present = loadScenery(names[(index + (side > 0 ? 1 : 0)) % 2], height: 0.42) {
-                            // Beside the trunk on the grass — nudged only
-                            // slightly roadward so it clears the sidewalk.
-                            present.position = entity.position + [side * -0.5, 0, 0.55]
+                            // Beside the trunk, fully on the grass — well
+                            // clear of the sidewalk.
+                            present.position = entity.position + [side * -0.15, 0, 0.55]
                             present.orientation = simd_quatf(angle: Float(index) * 2.3, axis: [0, 1, 0])
                             road.addChild(present)
                         }
