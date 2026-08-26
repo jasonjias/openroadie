@@ -41,6 +41,9 @@ struct VehiclePickerView: View {
                                 .foregroundStyle(.tint)
                         }
                     }
+                    // The whole row is the tap target — without an explicit
+                    // shape, only the opaque content (image, text) is.
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
             }
