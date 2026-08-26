@@ -222,16 +222,14 @@ struct SettingsView: View {
                         HStack {
                             Text("Vehicle")
                             Spacer()
-                            Image(Vehicle.find(sceneVehicle).thumbnailName)
-                                .resizable()
-                                .scaledToFit()
+                            VehicleThumbnail(vehicle: Vehicle.find(sceneVehicle))
                                 .frame(width: 44, height: 30)
                             Text(Vehicle.find(sceneVehicle).title)
                                 .foregroundStyle(.secondary)
                         }
                     }
-                    NavigationLink("Awards") {
-                        AwardsView()
+                    NavigationLink("Driving Records") {
+                        DrivingRecordsView()
                     }
                     Picker("Road", selection: $roadStyle) {
                         ForEach(RoadStyle.allCases) { style in

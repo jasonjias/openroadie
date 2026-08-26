@@ -1,3 +1,4 @@
+import Foundation
 import RealityKit
 import Testing
 @testable import OpenRoadie
@@ -107,6 +108,13 @@ struct RainbowTextureTests {
                 let height = entity.visualBounds(relativeTo: nil).extents.y
                 #expect(abs(height - 2) < 0.05, "\(name) height \(height)")
             }
+        }
+    }
+
+    @Test func everyVehicleHasABundledThumbnail() {
+        for vehicle in Vehicle.all {
+            let url = Bundle.main.url(forResource: vehicle.thumbnailName, withExtension: "png")
+            #expect(url != nil, "missing \(vehicle.thumbnailName).png")
         }
     }
 

@@ -1,39 +1,39 @@
 import SwiftData
 import SwiftUI
 
-/// The garage: every vehicle with its pre-rendered thumbnail. Free ones
-/// select instantly; earnable ones show their award and unlock the
-/// moment the driving record clears the bar.
-struct VehiclePickerView: View {
-    @AppStorage(Vehicle.defaultsKey) private var sceneVehicle = Vehicle.classic.id
-    @Query private var trips: [Trip]
-    @Query private var events: [DriveEvent]
+/// A vehicle thumbnail, loaded straight from its bundled PNG —
+/// name-based Image lookup misses loose bundle resources on device.
+struct VehicleThumbnail: View {
+    let vehicle: Vehicle
 
     var body: some View {
-        let aggregates = Awards.aggregates(trips: trips, events: events)
+        if let path = Bundle.main.path(forResource: vehicle.thumbnailName, ofType: "png"),
+           let image = UIImage(contentsOfFile: path) {
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFit()
+        } else {
+            Image(systemName: "car.fill")
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
+/// The garage: every vehicle with its pre-rendered hero thumbnail.
+struct VehiclePickerView: View {
+    @AppStorage(Vehicle.defaultsKey) private var sceneVehicle = Vehicle.classic.id
+
+    var body: some View {
         List {
             ForEach(Vehicle.all) { vehicle in
-                let unlocked = Awards.isUnlocked(vehicle.id, aggregates: aggregates)
                 Button {
-                    guard unlocked, vehicle.isAvailable else { return }
+                    guard vehicle.isAvailable else { return }
                     sceneVehicle = vehicle.id
                 } label: {
                     HStack(spacing: 12) {
-                        Image(vehicle.thumbnailName)
-                            .resizable()
-                            .scaledToFit()
+                        VehicleThumbnail(vehicle: vehicle)
                             .frame(width: 64, height: 48)
-                            .grayscale(unlocked ? 0 : 1)
-                            .opacity(unlocked ? 1 : 0.5)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(vehicle.isAvailable ? vehicle.title : "\(vehicle.title) — soon")
-                                .foregroundStyle(unlocked ? .primary : .secondary)
-                            if !unlocked, let award = Awards.unlock(for: vehicle.id) {
-                                Label(Awards.requirementText(award), systemImage: "lock.fill")
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
+                        Text(vehicle.isAvailable ? vehicle.title : "\(vehicle.title) — soon")
                         Spacer()
                         if sceneVehicle == vehicle.id {
                             Image(systemName: "checkmark")
@@ -50,59 +50,49 @@ struct VehiclePickerView: View {
     }
 }
 
-/// Every award with live progress — nothing is granted or stored, the
-/// driving record IS the trophy case.
-struct AwardsView: View {
+/// Lifetime driving records, straight from the stored trips — total
+/// time behind the wheel, total distance, the all-time top speed, and
+/// the overall average pace.
+struct DrivingRecordsView: View {
     @Query private var trips: [Trip]
-    @Query private var events: [DriveEvent]
 
     var body: some View {
-        let progress = Awards.progress(for: Awards.aggregates(trips: trips, events: events))
+        let finished = trips.filter { $0.endDate != nil }
+        let totalSeconds = finished.reduce(0.0) { $0 + ($1.duration ?? 0) }
+        let totalMiles = finished.reduce(0.0) { $0 + $1.distance } / 1609.344
+        let maxSpeed = finished.compactMap(\.maxSpeed).max()
+        let averageMph = totalSeconds > 0 ? totalMiles / (totalSeconds / 3600) : nil
+
         List {
             Section {
-                ForEach(progress) { item in
-                    HStack(spacing: 14) {
-                        Image(systemName: item.award.icon)
-                            .font(.title3)
-                            .frame(width: 34)
-                            .foregroundStyle(item.earned ? Color.yellow : .secondary)
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack {
-                                Text(item.award.title)
-                                    .font(.subheadline.weight(.medium))
-                                Spacer()
-                                if item.earned {
-                                    Image(systemName: "checkmark.seal.fill")
-                                        .foregroundStyle(.yellow)
-                                } else {
-                                    Text(progressLabel(item))
-                                        .font(.caption)
-                                        .monospacedDigit()
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                            ProgressView(value: item.fraction)
-                                .tint(item.earned ? .yellow : .accentColor)
-                            if let vehicleId = item.award.unlocksVehicle {
-                                Text(item.earned
-                                     ? "Unlocked: \(Vehicle.find(vehicleId).title)"
-                                     : "Unlocks: \(Vehicle.find(vehicleId).title)")
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                    .padding(.vertical, 2)
-                }
+                record("Drives", "\(finished.count)", icon: "car.2")
+                record("Total drive time", DriveFormatting.duration(totalSeconds), icon: "clock")
+                record("Total distance", String(format: "%.1f mi", totalMiles), icon: "road.lanes")
+                record(
+                    "Top speed",
+                    maxSpeed.map { "\(DriveFormatting.milesPerHour(fromMetersPerSecond: $0)) mph" } ?? "—",
+                    icon: "gauge.high"
+                )
+                record(
+                    "Average speed",
+                    averageMph.map { String(format: "%.0f mph", $0) } ?? "—",
+                    icon: "speedometer"
+                )
             } footer: {
-                Text("Awards come straight from your driving record on this device — earn them by driving, keep them by nothing at all.")
+                Text("All-time totals from every drive stored on this device.")
             }
         }
-        .navigationTitle("Awards")
+        .navigationTitle("Driving Records")
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    private func progressLabel(_ item: Awards.Progress) -> String {
-        "\(Int(item.value)) / \(Int(item.award.goal))"
+    private func record(_ label: String, _ value: String, icon: String) -> some View {
+        HStack {
+            Label(label, systemImage: icon)
+            Spacer()
+            Text(value)
+                .monospacedDigit()
+                .foregroundStyle(.secondary)
+        }
     }
 }

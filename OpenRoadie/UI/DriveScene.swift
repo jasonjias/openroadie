@@ -525,7 +525,9 @@ struct DriveSceneView: View {
             propsRoot?.position.z = phase
             if let ribbon, var model = ribbon.model,
                var material = model.materials.first as? UnlitMaterial {
-                material.textureCoordinateTransform.offset = SIMD2(0, phase / DriveSceneView.rainbowPeriod)
+                // Negative: the pattern must flow TOWARD the camera, in
+                // lockstep with the physically scrolling props.
+                material.textureCoordinateTransform.offset = SIMD2(0, -phase / DriveSceneView.rainbowPeriod)
                 model.materials = [material]
                 ribbon.model = model
             }
