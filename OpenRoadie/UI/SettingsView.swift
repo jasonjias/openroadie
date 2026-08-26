@@ -216,15 +216,23 @@ struct SettingsView: View {
                 }
 
                 Section {
-                    // One flat, ordered list — the "Type - Variant" titles
-                    // carry the grouping, so section headers would repeat it.
-                    Picker("Vehicle", selection: $sceneVehicle) {
-                        ForEach(Vehicle.all) { vehicle in
-                            Text(vehicle.isAvailable ? vehicle.title : "\(vehicle.title) — soon")
-                                .tag(vehicle.id)
+                    NavigationLink {
+                        VehiclePickerView()
+                    } label: {
+                        HStack {
+                            Text("Vehicle")
+                            Spacer()
+                            Image(Vehicle.find(sceneVehicle).thumbnailName)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 44, height: 30)
+                            Text(Vehicle.find(sceneVehicle).title)
+                                .foregroundStyle(.secondary)
                         }
                     }
-                    .pickerStyle(.navigationLink)
+                    NavigationLink("Awards") {
+                        AwardsView()
+                    }
                     Picker("Road", selection: $roadStyle) {
                         ForEach(RoadStyle.allCases) { style in
                             Text(style.title).tag(style.rawValue)

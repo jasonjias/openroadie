@@ -48,6 +48,11 @@ struct Vehicle: Identifiable, Equatable, Hashable {
         return seen
     }()
 
+    /// Pre-rendered picker thumbnail (Tools/render-thumbnails.py).
+    var thumbnailName: String {
+        "thumb-\(modelName ?? "classic")"
+    }
+
     static func find(_ id: String) -> Vehicle {
         all.first { $0.id == id } ?? classic
     }

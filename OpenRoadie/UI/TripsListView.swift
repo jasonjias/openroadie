@@ -14,15 +14,14 @@ struct TripsListView: View {
     @State private var selectedDay = Calendar.current.startOfDay(for: .now)
     @State private var showsCalendar = false
     @State private var showsSafetyDetail = false
-    @State private var showsSettings = false
 
     private var calendar: Calendar { .current }
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                // Fitness-style header row: title, calendar, avatar — no
-                // system large-title machinery, no dead space above.
+                // Fitness-style header row: title + calendar — settings
+                // lives on the Drive tab's avatar, no need for two doors.
                 HStack(spacing: 16) {
                     Text(dayTitle)
                         .font(.largeTitle.bold())
@@ -34,11 +33,6 @@ struct TripsListView: View {
                         Image(systemName: "calendar")
                             .font(.title2)
                     }
-                    Button {
-                        showsSettings = true
-                    } label: {
-                        ProfileAvatar(size: 46)
-                    }
                 }
                 .padding(.horizontal)
                 .padding(.top, 6)
@@ -48,9 +42,6 @@ struct TripsListView: View {
             .toolbar(.hidden, for: .navigationBar)
             .fullScreenCover(isPresented: $showsCalendar) {
                 MonthCalendarView(selectedDay: $selectedDay, statsFor: stats(on:))
-            }
-            .fullScreenCover(isPresented: $showsSettings) {
-                SettingsView()
             }
             .sheet(isPresented: $showsSafetyDetail) {
                 SafetyDetailView(
