@@ -2,11 +2,17 @@ import Foundation
 
 /// Deterministic speed-alert rules — no AI anywhere near this.
 ///
-/// Each rule fires once when its threshold is crossed and re-arms only after
-/// speed drops a couple of mph back below it (hysteresis), so GPS jitter at
-/// the boundary can't machine-gun alerts.
+/// A rule fires only when speed stays past its threshold for `sustained`
+/// seconds, re-arms after speed drops a couple of mph back below it
+/// (hysteresis), and then keeps quiet for `minimumInterval` before it can
+/// speak again. Field-tuned: brief crossings while passing, cresting a
+/// hill, or riding a bad map match are not worth a word.
 struct SpeedAlertEngine {
     struct Config: Equatable {
+        /// How long speed must stay past a threshold before it's real.
+        var sustainedSeconds: TimeInterval = 10
+        /// Quiet period after a rule fires, per rule.
+        var minimumIntervalSeconds: TimeInterval = 240
         /// Alert when crossing the posted limit.
         var alertOverPostedLimit = false
         /// Additionally alert this many mph over the posted limit (e.g. 5).
@@ -43,33 +49,45 @@ struct SpeedAlertEngine {
 
     var config = Config.off
 
-    private var overPostedArmed = true
-    private var overMarginArmed = true
-    private var approachingMaxArmed = true
-    private var overMaxArmed = true
+    /// Per-rule state: armed, when the threshold was first exceeded, and
+    /// when it last fired.
+    private struct RuleState {
+        var armed = true
+        var overSince: Date?
+        var lastFired: Date?
+        /// The threshold this rule is currently timing against. When the
+        /// road's limit changes the sustained window restarts, so entering
+        /// a new zone always comes with a few seconds of grace to adjust.
+        var threshold: Double?
+    }
+
+    private var overPosted = RuleState()
+    private var overMargin = RuleState()
+    private var approachingMax = RuleState()
+    private var overMax = RuleState()
 
     /// Feed every telemetry update; returns the alerts that fire on this one.
-    mutating func process(speedMph: Double?, postedLimitMph: Double?) -> [Event] {
+    mutating func process(speedMph: Double?, postedLimitMph: Double?, at now: Date = .now) -> [Event] {
         guard let speed = speedMph else { return [] }
         var events: [Event] = []
 
         if config.alertOverPostedLimit, let limit = postedLimitMph {
-            if step(&overPostedArmed, speed: speed, threshold: limit) {
+            if step(&overPosted, speed: speed, threshold: limit, now: now) {
                 events.append(.overPostedLimit(limitMph: Int(limit.rounded())))
             }
         }
 
         if let limit = postedLimitMph, let margin = config.effectiveMarginMph(forLimit: limit) {
-            if step(&overMarginArmed, speed: speed, threshold: limit + margin) {
+            if step(&overMargin, speed: speed, threshold: limit + margin, now: now) {
                 events.append(.overPostedMargin(limitMph: Int(limit.rounded()), marginMph: Int(margin.rounded())))
             }
         }
 
         if let max = config.maxSpeedMph {
-            if step(&approachingMaxArmed, speed: speed, threshold: max - config.maxSpeedApproachMph) {
+            if step(&approachingMax, speed: speed, threshold: max - config.maxSpeedApproachMph, now: now) {
                 events.append(.approachingMaxSpeed(maxMph: Int(max.rounded())))
             }
-            if step(&overMaxArmed, speed: speed, threshold: max) {
+            if step(&overMax, speed: speed, threshold: max, now: now) {
                 events.append(.overMaxSpeed(maxMph: Int(max.rounded())))
             }
         }
@@ -78,22 +96,34 @@ struct SpeedAlertEngine {
     }
 
     mutating func reset() {
-        overPostedArmed = true
-        overMarginArmed = true
-        approachingMaxArmed = true
-        overMaxArmed = true
+        overPosted = RuleState()
+        overMargin = RuleState()
+        approachingMax = RuleState()
+        overMax = RuleState()
     }
 
-    /// Fire-once-with-hysteresis: fires when crossing above `threshold` while
-    /// armed; re-arms when speed drops below `threshold - rearmDelta`.
-    private func step(_ armed: inout Bool, speed: Double, threshold: Double) -> Bool {
-        if armed, speed > threshold {
-            armed = false
-            return true
+    /// Fires when speed has stayed above `threshold` for the sustained
+    /// window, the rule is armed, and its quiet period has elapsed.
+    /// Re-arms when speed drops below `threshold - rearmDelta`.
+    private func step(_ state: inout RuleState, speed: Double, threshold: Double, now: Date) -> Bool {
+        if let previous = state.threshold, abs(previous - threshold) > 1 {
+            state.overSince = nil
+            state.armed = true
         }
-        if !armed, speed < threshold - Self.rearmDeltaMph {
-            armed = true
+        state.threshold = threshold
+        guard speed > threshold else {
+            state.overSince = nil
+            if speed < threshold - Self.rearmDeltaMph { state.armed = true }
+            return false
         }
-        return false
+        let since = state.overSince ?? now
+        state.overSince = since
+        guard state.armed,
+              now.timeIntervalSince(since) >= config.sustainedSeconds,
+              state.lastFired.map({ now.timeIntervalSince($0) >= config.minimumIntervalSeconds }) ?? true
+        else { return false }
+        state.armed = false
+        state.lastFired = now
+        return true
     }
 }

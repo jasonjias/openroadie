@@ -90,7 +90,15 @@ final class DriveSessionManager {
         stationarySince = nil
         alertEngine.config = AlertCenter.configFromDefaults()
         alertEngine.reset()
-        scoreRecorder.config = SpeedAlertEngine.Config(alertOverPostedLimit: true, postedMarginIsAdaptive: true)
+        // Scoring counts SUSTAINED speeding only, at most once every few
+        // minutes: a day of ordinary driving shouldn't collect a fistful
+        // of events for briefly drifting over on a downhill.
+        scoreRecorder.config = SpeedAlertEngine.Config(
+            sustainedSeconds: 15,
+            minimumIntervalSeconds: 300,
+            alertOverPostedLimit: true,
+            postedMarginIsAdaptive: true
+        )
         scoreRecorder.reset()
         alertOccurrences = 0
         eventsThisDrive = 0
@@ -322,7 +330,12 @@ final class DriveSessionManager {
             return
         }
         roadService.refreshIfNeeded(around: coordinate)
-        context.road = roadService.currentRoad(at: coordinate)
-        context.roadCurve = roadService.upcomingCurve(at: coordinate, courseDegrees: context.course)
+        // Course + speed let the matcher reject perpendicular overpasses.
+        context.road = roadService.currentRoad(
+            at: coordinate, courseDegrees: context.course, speedMps: context.speed
+        )
+        context.roadCurve = roadService.upcomingCurve(
+            at: coordinate, courseDegrees: context.course, speedMps: context.speed
+        )
     }
 }

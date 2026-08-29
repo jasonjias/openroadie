@@ -8,6 +8,28 @@ enum RoadMatcher {
     /// off-road (parking lot, driveway) and matches nothing.
     static let maxMatchDistance: Double = 30
 
+    /// How far a perpendicular road is effectively pushed away. An overpass
+    /// crossing the freeway at 90° passes within a couple of meters in 2D,
+    /// so pure-distance matching hands you the bridge's 45 limit while
+    /// you're doing 65 on the freeway beneath it (field-reported). Heading
+    /// disagreement costs up to this many meters, which is more than the
+    /// width of any road pair, so the road you're POINTED ALONG wins.
+    static let headingPenaltyMeters: Double = 90
+
+    /// Once matched, a way keeps a small advantage so fixes don't flap
+    /// between parallel candidates at intersections.
+    static let stickinessMeters: Double = 12
+
+    /// GPS course is noise below walking pace; heading is only trusted
+    /// above this (m/s ≈ 7 mph).
+    static let minimumCourseSpeed: Double = 3
+
+    struct Match {
+        var way: OverpassWay
+        var distance: Double
+        var cost: Double
+    }
+
     /// Finds the way nearest to a coordinate, with its distance in meters.
     static func nearestWay(to coordinate: Coordinate, in ways: [OverpassWay]) -> (way: OverpassWay, distance: Double)? {
         var best: (way: OverpassWay, distance: Double)?
@@ -19,16 +41,88 @@ enum RoadMatcher {
         return best
     }
 
+    /// The best-matching way: lateral distance plus a heading-disagreement
+    /// penalty, minus a small bonus for the previously matched way. This is
+    /// what keeps overpasses, cross streets, and on-ramps from stealing the
+    /// match from the road actually under the wheels.
+    static func bestMatch(
+        at coordinate: Coordinate,
+        courseDegrees: Double? = nil,
+        speedMps: Double? = nil,
+        in ways: [OverpassWay],
+        preferring previousWayId: Int64? = nil
+    ) -> Match? {
+        // Course is only meaningful while genuinely moving.
+        let trustedCourse: Double? = {
+            guard let courseDegrees, courseDegrees >= 0 else { return nil }
+            guard let speedMps, speedMps >= minimumCourseSpeed else { return nil }
+            return courseDegrees
+        }()
+
+        var best: Match?
+        for way in ways {
+            let distance = self.distance(from: coordinate, toPolyline: way.geometry)
+            var cost = distance
+            if let trustedCourse, let bearing = bearing(of: way, nearest: coordinate) {
+                cost += headingPenaltyMeters * (headingDelta(courseDegrees: trustedCourse, bearing: bearing) / 90)
+            }
+            if let previousWayId, way.id == previousWayId, way.id != 0 {
+                cost -= stickinessMeters
+            }
+            if let current = best, current.cost <= cost { continue }
+            best = Match(way: way, distance: distance, cost: cost)
+        }
+        return best
+    }
+
     /// The road the coordinate is on, or `nil` when off known roads.
-    static func road(at coordinate: Coordinate, from ways: [OverpassWay]) -> RoadInfo? {
-        guard let match = nearestWay(to: coordinate, in: ways),
-              match.distance <= maxMatchDistance else { return nil }
+    /// Passing course and speed enables heading-aware matching.
+    static func road(
+        at coordinate: Coordinate,
+        courseDegrees: Double? = nil,
+        speedMps: Double? = nil,
+        from ways: [OverpassWay],
+        preferring previousWayId: Int64? = nil
+    ) -> RoadInfo? {
+        guard let match = bestMatch(
+            at: coordinate, courseDegrees: courseDegrees, speedMps: speedMps,
+            in: ways, preferring: previousWayId
+        ), match.distance <= maxMatchDistance else { return nil }
         let tags = match.way.tags
         return RoadInfo(
             name: tags["name"],
             ref: tags["ref"],
             speedLimit: tags["maxspeed"].flatMap(speedLimit(fromMaxspeedTag:))
         )
+    }
+
+    /// Compass bearing (degrees, 0 = north) of the way's segment nearest
+    /// the coordinate — the direction the road runs there.
+    static func bearing(of way: OverpassWay, nearest coordinate: Coordinate) -> Double? {
+        guard way.geometry.count >= 2 else { return nil }
+        var bestIndex = 0
+        var bestDistance = Double.infinity
+        for index in 0..<(way.geometry.count - 1) {
+            let distance = self.distance(from: coordinate, toSegment: (way.geometry[index], way.geometry[index + 1]))
+            if distance < bestDistance {
+                bestDistance = distance
+                bestIndex = index
+            }
+        }
+        let a = way.geometry[bestIndex]
+        let b = way.geometry[bestIndex + 1]
+        let east = (b.longitude - a.longitude) * cos(a.latitude * .pi / 180)
+        let north = b.latitude - a.latitude
+        guard east != 0 || north != 0 else { return nil }
+        return atan2(east, north) * 180 / .pi
+    }
+
+    /// Angle between travel and a road, folded to 0…90: a road is a line,
+    /// not an arrow, so driving it "backwards" still agrees with it.
+    static func headingDelta(courseDegrees: Double, bearing: Double) -> Double {
+        var delta = abs(courseDegrees - bearing).truncatingRemainder(dividingBy: 180)
+        if delta > 90 { delta = 180 - delta }
+        return delta
     }
 
     /// Parses OSM `maxspeed` values into meters per second.

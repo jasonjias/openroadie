@@ -520,7 +520,7 @@ struct DriveSceneView: View {
             // Slide the road toward the camera at true speed. The ribbon
             // scrolls in TEXTURE space (so its curve stays anchored to the
             // car); the physical props scroll and recycle by one period.
-            phase = (phase + Float(speedMps * deltaTime))
+            phase = (phase + Float(speedMps * deltaTime) * DriveSceneView.scrollScale)
                 .truncatingRemainder(dividingBy: DriveSceneView.rainbowPeriod)
             propsRoot?.position.z = phase
             if let ribbon, var model = ribbon.model,
@@ -687,6 +687,12 @@ struct DriveSceneView: View {
 
     static let roadLength: Float = 60
     static let stripeRecycleZ: Float = 8
+
+    /// How fast the world streams past relative to true ground speed.
+    /// 1.0 is honest but reads as frantic on a phone-sized scene at
+    /// freeway pace; a little under half keeps the sense of speed while
+    /// staying calm to glance at (field-tuned).
+    static let scrollScale: Float = 0.45
 
     /// Road-curve sampling (#22): lateral offsets every `curveStep` meters,
     /// covering the full ribbon from z = stripeRecycleZ (behind the car)

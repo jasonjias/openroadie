@@ -152,7 +152,11 @@ final class AutoDriveMonitor {
     private func startSpeedProbe() {
         guard probeTask == nil else { return }
         probeTask = Task { [weak self] in
-            let location = CLServiceSession(authorization: .whenInUse)
+            // Always when granted: a probe that starts from a background
+            // wake-up has no foreground to borrow When-In-Use from.
+            let location = CLLocationManager().authorizationStatus == .authorizedAlways
+                ? CLServiceSession(authorization: .always)
+                : CLServiceSession(authorization: .whenInUse)
             defer { location.invalidate() }
             var samples = 0
             do {

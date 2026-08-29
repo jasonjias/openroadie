@@ -4,6 +4,8 @@ import Foundation
 struct OverpassWay: Equatable, Sendable {
     var tags: [String: String]
     var geometry: [Coordinate]
+    /// OSM way id — identity for match stickiness across fixes.
+    var id: Int64 = 0
 }
 
 /// Minimal client for the public Overpass API — the free, open query service
@@ -113,7 +115,8 @@ struct OverpassClient: Sendable {
             guard element.type == "way", let geometry = element.geometry, geometry.count >= 2 else { return nil }
             return OverpassWay(
                 tags: element.tags ?? [:],
-                geometry: geometry.map { Coordinate(latitude: $0.lat, longitude: $0.lon) }
+                geometry: geometry.map { Coordinate(latitude: $0.lat, longitude: $0.lon) },
+                id: element.id
             )
         }
     }

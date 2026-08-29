@@ -8,6 +8,7 @@ struct OpenRoadieApp: App {
     @State private var speaker: SpeechSpeaker
     @State private var wake: WakeWordCoordinator
     @State private var autoDrive: AutoDriveMonitor
+    @State private var backgroundWatcher = BackgroundDriveWatcher()
 
     init() {
         // Fall back to in-memory storage rather than crash if the store can't
@@ -34,6 +35,14 @@ struct OpenRoadieApp: App {
         WindowGroup {
             RootView(session: session, agent: agent, speaker: speaker, wake: wake, autoDrive: autoDrive)
                 .modelContainer(store.container)
+                .task {
+                    // Arm always-on detection on every launch — including
+                    // the background relaunches iOS itself triggers, where
+                    // this closure is the whole reason we woke up.
+                    backgroundWatcher.refresh { [weak autoDrive] in
+                        autoDrive?.checkRecentActivity()
+                    }
+                }
         }
     }
 }

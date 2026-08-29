@@ -35,9 +35,9 @@ struct DayStatsTests {
         #expect(stats.duration == 1800)
         #expect(stats.maxSpeedMph == 65)
         #expect(stats.hardEvents == 1)
-        // 10 weighted pts over 12 mi (floored to 20) → rate 50/100mi →
-        // 100·e^(−50/300) ≈ 85.
-        #expect(stats.score == 85)
+        // 8 weighted pts over 12 mi (floored to 20) → rate 40/100mi →
+        // 100·e^(−40/450) ≈ 91.
+        #expect(stats.score == 91)
     }
 
     @Test func noDrivingMeansNoScore() {
@@ -53,7 +53,7 @@ struct DayStatsTests {
         var stats = DayStats()
         stats.tripCount = 1
         stats.hardEvents = 20
-        #expect(stats.score == 4)
+        #expect(stats.score == 17)
         #expect(stats.score! > 0)
     }
 
@@ -82,10 +82,10 @@ struct DayStatsTests {
         var stats = DayStats()
         stats.tripCount = 1
         stats.overLimitCrossings = 2   // informational — the chime tier costs nothing
-        stats.wellOverCrossings = 1    // weight 5
-        stats.hardEvents = 1           // weight 10
-        // 15 pts, no miles (floor 20) → rate 75 → 100·e^(−0.25) ≈ 78.
-        #expect(stats.score == 78)
+        stats.wellOverCrossings = 1    // weight 4
+        stats.hardEvents = 1           // weight 8
+        // 12 pts, no miles (floor 20) → rate 60 → 100·e^(−0.133) ≈ 88.
+        #expect(stats.score == 88)
     }
 
     @Test func ordinaryFlowOfTrafficDayScoresWell() {
@@ -97,8 +97,8 @@ struct DayStatsTests {
         stats.miles = 40
         stats.overLimitCrossings = 13
         stats.wellOverCrossings = 4
-        // 20 pts over 40 mi → rate 50 → ≈ 85.
-        #expect(stats.score == 85)
+        // 16 pts over 40 mi → rate 40 → ≈ 91.
+        #expect(stats.score == 91)
     }
 
     @Test func stationaryGSpikesAreNotHardEvents() {
@@ -114,7 +114,7 @@ struct DayStatsTests {
         ]
         let stats = DayStats.compute(trips: [trip], events: events, on: day)
         #expect(stats.hardEvents == 1)         // only the 30 mph one is real
-        #expect(stats.score == 85)             // 10 pts, floor 20 mi
+        #expect(stats.score == 91)             // 8 pts, floor 20 mi
     }
 
     @Test func countsEventKindsSeparately() {
@@ -133,14 +133,14 @@ struct DayStatsTests {
         #expect(stats.hardEvents == 1)
         #expect(stats.hardBraking == 1)
         #expect(stats.hardAcceleration == 0)
-        #expect(stats.score == 78)             // 15 pts, floor 20 mi
+        #expect(stats.score == 88)             // 12 pts, floor 20 mi
     }
 
     @Test func pooledMappingMatchesDayMapping() {
         // The 30-day overall score reuses this exact function.
         #expect(DayStats.score(weightedPoints: 0, miles: 500) == 100)
-        #expect(DayStats.score(weightedPoints: 10, miles: 40) == 92)
-        #expect(DayStats.score(weightedPoints: 45, miles: 40) == 69)
+        #expect(DayStats.score(weightedPoints: 10, miles: 40) == 95)
+        #expect(DayStats.score(weightedPoints: 45, miles: 40) == 78)
     }
 }
 

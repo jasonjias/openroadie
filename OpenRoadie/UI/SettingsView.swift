@@ -17,6 +17,8 @@ struct SettingsView: View {
     @AppStorage(ModelProviderChoice.customModelKey) private var customModelName = ""
     @State private var customAPIKey = KeychainStore.get(ModelProviderChoice.customAPIKeyKeychainKey) ?? ""
     @State private var exportURL: URL?
+    @State private var personalExportURL: URL?
+    @State private var gpxExportURL: URL?
     @State private var exportError: String?
     @AppStorage(DrivingBackground.defaultsKey) private var drivingBackground = DrivingBackground.green.rawValue
     @AppStorage(RoadStyle.defaultsKey) private var roadStyle = RoadStyle.standard.rawValue
@@ -26,6 +28,7 @@ struct SettingsView: View {
     @AppStorage("showGPSDetails") private var showGPSDetails = false
     @AppStorage("showHeading") private var showHeading = false
     @AppStorage(AutoDriveMonitor.modeKey) private var autoStartMode = AutoDriveMonitor.Mode.off.rawValue
+    @AppStorage(BackgroundDriveWatcher.enabledKey) private var alwaysOnDetection = false
     @AppStorage(Coach.nameKey) private var driverName = ""
     @AppStorage(Coach.spokenKey) private var coachingSpoken = false
     @AppStorage(Coach.styleKey) private var coachingStyle = CoachStyle.gentle.rawValue
@@ -129,13 +132,16 @@ struct SettingsView: View {
                         }
                     }
                     .pickerStyle(.segmented)
+                    Toggle("Always on", isOn: $alwaysOnDetection)
+                        .disabled(autoStartMode == AutoDriveMonitor.Mode.off.rawValue)
                 } header: {
                     Text("Drive detection")
                 } footer: {
-                    Text("OpenRoadie watches for sustained car motion, confirms road speed with a quick GPS check, then starts the drive (\u{201C}Automatic\u{201D}) or sends a notification (\u{201C}Suggest\u{201D}). Works while the app is open or recently used; \u{201C}End drive when parked\u{201D} completes the loop. Uses Motion & Fitness — iOS will ask once.")
+                    Text("OpenRoadie watches for sustained car motion, confirms road speed with a quick GPS check, then starts the drive (\u{201C}Automatic\u{201D}) or sends a notification (\u{201C}Suggest\u{201D}). \u{201C}Always on\u{201D} lets iOS wake OpenRoadie once you've traveled a few hundred meters, so drives record themselves without opening the app — it needs Always location access, which iOS will ask for. Uses Motion & Fitness too.")
                 }
                 .onChange(of: autoStartMode) { _, mode in
                     if mode != AutoDriveMonitor.Mode.off.rawValue { AlertCenter.requestAuthorization() }
+                    if mode == AutoDriveMonitor.Mode.off.rawValue { alwaysOnDetection = false }
                 }
 
                 Section {
@@ -360,6 +366,20 @@ struct SettingsView: View {
 
                 Section {
                     LabeledContent("Driving data", value: "On this device only")
+                    if let personalExportURL {
+                        ShareLink("Share everything (JSON)", item: personalExportURL)
+                    } else {
+                        Button("Export all my data (JSON)") {
+                            exportEverything(asGPX: false)
+                        }
+                    }
+                    if let gpxExportURL {
+                        ShareLink("Share routes (GPX)", item: gpxExportURL)
+                    } else {
+                        Button("Export routes (GPX)") {
+                            exportEverything(asGPX: true)
+                        }
+                    }
                     if let exportURL {
                         ShareLink("Share anonymized events", item: exportURL)
                     } else {
@@ -375,7 +395,7 @@ struct SettingsView: View {
                 } header: {
                     Text("Your data")
                 } footer: {
-                    Text("Trips, routes, and speeds are stored locally and never uploaded. OpenRoadie has no server: community contribution today means exporting a file you choose to share — hard-braking and acceleration events only, locations coarsened to ~110 m, times reduced to the hour, no identity and no routes.")
+                    Text("Trips, routes, and speeds are stored locally and never uploaded. Export everything as JSON (full fidelity — trips, routes, events, notes) or routes as GPX for any mapping tool; both are yours, complete, whenever you want them. The anonymized export is the community one: hard-braking and acceleration events only, locations coarsened to ~110 m, times reduced to the hour, no identity and no routes.")
                 }
             }
             .navigationTitle("Settings")
@@ -386,7 +406,11 @@ struct SettingsView: View {
                     saveCustom(saved)
                 }
             }
-            .onDisappear { exportURL = nil }
+            .onDisappear {
+                exportURL = nil
+                personalExportURL = nil
+                gpxExportURL = nil
+            }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 // Account-style full-screen page: close with the ✕.
@@ -419,6 +443,37 @@ struct SettingsView: View {
     private func deleteCustom(_ custom: CustomCategory) {
         CustomCategory.save(CustomCategory.load().filter { $0.id != custom.id })
         chipOrder = NearbyChip.ordered
+    }
+
+    /// The user's own complete record — everything the app stores, in a
+    /// format they can take anywhere.
+    private func exportEverything(asGPX: Bool) {
+        exportError = nil
+        do {
+            let trips = try modelContext.fetch(FetchDescriptor<Trip>())
+            guard !trips.isEmpty else {
+                exportError = "No drives recorded yet."
+                return
+            }
+            let url: URL
+            if asGPX {
+                let gpx = PersonalExport.gpx(trips: trips)
+                url = FileManager.default.temporaryDirectory
+                    .appendingPathComponent("openroadie-routes.gpx")
+                try gpx.write(to: url, atomically: true, encoding: .utf8)
+                gpxExportURL = url
+            } else {
+                let events = try modelContext.fetch(FetchDescriptor<DriveEvent>())
+                let notes = try modelContext.fetch(FetchDescriptor<DriveNote>())
+                let data = try PersonalExport.json(trips: trips, events: events, notes: notes)
+                url = FileManager.default.temporaryDirectory
+                    .appendingPathComponent("openroadie-my-driving-data.json")
+                try data.write(to: url)
+                personalExportURL = url
+            }
+        } catch {
+            exportError = "Export failed: \(error.localizedDescription)"
+        }
     }
 
     private func exportEvents() {

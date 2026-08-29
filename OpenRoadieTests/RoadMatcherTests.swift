@@ -172,3 +172,78 @@ struct UpcomingCurveTests {
         #expect(curve[19] < 0.1) // ahead extends straight past the way's south end
     }
 }
+
+/// The field-reported freeway bug: an overpass crossing above the freeway
+/// passes within a couple of meters in 2D, so pure-distance matching served
+/// the bridge's 45 limit while doing 65 on the freeway underneath — and the
+/// coach scolded a driver going exactly the posted speed.
+struct OverpassMatchingTests {
+    /// US-101 running due north through the test point, 65 mph.
+    private let freeway = OverpassWay(
+        tags: ["highway": "motorway", "ref": "US 101", "maxspeed": "65 mph"],
+        geometry: [Coordinate(latitude: 36.995, longitude: -122.0),
+                   Coordinate(latitude: 37.005, longitude: -122.0)],
+        id: 101
+    )
+    /// A surface street bridging over it east–west, 45 mph, crossing 3 m
+    /// north of the driver — i.e. CLOSER than the freeway's centerline.
+    private let overpass = OverpassWay(
+        tags: ["highway": "secondary", "name": "Embarcadero Rd", "maxspeed": "45 mph"],
+        geometry: [Coordinate(latitude: 37.000027, longitude: -122.002),
+                   Coordinate(latitude: 37.000027, longitude: -121.998)],
+        id: 202
+    )
+    /// Driver on the freeway, a few meters east of its centerline,
+    /// northbound at 65 mph (29 m/s).
+    private let onFreeway = Coordinate(latitude: 37.0, longitude: -121.99993)
+
+    @Test func perpendicularOverpassLosesToTheRoadBeneathIt() {
+        let ways = [freeway, overpass]
+        // Pure distance picks the bridge — that's the bug.
+        #expect(RoadMatcher.nearestWay(to: onFreeway, in: ways)?.way.id == overpass.id)
+
+        // Heading-aware matching picks the freeway we're pointed along.
+        let road = RoadMatcher.road(
+            at: onFreeway, courseDegrees: 0, speedMps: 29, from: ways
+        )
+        #expect(road?.ref == "US 101")
+        #expect(road.map { Int(($0.speedLimit ?? 0) * 2.236936 + 0.5) } == 65)
+    }
+
+    @Test func drivingTheBridgeStillMatchesTheBridge() {
+        // Same spot, but now traveling east across the overpass.
+        let road = RoadMatcher.road(
+            at: onFreeway, courseDegrees: 90, speedMps: 20, from: [freeway, overpass]
+        )
+        #expect(road?.name == "Embarcadero Rd")
+    }
+
+    @Test func stationaryFixesFallBackToDistance() {
+        // Course is noise when parked, so heading must not be trusted.
+        let road = RoadMatcher.road(
+            at: onFreeway, courseDegrees: 0, speedMps: 0, from: [freeway, overpass]
+        )
+        #expect(road?.name == "Embarcadero Rd") // nearest, as before
+    }
+
+    @Test func headingDeltaFoldsToNinety() {
+        #expect(RoadMatcher.headingDelta(courseDegrees: 0, bearing: 0) == 0)
+        #expect(RoadMatcher.headingDelta(courseDegrees: 0, bearing: 90) == 90)
+        // Driving a road "backwards" still agrees with it.
+        #expect(RoadMatcher.headingDelta(courseDegrees: 0, bearing: 180) == 0)
+        #expect(RoadMatcher.headingDelta(courseDegrees: 350, bearing: 10) == 20)
+    }
+
+    @Test func stickinessKeepsTheMatchFromFlapping() {
+        // Two parallel roads a hair apart: whichever was matched last wins.
+        let a = OverpassWay(tags: ["highway": "residential", "name": "A"],
+                            geometry: [Coordinate(latitude: 36.999, longitude: -122.0),
+                                       Coordinate(latitude: 37.001, longitude: -122.0)], id: 1)
+        let b = OverpassWay(tags: ["highway": "residential", "name": "B"],
+                            geometry: [Coordinate(latitude: 36.999, longitude: -121.99995),
+                                       Coordinate(latitude: 37.001, longitude: -121.99995)], id: 2)
+        let point = Coordinate(latitude: 37.0, longitude: -121.999985)
+        let sticky = RoadMatcher.road(at: point, courseDegrees: 0, speedMps: 20, from: [a, b], preferring: 1)
+        #expect(sticky?.name == "A")
+    }
+}
