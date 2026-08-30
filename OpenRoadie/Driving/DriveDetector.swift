@@ -18,7 +18,12 @@ struct DriveDetector {
     struct Config: Equatable {
         /// Automotive motion sustained this long → possible drive. Long
         /// enough that a passenger loading the car doesn't trigger it.
-        var minAutomotiveDuration: TimeInterval = 20
+        var minAutomotiveDuration: TimeInterval = 15
+        /// Unambiguous road speed (m/s ≈ 25 mph) confirms a drive on its
+        /// own. Motion classification is slow and sometimes plain wrong;
+        /// nothing that isn't a vehicle sustains this, so waiting for the
+        /// activity label to agree only makes detection miss drives.
+        var undeniableSpeed: Double = 11
         /// GPS speed (m/s ≈ 10 mph) that confirms actual driving —
         /// automotive motion alone can be a bus, a car wash, or a parked
         /// car with the engine on.
@@ -67,10 +72,24 @@ struct DriveDetector {
     /// meaningful while a drive is possible.
     mutating func processSpeed(_ speedMps: Double?, at date: Date) -> Event? {
         expireIfTimedOut(at: date)
+        guard let speedMps else { return nil }
+
+        // Fast path: freeway-grade speed is a drive whatever Core Motion
+        // thinks, so a slow or wrong activity label can't hide it.
+        if speedMps >= config.undeniableSpeed, !isConfirmed {
+            state = .confirmed
+            return .driveConfirmed
+        }
+
         guard case .possibleDrive = state else { return nil }
-        guard let speedMps, speedMps >= config.confirmSpeed else { return nil }
+        guard speedMps >= config.confirmSpeed else { return nil }
         state = .confirmed
         return .driveConfirmed
+    }
+
+    private var isConfirmed: Bool {
+        if case .confirmed = state { return true }
+        return false
     }
 
     /// Back to a clean slate — call when a drive ends or monitoring stops.

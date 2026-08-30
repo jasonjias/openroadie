@@ -23,10 +23,11 @@ struct DriveDetectorTests {
         #expect(detector.state == .confirmed)
     }
 
-    @Test func speedAloneNeverConfirms() {
-        // A train ride looks fast to GPS but never passed the automotive gate.
+    /// Moderate speed still needs the automotive gate — a brisk cyclist
+    /// or a parking-lot roll is not a drive.
+    @Test func moderateSpeedAloneNeverConfirms() {
         var detector = DriveDetector()
-        #expect(detector.processSpeed(30, at: t0) == nil)
+        #expect(detector.processSpeed(8, at: t0) == nil)   // ~18 mph
         #expect(detector.state == .idle)
     }
 
@@ -37,7 +38,8 @@ struct DriveDetectorTests {
         #expect(detector.state != .idle)
         _ = detector.processMotion(automotive: false, otherActivity: true, at: t0 + 30)
         #expect(detector.state == .idle)
-        #expect(detector.processSpeed(20, at: t0 + 31) == nil)
+        // Below the undeniable-speed fast path, the cancel holds.
+        #expect(detector.processSpeed(8, at: t0 + 31) == nil)
     }
 
     @Test func stationaryAtALightDoesNotCancel() {

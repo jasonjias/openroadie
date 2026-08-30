@@ -1,3 +1,4 @@
+import AVFoundation
 import Foundation
 import Observation
 import os
@@ -59,6 +60,7 @@ final class WakeWordCoordinator {
     /// enabled toggle forward as "during drives" rather than silently off.
     private static func migrateLegacyToggle() {
         let defaults = UserDefaults.standard
+        defer { standDownOnce() }
         guard defaults.string(forKey: modeKey) == nil else { return }
         if defaults.bool(forKey: "heyRoadieEnabled") {
             defaults.set(Mode.duringDrives.rawValue, forKey: modeKey)
@@ -66,15 +68,43 @@ final class WakeWordCoordinator {
         defaults.removeObject(forKey: "heyRoadieEnabled")
     }
 
+    /// One-time stand-down: passive listening held a `.playAndRecord`
+    /// session, which iOS answers by attenuating every other app's audio
+    /// — music at half volume for as long as OpenRoadie lived in the
+    /// background. Wake listening is now off until deliberately switched
+    /// back on, and only listens in the foreground or during a drive.
+    private static func standDownOnce() {
+        let defaults = UserDefaults.standard
+        let flag = "heyRoadieStoodDownForAudio"
+        guard !defaults.bool(forKey: flag) else { return }
+        defaults.set(true, forKey: flag)
+        defaults.set(Mode.off.rawValue, forKey: modeKey)
+    }
+
     var mode: Mode {
         Mode(rawValue: UserDefaults.standard.string(forKey: Self.modeKey) ?? "") ?? .off
+    }
+
+    /// True while the app is foregrounded. A wake listener needs a
+    /// `.playAndRecord` session, and iOS attenuates every other app's
+    /// audio for as long as one is active — the field symptom was music
+    /// stuck at half volume whenever OpenRoadie sat in the background.
+    /// So passive listening is a foreground-or-driving privilege.
+    private var appIsActive = true
+
+    func setAppActive(_ active: Bool) {
+        guard appIsActive != active else { return }
+        appIsActive = active
+        refresh()
     }
 
     private var wantsListening: Bool {
         switch mode {
         case .off: false
+        // A live drive earns background listening; idle backgrounding
+        // does not, so the mic (and the volume dip) goes away with it.
         case .duringDrives: drive.isDriving
-        case .always: true
+        case .always: appIsActive || drive.isDriving
         }
     }
 
@@ -91,6 +121,9 @@ final class WakeWordCoordinator {
         case (false, .listening):
             listener.stop()
             status = .off
+            // Hand the audio session back so other apps return to full
+            // volume the moment we stop listening.
+            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         default:
             break // .handling finishes its own flow, then re-refreshes
         }

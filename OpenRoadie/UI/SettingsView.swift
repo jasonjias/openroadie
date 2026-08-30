@@ -201,7 +201,7 @@ struct SettingsView: View {
                     }
                     .pickerStyle(.segmented)
                 } footer: {
-                    Text("Listens on this device for \u{201C}Hey Roadie\u{201D} so you can ask anything hands-free. Your voice never leaves the phone, and music keeps playing while it listens. \u{201C}Always\u{201D} keeps the microphone on whenever OpenRoadie is open, even parked — more battery, and iOS shows the mic indicator the whole time.")
+                    Text("Listens on this device for \u{201C}Hey Roadie\u{201D} so you can ask anything hands-free. Your voice never leaves the phone. Off by default: an open microphone makes iOS lower every other app's volume, so listening now happens only while OpenRoadie is on screen or a drive is recording — never in the background. \u{201C}Always\u{201D} adds parked listening while the app is open, at the cost of battery and a mic indicator.")
                 }
 
                 Section {

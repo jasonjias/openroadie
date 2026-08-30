@@ -41,6 +41,9 @@ final class DriveSessionManager {
     private var updatesTask: Task<Void, Never>?
     private var currentTrip: Trip?
     private var stationarySince: Date?
+    /// Speed-based end-of-drive detection (the stationary flag alone was
+    /// unreliable in the field).
+    private var parkDetector = ParkDetector()
     /// Alerts so far this drive — coaching escalates its tone politely.
     private var alertOccurrences = 0
     /// Recorded events (hard maneuvers + limit crossings) this drive.
@@ -88,6 +91,7 @@ final class DriveSessionManager {
         lastErrorDescription = nil
         isStationary = false
         stationarySince = nil
+        parkDetector.reset()
         alertEngine.config = AlertCenter.configFromDefaults()
         alertEngine.reset()
         // Scoring counts SUSTAINED speeding only, at most once every few
@@ -305,18 +309,12 @@ final class DriveSessionManager {
     /// Parked for a while → end and save the drive on the driver's behalf.
     private func autoEndIfParked() {
         guard AlertCenter.autoEndEnabled else {
-            stationarySince = nil
+            parkDetector.reset()
             return
         }
-        if isStationary {
-            let since = stationarySince ?? .now
-            stationarySince = since
-            if Date.now.timeIntervalSince(since) > Self.autoEndAfter {
-                stopDrive()
-                alerts.deliverDriveAutoEnded()
-            }
-        } else {
-            stationarySince = nil
+        if parkDetector.process(speedMps: context.speed, stationary: isStationary, at: .now) {
+            stopDrive()
+            alerts.deliverDriveAutoEnded()
         }
     }
 

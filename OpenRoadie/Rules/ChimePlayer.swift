@@ -11,6 +11,10 @@ import Foundation
 @MainActor
 final class ChimePlayer {
     private var player: AVAudioPlayer?
+    /// Releases the audio session once the chime has rung out. Holding a
+    /// session open keeps other apps' audio attenuated — the field
+    /// symptom was music at half volume until OpenRoadie was force-quit.
+    private var releaseTask: Task<Void, Never>?
 
     /// The bundled custom chime, if the project carries one.
     static func customChimeURL() -> URL? {
@@ -39,6 +43,21 @@ final class ChimePlayer {
         }
         player?.currentTime = 0
         player?.play()
+
+        // Hand the session back shortly after the sound ends.
+        let ringOut = (player?.duration ?? 1) + 0.4
+        releaseTask?.cancel()
+        releaseTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(ringOut))
+            guard !Task.isCancelled else { return }
+            self?.releaseSession()
+        }
+    }
+
+    /// Gives other apps their volume back. Safe to call at any time.
+    func releaseSession() {
+        guard player?.isPlaying != true else { return }
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
 
     /// A gentle two-note chime (A5 → E6) with exponential decay, rendered as

@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct RootView: View {
+    @Environment(\.scenePhase) private var scenePhase
     let session: DriveSessionManager
     let agent: RoadieAgent
     let speaker: SpeechSpeaker
@@ -37,6 +38,11 @@ struct RootView: View {
             autoDrive.refresh()
         }
         .onChange(of: heyRoadieMode) { _, _ in wake.refresh() }
+        // Backgrounding releases the mic (and with it the system-wide
+        // volume dip) unless a drive is actually recording.
+        .onChange(of: scenePhase) { _, phase in
+            wake.setAppActive(phase == .active)
+        }
         .onChange(of: modelProvider) { _, _ in agent.reconfigure() }
         .onChange(of: customModelURL) { _, _ in agent.reconfigure() }
         .onChange(of: customModelName) { _, _ in agent.reconfigure() }

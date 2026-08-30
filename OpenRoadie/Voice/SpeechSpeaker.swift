@@ -9,6 +9,11 @@ final class SpeechSpeaker: NSObject, AVSpeechSynthesizerDelegate {
     static let voiceDefaultsKey = "roadieVoiceIdentifier"
 
     private let synthesizer = AVSpeechSynthesizer()
+    /// Belt and braces for the duck: the delegate normally releases the
+    /// session, but a dropped callback (interrupted utterance, route
+    /// change, app backgrounded mid-sentence) would otherwise leave every
+    /// other app's audio at half volume until OpenRoadie was force-quit.
+    private var releaseWatchdog: Task<Void, Never>?
 
     override init() {
         super.init()
@@ -23,6 +28,23 @@ final class SpeechSpeaker: NSObject, AVSpeechSynthesizerDelegate {
         let utterance = AVSpeechUtterance(string: text)
         utterance.voice = Self.currentVoice()
         synthesizer.speak(utterance)
+
+        // Generous estimate: ~12 characters a second, floor 4 s, plus slack.
+        let estimate = max(4, Double(text.count) / 12 + 3)
+        releaseWatchdog?.cancel()
+        releaseWatchdog = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(estimate))
+            guard !Task.isCancelled else { return }
+            self?.releaseSessionIfIdle()
+        }
+    }
+
+    /// Hands audio back to whatever was playing. Safe to call any time.
+    func releaseSessionIfIdle() {
+        guard !synthesizer.isSpeaking else { return }
+        releaseWatchdog?.cancel()
+        releaseWatchdog = nil
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
 
     /// Resolved fresh on every utterance so a Settings change (or a newly
@@ -94,12 +116,16 @@ final class SpeechSpeaker: NSObject, AVSpeechSynthesizerDelegate {
 
     nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
         // Release the session so ducked audio returns to full volume.
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
-        Task { @MainActor in self.utteranceEnded() }
+        Task { @MainActor in
+            self.releaseSessionIfIdle()
+            self.utteranceEnded()
+        }
     }
 
     nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
-        Task { @MainActor in self.utteranceEnded() }
+        Task { @MainActor in
+            self.releaseSessionIfIdle()
+            self.utteranceEnded()
+        }
     }
 }
