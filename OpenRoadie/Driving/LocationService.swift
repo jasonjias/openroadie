@@ -20,12 +20,18 @@ final class LocationService {
     var isRunning: Bool { serviceSession != nil }
 
     /// Expresses intent to use location, prompting for When-In-Use permission
-    /// if it hasn't been granted yet. Must be called while the app is in the
-    /// foreground — which Start Drive guarantees.
+    /// if it hasn't been granted yet.
     func begin() {
         guard serviceSession == nil else { return }
         backgroundActivity = CLBackgroundActivitySession()
-        serviceSession = CLServiceSession(authorization: .whenInUse)
+        // Always when granted. A drive the detector starts from a background
+        // wake-up has no foreground to borrow When-In-Use from, and a
+        // when-in-use session created there yields no fixes at all — the
+        // field symptom was an auto-started drive that recorded nothing and
+        // was then discarded for having under two points.
+        serviceSession = CLLocationManager().authorizationStatus == .authorizedAlways
+            ? CLServiceSession(authorization: .always)
+            : CLServiceSession(authorization: .whenInUse)
     }
 
     func end() {

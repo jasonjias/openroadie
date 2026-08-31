@@ -5,49 +5,89 @@ import Testing
 struct ParkDetectorTests {
     private let t0 = Date(timeIntervalSince1970: 1_724_500_000)
 
-    @Test func drivingNeverEndsTheDrive() {
+    /// Gets a detector past the "has it ever moved?" gate.
+    private func rolling(from t0: Date) -> ParkDetector {
         var detector = ParkDetector()
         detector.reset(at: t0)
-        for minute in 0...20 {
-            let ended = detector.process(speedMps: 20, stationary: false, at: t0 + Double(minute) * 60)
-            #expect(!ended)
+        _ = detector.process(speedMps: 20, stationary: false, at: t0)
+        return detector
+    }
+
+    @Test func drivingNeverPausesOrEndsTheDrive() {
+        var detector = rolling(from: t0)
+        for minute in 0...40 {
+            let decision = detector.process(speedMps: 20, stationary: false, at: t0 + Double(minute) * 60)
+            #expect(decision == .unchanged)
         }
     }
 
-    @Test func stoppedLongEnoughEndsTheDrive() {
-        var detector = ParkDetector()
-        detector.reset(at: t0)
-        let atOneMinute = detector.process(speedMps: 0, stationary: true, at: t0 + 60)
-        let atFourMinutes = detector.process(speedMps: 0, stationary: true, at: t0 + 240)
-        let atSixMinutes = detector.process(speedMps: 0, stationary: true, at: t0 + 361)
-        #expect(!atOneMinute)
-        #expect(!atFourMinutes)
-        #expect(atSixMinutes)
+    /// The field bug this whole change exists for: a gas stop used to end
+    /// and save the drive, and (in Automatic mode) a second drive started
+    /// moments later. Now it pauses and the same drive continues.
+    @Test func aGasStopPausesAndResumesOneDrive() {
+        var detector = rolling(from: t0)
+        #expect(detector.process(speedMps: 0, stationary: true, at: t0 + 120) == .unchanged)
+        #expect(detector.process(speedMps: 0, stationary: true, at: t0 + 301) == .paused)
+        #expect(detector.isPaused)
+        // Still paused, not ended, eight minutes in.
+        #expect(detector.process(speedMps: 0, stationary: true, at: t0 + 480) == .unchanged)
+        #expect(detector.process(speedMps: 12, stationary: false, at: t0 + 500) == .resumed)
+        #expect(!detector.isPaused)
+    }
+
+    @Test func pauseIsReportedOnlyOnce() {
+        var detector = rolling(from: t0)
+        let first = detector.process(speedMps: 0, stationary: true, at: t0 + 320)
+        let second = detector.process(speedMps: 0, stationary: true, at: t0 + 380)
+        #expect(first == .paused)
+        #expect(second == .unchanged)
+    }
+
+    @Test func settledLongEnoughEndsTheDrive() {
+        var detector = rolling(from: t0)
+        #expect(detector.process(speedMps: 0, stationary: true, at: t0 + 900) == .paused)
+        #expect(detector.process(speedMps: 0, stationary: true, at: t0 + 1_400) == .unchanged)
+        #expect(detector.process(speedMps: 0, stationary: true, at: t0 + 1_501) == .ended)
     }
 
     /// The field bug: some fixes never set the stationary flag, so the old
     /// rule waited forever. Speed alone must be enough.
     @Test func zeroSpeedCountsEvenWithoutTheStationaryFlag() {
-        var detector = ParkDetector()
-        detector.reset(at: t0)
-        let early = detector.process(speedMps: 0.2, stationary: false, at: t0 + 60)
-        let late = detector.process(speedMps: 0.2, stationary: false, at: t0 + 400)
-        #expect(!early)
-        #expect(late)
+        var detector = rolling(from: t0)
+        #expect(detector.process(speedMps: 0.2, stationary: false, at: t0 + 400) == .paused)
+        #expect(detector.process(speedMps: 0.2, stationary: false, at: t0 + 1_600) == .ended)
     }
 
-    @Test func trafficLightsDoNotEndTheDrive() {
-        var detector = ParkDetector()
-        detector.reset(at: t0)
-        // Two minutes at a light, then moving again: the timer restarts.
+    @Test func trafficLightsChangeNothing() {
+        var detector = rolling(from: t0)
         let atLight = detector.process(speedMps: 0, stationary: true, at: t0 + 120)
         let movingAgain = detector.process(speedMps: 15, stationary: false, at: t0 + 150)
         let stoppedAgain = detector.process(speedMps: 0, stationary: true, at: t0 + 400)
-        let parked = detector.process(speedMps: 0, stationary: true, at: t0 + 460)
-        #expect(!atLight)
-        #expect(!movingAgain)
-        #expect(!stoppedAgain)   // only ~4 min into THIS stop
-        #expect(parked)
+        #expect(atLight == .unchanged)
+        #expect(movingAgain == .unchanged)
+        #expect(stoppedAgain == .unchanged) // only ~4 min into THIS stop
+    }
+
+    /// Tapping Start Drive and sitting in the driveway must not burn the
+    /// stop clock — that used to end the drive before it began. It closes
+    /// itself out only after the never-moved timeout.
+    @Test func aDriveThatNeverMovesGetsAGracePeriodThenCloses() {
+        var detector = ParkDetector()
+        detector.reset(at: t0)
+        #expect(detector.process(speedMps: 0, stationary: true, at: t0 + 301) == .unchanged)
+        #expect(detector.process(speedMps: 0, stationary: true, at: t0 + 600) == .unchanged)
+        #expect(detector.process(speedMps: 0, stationary: true, at: t0 + 901) == .ended)
+    }
+
+    @Test func pullingOutLateStartsTheStopClockFromThere() {
+        var detector = ParkDetector()
+        detector.reset(at: t0)
+        // Eight minutes loading the car, then actually driving.
+        _ = detector.process(speedMps: 0, stationary: true, at: t0 + 480)
+        #expect(detector.process(speedMps: 18, stationary: false, at: t0 + 500) == .unchanged)
+        // The stop clock now runs from t0+500, not from the start.
+        #expect(detector.process(speedMps: 0, stationary: true, at: t0 + 700) == .unchanged)
+        #expect(detector.process(speedMps: 0, stationary: true, at: t0 + 810) == .paused)
     }
 
     @Test func fixesWithoutSpeedStayNeutral() {
@@ -55,8 +95,7 @@ struct ParkDetectorTests {
         detector.reset(at: t0)
         // No speed reading and not flagged stationary: treated as moving,
         // never as a silent slide toward ending the drive.
-        let ended = detector.process(speedMps: nil, stationary: false, at: t0 + 600)
-        #expect(!ended)
+        #expect(detector.process(speedMps: nil, stationary: false, at: t0 + 600) == .unchanged)
         #expect(detector.lastMovingAt == t0 + 600)
     }
 }

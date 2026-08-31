@@ -23,6 +23,9 @@ final class DriveSessionManager {
     private(set) var authorization: AuthorizationState = .unknown
     /// True when iOS reports the device hasn't moved meaningfully.
     private(set) var isStationary = false
+    /// True while the drive is stopped but still recording — a gas stop, a
+    /// drive-thru, a jam. The trip stays open and resumes on its own.
+    private(set) var isPaused = false
     private(set) var lastErrorDescription: String?
 
     private let locationService = LocationService()
@@ -40,8 +43,7 @@ final class DriveSessionManager {
     private var scoreRecorder = SpeedAlertEngine()
     private var updatesTask: Task<Void, Never>?
     private var currentTrip: Trip?
-    private var stationarySince: Date?
-    /// Speed-based end-of-drive detection (the stationary flag alone was
+    /// Speed-based pause/end detection (the stationary flag alone was
     /// unreliable in the field).
     private var parkDetector = ParkDetector()
     /// Alerts so far this drive — coaching escalates its tone politely.
@@ -60,9 +62,6 @@ final class DriveSessionManager {
     /// Latest yaw rate (rad/s) — read by the drive scene for turn lean.
     /// ObservationIgnored: it updates at 10Hz and must not churn SwiftUI.
     @ObservationIgnored private(set) var latestYawRate: Double = 0
-
-    /// Parked this long → the drive ends and saves itself.
-    private static let autoEndAfter: TimeInterval = 600
 
     /// `store` is optional so previews and tests can run without persistence.
     init(store: TripStore? = nil) {
@@ -90,7 +89,7 @@ final class DriveSessionManager {
         guard !isDriving else { return }
         lastErrorDescription = nil
         isStationary = false
-        stationarySince = nil
+        isPaused = false
         parkDetector.reset()
         alertEngine.config = AlertCenter.configFromDefaults()
         alertEngine.reset()
@@ -141,6 +140,8 @@ final class DriveSessionManager {
     func stopDrive() {
         guard isDriving else { return }
         isDriving = false
+        isPaused = false
+        latestYawRate = 0
         updatesTask?.cancel()
         updatesTask = nil
         locationService.end()
@@ -190,7 +191,7 @@ final class DriveSessionManager {
             watchLink.push(context: context, isDriving: isDriving)
         }
 
-        autoEndIfParked()
+        applyParkDecision()
     }
 
     /// Classifies a g-force burst as braking or acceleration using the GPS
@@ -306,13 +307,26 @@ final class DriveSessionManager {
         alerts.deliverHazard(crashes: hazard.crashes)
     }
 
-    /// Parked for a while → end and save the drive on the driver's behalf.
-    private func autoEndIfParked() {
-        guard AlertCenter.autoEndEnabled else {
-            parkDetector.reset()
-            return
-        }
-        if parkDetector.process(speedMps: context.speed, stationary: isStationary, at: .now) {
+    /// Stopping pauses the drive; only a long settled stop ends it.
+    ///
+    /// Recording continues through a pause, so a gas stop or a jam is a
+    /// quiet stretch inside one drive rather than two drives with a
+    /// notification pair between them. `TripSegmenter` splits the stored
+    /// route into legs afterwards, which is where the judgment call about
+    /// "was that one trip or two?" now lives — reversible, and off the
+    /// critical path.
+    private func applyParkDecision() {
+        switch parkDetector.process(speedMps: context.speed, stationary: isStationary, at: .now) {
+        case .unchanged:
+            break
+        case .paused:
+            isPaused = true
+        case .resumed:
+            isPaused = false
+        case .ended:
+            // The driver can opt out of ever ending automatically; the
+            // pause bookkeeping above stays on either way.
+            guard AlertCenter.autoEndEnabled else { break }
             stopDrive()
             alerts.deliverDriveAutoEnded()
         }

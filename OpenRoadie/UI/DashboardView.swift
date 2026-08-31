@@ -224,6 +224,11 @@ struct DashboardView: View {
                 if session.isDriving {
                     if session.context.coordinate == nil {
                         Label("GPS…", systemImage: "antenna.radiowaves.left.and.right")
+                    } else if session.isPaused {
+                        // Still recording — the drive resumes by itself when
+                        // the car moves, so say "paused", never "ended".
+                        Label("Paused", systemImage: "pause.circle")
+                            .foregroundStyle(.orange)
                     } else {
                         Label(
                             session.isStationary ? "Stationary" : "Moving",

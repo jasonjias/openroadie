@@ -6,6 +6,7 @@ import SwiftUI
 enum RouteColorMode: String, CaseIterable, Identifiable {
     case speed
     case vsLimit
+    case pace
 
     var id: String { rawValue }
 
@@ -13,6 +14,7 @@ enum RouteColorMode: String, CaseIterable, Identifiable {
         switch self {
         case .speed: "Speed"
         case .vsLimit: "Speeding"
+        case .pace: "Pace"
         }
     }
 }
@@ -42,6 +44,17 @@ enum RouteColoring {
         (.yellow, "+1–5"),
         (.orange, "+5–10"),
         (.red, "+10 over"),
+    ]
+
+    /// Pace bands — where the time went, not how fast the needle read.
+    /// Deliberately neutral colors: crawling through a jam is traffic, not
+    /// a mistake, and shouldn't borrow the speeding palette's red.
+    static let paceBands: [(color: Color, label: String)] = [
+        (.gray, "stopped"),
+        (.orange, "crawling"),
+        (.teal, "city"),
+        (.blue, "highway"),
+        (.gray.opacity(0.4), "unrecorded"),
     ]
 
     static func bandIndex(forSpeed speed: Double?) -> Int? {
@@ -112,6 +125,7 @@ enum RouteColoring {
         switch mode {
         case .speed: bands[index].color
         case .vsLimit: relativeBands[index].color
+        case .pace: paceBands[index].color
         }
     }
 
@@ -119,6 +133,7 @@ enum RouteColoring {
         switch mode {
         case .speed: bands[index].label
         case .vsLimit: relativeBands[index].label
+        case .pace: paceBands[index].label
         }
     }
 
@@ -126,6 +141,7 @@ enum RouteColoring {
         switch mode {
         case .speed: runs(forSpeeds: route.map(\.speed))
         case .vsLimit: relativeRuns(speeds: route.map(\.speed), limits: route.map(\.speedLimit))
+        case .pace: merge(PaceBands.bandIndices(route.map(RouteSample.init)))
         }
     }
 }

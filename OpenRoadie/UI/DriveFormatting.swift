@@ -44,6 +44,16 @@ enum DriveFormatting {
         return String(format: "%d:%02d", minutes, seconds)
     }
 
+    /// Human-scale duration for labels and callouts: "2h 14m", "27 min",
+    /// "40 sec". The clock-style `duration` above is for live readouts.
+    static func compactDuration(_ interval: TimeInterval) -> String {
+        let total = Int(interval.rounded())
+        if total < 60 { return "\(total) sec" }
+        let minutes = total / 60
+        if minutes < 60 { return "\(minutes) min" }
+        return "\(minutes / 60)h \(minutes % 60)m"
+    }
+
     static func coordinate(_ coordinate: Coordinate) -> String {
         String(format: "%.4f, %.4f", coordinate.latitude, coordinate.longitude)
     }

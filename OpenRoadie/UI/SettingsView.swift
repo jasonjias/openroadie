@@ -145,6 +145,14 @@ struct SettingsView: View {
                 }
 
                 Section {
+                    Toggle("End drive when settled", isOn: $autoEndDrive)
+                } header: {
+                    Text("Recording")
+                } footer: {
+                    Text("A drive keeps recording through stops. Sit still for 5 minutes and it pauses \u{2014} a gas stop, a drive-thru, a jam \u{2014} then resumes on its own when you move, all as one drive. After 25 minutes settled it ends and saves. Trip detail splits a drive into legs at any stop over 10 minutes, so \u{201C}there and back\u{201D} still reads as two runs without ever risking a lost trip.")
+                }
+
+                Section {
                     Picker("At the posted limit", selection: $overLimitStyle) {
                         ForEach(AlertCenter.OverLimitStyle.allCases) { style in
                             Text(style.title).tag(style.rawValue)
@@ -163,11 +171,10 @@ struct SettingsView: View {
                             Text("\(Int(speed)) mph").tag(speed)
                         }
                     }
-                    Toggle("End drive when parked", isOn: $autoEndDrive)
                 } header: {
                     Text("Speed alerts")
                 } footer: {
-                    Text("Three tiers, calibrated like a car's: crossing the posted limit plays a soft chime (or a full coaching nudge — your pick). Real coaching waits for \u{201C}over by\u{201D} — 15% adapts to the road (~30 in a 25, ~75 in a 65) and is the recommended setting. \u{201C}My max speed\u{201D} warns as you approach it. Each fires once per crossing, with a grace band. Parked for 10 minutes ends and saves the drive.")
+                    Text("Three tiers, calibrated like a car's: crossing the posted limit plays a soft chime (or a full coaching nudge — your pick). Real coaching waits for \u{201C}over by\u{201D} — 15% adapts to the road (~30 in a 25, ~75 in a 65) and is the recommended setting. \u{201C}My max speed\u{201D} warns as you approach it. Each fires once per crossing, with a grace band.")
                 }
                 .onChange(of: overLimitStyle) { _, style in if style != AlertCenter.OverLimitStyle.off.rawValue { AlertCenter.requestAuthorization() } }
                 .onChange(of: alertMargin) { _, value in if value != 0 { AlertCenter.requestAuthorization() } }

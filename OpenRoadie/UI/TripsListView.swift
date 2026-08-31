@@ -533,6 +533,10 @@ struct AllDrivesMap: View {
 private struct TripRow: View {
     let trip: Trip
 
+    private var pace: PaceBands.Breakdown {
+        PaceBands.compute(trip.routeSamples)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(trip.startDate, format: .dateTime.hour().minute())
@@ -551,6 +555,15 @@ private struct TripRow: View {
             }
             .font(.caption)
             .foregroundStyle(.secondary)
+            // The row's one editorial note: this drive was mostly waiting.
+            if trip.endDate != nil, PaceBands.isTrafficHeavy(pace) {
+                Label(
+                    "\(DriveFormatting.compactDuration(pace.slowSeconds)) in traffic",
+                    systemImage: "car.side.rear.and.collision.and.car.side.front"
+                )
+                .font(.caption2.weight(.medium))
+                .foregroundStyle(.orange)
+            }
         }
         .padding(.vertical, 2)
     }

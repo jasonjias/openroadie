@@ -32,6 +32,9 @@ struct TripDetailView: View {
     var body: some View {
         let route = trip.route
         let runs = RouteColoring.runs(for: route, mode: colorMode)
+        let samples = trip.routeSamples
+        let pace = PaceBands.compute(samples)
+        let legs = TripSegmenter.legs(samples)
 
         ScrollView {
             VStack(spacing: 0) {
@@ -64,8 +67,10 @@ struct TripDetailView: View {
 
                 RouteLegend(runs: runs, mode: colorMode)
                     .padding(.top, 6)
+                paceSection(pace: pace)
                 speedChart(route: route)
-                statsGrid
+                statsGrid(pace: pace)
+                legsSection(legs: legs)
                 eventsSection
             }
         }
@@ -254,15 +259,80 @@ struct TripDetailView: View {
         }
     }
 
-    private var statsGrid: some View {
+    /// Where the drive's time went. The callout appears only when the
+    /// standing-still time is genuinely the story of the drive.
+    @ViewBuilder
+    private func paceSection(pace: PaceBands.Breakdown) -> some View {
+        if pace.total > 0 {
+            VStack(alignment: .leading, spacing: 10) {
+                if PaceBands.isTrafficHeavy(pace) {
+                    TrafficCallout(breakdown: pace)
+                }
+                PaceStrip(breakdown: pace)
+            }
+            .padding(.horizontal)
+            .padding(.top, 12)
+        }
+    }
+
+    /// A drive that stopped somewhere for a while, broken into its legs.
+    /// Recording no longer splits the trip when the car parks, so this is
+    /// where "there and back" becomes legible — one stored drive, shown as
+    /// the two runs it really was.
+    @ViewBuilder
+    private func legsSection(legs: [TripSegmenter.Leg]) -> some View {
+        if legs.count > 1 {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Legs")
+                    .font(.headline)
+                ForEach(Array(legs.enumerated()), id: \.element.id) { index, leg in
+                    if let stopped = leg.stoppedBefore {
+                        HStack(spacing: 6) {
+                            Image(systemName: "parkingsign.circle.fill")
+                                .foregroundStyle(.secondary)
+                            Text("stopped \(DriveFormatting.compactDuration(stopped))")
+                        }
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    }
+                    HStack(spacing: 10) {
+                        Text("\(index + 1)")
+                            .font(.caption.weight(.bold))
+                            .frame(width: 20, height: 20)
+                            .background(.tint.opacity(0.15), in: Circle())
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("\(leg.start.formatted(.dateTime.hour().minute())) → \(leg.end.formatted(.dateTime.hour().minute()))")
+                                .font(.subheadline.weight(.medium))
+                            Text("\(DriveFormatting.miles(fromMeters: leg.meters)) · \(DriveFormatting.compactDuration(leg.duration))")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer(minLength: 0)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal)
+            .padding(.vertical, 12)
+        }
+    }
+
+    private func statsGrid(pace: PaceBands.Breakdown) -> some View {
         Grid(horizontalSpacing: 24, verticalSpacing: 12) {
             GridRow {
                 stat("Distance", DriveFormatting.miles(fromMeters: trip.distance))
                 stat("Duration", trip.duration.map(DriveFormatting.duration) ?? "—")
             }
             GridRow {
+                // Two averages, because they answer different questions now
+                // that a drive survives its own stops: overall includes the
+                // time parked at the trailhead, moving does not.
                 stat("Avg speed", trip.averageSpeed.map { "\(DriveFormatting.milesPerHour(fromMetersPerSecond: $0)) mph" } ?? "—")
+                stat("Moving avg", pace.movingSpeed.map { "\(DriveFormatting.milesPerHour(fromMetersPerSecond: $0)) mph" } ?? "—")
+            }
+            GridRow {
                 stat("Max speed", trip.maxSpeed.map { "\(DriveFormatting.milesPerHour(fromMetersPerSecond: $0)) mph" } ?? "—")
+                stat("Moving", DriveFormatting.compactDuration(pace.movingSeconds))
             }
         }
         .frame(maxWidth: .infinity)

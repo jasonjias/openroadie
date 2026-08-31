@@ -90,6 +90,8 @@ CoreLocation ─▶ LocationService ─▶ DriveSessionManager ─▶ DrivingCon
 - `Driving/TripTracker.swift` — pure logic that turns raw GPS fixes into a `DrivingContext`: filters poor-accuracy samples, ignores stationary drift and GPS glitches, accumulates distance.
 - `Driving/LocationService.swift` — thin wrapper over CoreLocation's session APIs (`CLServiceSession`, `CLBackgroundActivitySession`, `CLLocationUpdate.liveUpdates`). Telemetry continues while another app is foregrounded or the phone is locked during an active drive.
 - `Driving/DriveSessionManager.swift` — owns the Start Drive / Stop Drive lifecycle; the single object the UI observes.
+- `Driving/ParkDetector.swift` — decides what a stopped car means. Stopping *pauses* a drive; recording continues and moving again resumes the same drive, so a gas stop or a jam can't chop one drive into several. Only a long settled stop ends it.
+- `Storage/TripSegmenter.swift`, `Storage/PaceBands.swift` — pure analysis over a finished route: where to split a drive into legs, and where its time actually went. Because these run on read, "was that one trip or two?" is a reversible display decision rather than something recording has to get right live.
 - `UI/` — a deliberately simple developer dashboard.
 
 Driving data never leaves the device. There is no backend, no account, and no API key.
