@@ -167,7 +167,15 @@ final class AutoDriveMonitor {
             let location = CLLocationManager().authorizationStatus == .authorizedAlways
                 ? CLServiceSession(authorization: .always)
                 : CLServiceSession(authorization: .whenInUse)
-            defer { location.invalidate() }
+            LocationSessionJanitor.markSessionsOpen()
+            defer {
+                location.invalidate()
+                // Only stand the flag down if no drive took over the
+                // sessions — a confirmed drive holds its own.
+                if self?.session.isDriving != true {
+                    LocationSessionJanitor.markSessionsClosed()
+                }
+            }
             var samples = 0
             do {
                 for try await update in CLLocationUpdate.liveUpdates(.automotiveNavigation) {
@@ -185,6 +193,14 @@ final class AutoDriveMonitor {
                 self?.log.error("speed probe failed: \(error.localizedDescription, privacy: .public)")
             }
             self?.probeTask = nil
+        }
+        // Hard deadline. The loop's own timeout only evaluates when a fix
+        // arrives, so a stalled GPS stream used to hold the session (and
+        // the location pill) open forever — and swiping the app away
+        // mid-probe left the system preserving it indefinitely.
+        Task { [weak self] in
+            try? await Task.sleep(for: .seconds(210))
+            self?.probeTask?.cancel()
         }
     }
 

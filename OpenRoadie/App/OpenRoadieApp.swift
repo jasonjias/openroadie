@@ -42,6 +42,12 @@ struct OpenRoadieApp: App {
                     backgroundWatcher.refresh { [weak autoDrive] in
                         autoDrive?.checkRecentActivity()
                     }
+                    // Give a relaunch-into-drive its beat to start, then
+                    // conclude any sessions preserved from a previous
+                    // incarnation that died holding them — otherwise the
+                    // location pill outlives the app indefinitely.
+                    try? await Task.sleep(for: .seconds(3))
+                    await LocationSessionJanitor.reconcileIfNeeded(isDriving: session.isDriving)
                 }
         }
     }

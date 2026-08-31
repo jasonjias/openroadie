@@ -32,6 +32,9 @@ final class LocationService {
         serviceSession = CLLocationManager().authorizationStatus == .authorizedAlways
             ? CLServiceSession(authorization: .always)
             : CLServiceSession(authorization: .whenInUse)
+        // If this process dies before end(), the flag survives it and the
+        // next launch concludes whatever the system preserved.
+        LocationSessionJanitor.markSessionsOpen()
     }
 
     func end() {
@@ -39,6 +42,7 @@ final class LocationService {
         serviceSession = nil
         backgroundActivity?.invalidate()
         backgroundActivity = nil
+        LocationSessionJanitor.markSessionsClosed()
     }
 
     /// Live GPS updates tuned for driving. The stream also carries diagnostic
