@@ -88,10 +88,17 @@ final class BackgroundDriveWatcher: NSObject, CLLocationManagerDelegate {
     }
 
     func stop() {
-        guard running else { return }
+        // Deliberately NOT guarded on `running`: significant-change
+        // registration persists across launches until explicitly stopped,
+        // so a fresh process with the toggle off must still deregister
+        // what a previous session armed. Field symptom: the location
+        // arrow survived swiping the app away even after opting out.
+        let wasRunning = running
         running = false
         manager.stopMonitoringSignificantLocationChanges()
-        log.info("always-on drive detection disarmed")
+        if wasRunning {
+            log.info("always-on drive detection disarmed")
+        }
     }
 
     // MARK: - CLLocationManagerDelegate
