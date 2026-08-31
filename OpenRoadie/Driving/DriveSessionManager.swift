@@ -325,8 +325,10 @@ final class DriveSessionManager {
             isPaused = false
         case .ended:
             // The driver can opt out of ever ending automatically; the
-            // pause bookkeeping above stays on either way.
-            guard AlertCenter.autoEndEnabled else { break }
+            // pause bookkeeping above stays on either way. Hands-free
+            // overrides the opt-out — with no Start Drive button, a drive
+            // that never ends itself would run until the battery died.
+            guard AlertCenter.autoEndEnabled || AutoDriveMonitor.handsFree else { break }
             stopDrive()
             alerts.deliverDriveAutoEnded()
         }

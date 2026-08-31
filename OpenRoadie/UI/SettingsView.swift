@@ -12,6 +12,7 @@ struct SettingsView: View {
     @AppStorage(AlertCenter.marginKey) private var alertMargin = -1.0
     @AppStorage(AlertCenter.maxSpeedKey) private var alertMaxSpeed = 0.0
     @AppStorage(AlertCenter.autoEndKey) private var autoEndDrive = true
+    @AppStorage(AutoDriveMonitor.handsFreeKey) private var handsFree = false
     @AppStorage(ModelProviderChoice.defaultsKey) private var modelProvider = ModelProviderChoice.apple.rawValue
     @AppStorage(ModelProviderChoice.customURLKey) private var customModelURL = ""
     @AppStorage(ModelProviderChoice.customModelKey) private var customModelName = ""
@@ -134,14 +135,18 @@ struct SettingsView: View {
                     .pickerStyle(.segmented)
                     Toggle("Always on", isOn: $alwaysOnDetection)
                         .disabled(autoStartMode == AutoDriveMonitor.Mode.off.rawValue)
+                    Toggle("Hands-free (no Start Drive button)", isOn: $handsFree)
+                        .disabled(autoStartMode != AutoDriveMonitor.Mode.automatic.rawValue)
                 } header: {
                     Text("Drive detection")
                 } footer: {
-                    Text("OpenRoadie watches for sustained car motion, confirms road speed with a quick GPS check, then starts the drive (\u{201C}Automatic\u{201D}) or sends a notification (\u{201C}Suggest\u{201D}). \u{201C}Always on\u{201D} lets iOS wake OpenRoadie once you've traveled a few hundred meters, so drives record themselves without opening the app — it needs Always location access, which iOS will ask for. Uses Motion & Fitness too.")
+                    Text("OpenRoadie watches for sustained car motion, confirms road speed with a quick GPS check, then starts the drive (\u{201C}Automatic\u{201D}) or sends a notification (\u{201C}Suggest\u{201D}). \u{201C}Always on\u{201D} lets iOS wake OpenRoadie once you've traveled a few hundred meters, so drives record themselves without opening the app — it needs Always location access, which iOS will ask for. Uses Motion & Fitness too.  \u{201C}Hands-free\u{201D} removes the Start Drive button entirely, so a drive is never something you remember to begin \u{2014} it needs Automatic detection, and a drive in progress still shows Stop so you can end one early.")
                 }
                 .onChange(of: autoStartMode) { _, mode in
                     if mode != AutoDriveMonitor.Mode.off.rawValue { AlertCenter.requestAuthorization() }
                     if mode == AutoDriveMonitor.Mode.off.rawValue { alwaysOnDetection = false }
+                    // Never leave the dashboard with no way to start a drive.
+                    if mode != AutoDriveMonitor.Mode.automatic.rawValue { handsFree = false }
                 }
 
                 Section {

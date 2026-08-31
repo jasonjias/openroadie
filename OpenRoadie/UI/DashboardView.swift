@@ -9,6 +9,10 @@ struct DashboardView: View {
     @Environment(\.openURL) private var openURL
     @State private var showsSettings = false
     @AppStorage(DrivingBackground.defaultsKey) private var drivingBackground = DrivingBackground.green.rawValue
+    // Read as @AppStorage rather than through AutoDriveMonitor so flipping
+    // either setting redraws the drive control immediately.
+    @AppStorage(AutoDriveMonitor.handsFreeKey) private var handsFree = false
+    @AppStorage(AutoDriveMonitor.modeKey) private var autoStartMode = AutoDriveMonitor.Mode.off.rawValue
     @AppStorage(Vehicle.defaultsKey) private var sceneVehicle = Vehicle.classic.id
     @State private var selectedFace = ""
 
@@ -268,21 +272,42 @@ struct DashboardView: View {
         }
     }
 
+    /// Hands-free mode replaces the idle Start Drive button with a status
+    /// line of the same footprint — no layout shift, and no chore. A live
+    /// drive still gets its Stop button, so ending one early never depends
+    /// on detection working.
+    private var handsFreeIdle: Bool {
+        handsFree && autoStartMode == AutoDriveMonitor.Mode.automatic.rawValue && !session.isDriving
+    }
+
+    @ViewBuilder
     private var driveButton: some View {
-        Button {
-            if session.isDriving {
-                session.stopDrive()
-            } else {
-                session.startDrive()
+        if handsFreeIdle {
+            HStack(spacing: 8) {
+                Image(systemName: "dot.radiowaves.left.and.right")
+                Text("Watching for drives")
             }
-        } label: {
-            Text(session.isDriving ? "Stop Drive" : "Start Drive")
-                .font(.title3.weight(.semibold))
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 8)
+            .font(.title3.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 8)
+            .background(.quaternary.opacity(0.4), in: Capsule())
+        } else {
+            Button {
+                if session.isDriving {
+                    session.stopDrive()
+                } else {
+                    session.startDrive()
+                }
+            } label: {
+                Text(session.isDriving ? "Stop Drive" : "Start Drive")
+                    .font(.title3.weight(.semibold))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(session.isDriving ? .red : .green)
         }
-        .buttonStyle(.borderedProminent)
-        .tint(session.isDriving ? .red : .green)
     }
 }
 

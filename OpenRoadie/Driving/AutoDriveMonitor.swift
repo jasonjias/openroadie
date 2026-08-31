@@ -34,9 +34,19 @@ final class AutoDriveMonitor {
     }
 
     static let modeKey = "autoStartDriveMode"
+    /// Hands-free: no Start Drive button at all — OpenRoadie begins and ends
+    /// drives on its own.
+    static let handsFreeKey = "handsFreeDriveControl"
 
     static var mode: Mode {
         Mode(rawValue: UserDefaults.standard.string(forKey: modeKey) ?? "") ?? .off
+    }
+
+    /// The `mode` check is deliberately part of the accessor rather than the
+    /// caller's problem: hiding the Start Drive button while nothing is
+    /// watching for drives would leave no way to record at all.
+    static var handsFree: Bool {
+        UserDefaults.standard.bool(forKey: handsFreeKey) && mode == .automatic
     }
 
     private let session: DriveSessionManager
