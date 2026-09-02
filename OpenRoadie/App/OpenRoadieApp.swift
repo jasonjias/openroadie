@@ -36,18 +36,18 @@ struct OpenRoadieApp: App {
             RootView(session: session, agent: agent, speaker: speaker, wake: wake, autoDrive: autoDrive)
                 .modelContainer(store.container)
                 .task {
-                    // Arm always-on detection on every launch — including
-                    // the background relaunches iOS itself triggers, where
-                    // this closure is the whole reason we woke up.
+                    // ORDER MATTERS: conclude any sessions preserved from a
+                    // previous incarnation BEFORE anything in this process
+                    // may open its own location stream — CoreLocation
+                    // supports one liveUpdates stream per process, and the
+                    // janitor's brief consume must never race the drive's.
+                    await LocationSessionJanitor.reconcileIfNeeded(isDriving: session.isDriving)
+                    // Then arm always-on detection — including the
+                    // background relaunches iOS itself triggers, where this
+                    // closure is the whole reason we woke up.
                     backgroundWatcher.refresh { [weak autoDrive] in
                         autoDrive?.checkRecentActivity()
                     }
-                    // Give a relaunch-into-drive its beat to start, then
-                    // conclude any sessions preserved from a previous
-                    // incarnation that died holding them — otherwise the
-                    // location pill outlives the app indefinitely.
-                    try? await Task.sleep(for: .seconds(3))
-                    await LocationSessionJanitor.reconcileIfNeeded(isDriving: session.isDriving)
                 }
         }
     }

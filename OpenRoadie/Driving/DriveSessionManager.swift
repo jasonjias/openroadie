@@ -1,6 +1,7 @@
 import CoreLocation
 import Foundation
 import Observation
+import os
 
 /// Owns the drive session lifecycle: Start Drive → consume GPS updates →
 /// keep `DrivingContext` current → Stop Drive.
@@ -158,6 +159,17 @@ final class DriveSessionManager {
         watchLink.push(context: context, isDriving: false)
         if let trip = currentTrip {
             let willSave = trip.points.count >= 2
+            // Recording-health tie-out: tracked distance and persisted route
+            // must roughly agree. A 15-mile drive that persisted two points
+            // is a data-loss bug (seen in the field once — a second
+            // liveUpdates stream starved the drive's); make the next one
+            // scream in the log instead of surfacing weeks later.
+            let expectedPoints = context.tripDistance / 100
+            if context.tripDistance > 1_000, Double(trip.points.count) < expectedPoints * 0.2 {
+                Logger(subsystem: "com.openroadie", category: "recording").fault(
+                    "route loss: \(self.context.tripDistance, format: .fixed(precision: 0))m tracked but only \(trip.points.count) points persisted"
+                )
+            }
             store?.endTrip(
                 trip,
                 at: context.tripEnd ?? .now,

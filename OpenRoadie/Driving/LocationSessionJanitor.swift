@@ -16,6 +16,7 @@ import os
 /// The remedy is Apple's own: recreate the equivalent sessions and end them
 /// — invalidate the session objects, and briefly resume the update stream
 /// then break out, which tells CoreLocation the stream is finished.
+@MainActor
 enum LocationSessionJanitor {
     /// Set while this process holds live location sessions (a drive or a
     /// detection probe). Still `true` at launch = the last incarnation died
@@ -24,7 +25,18 @@ enum LocationSessionJanitor {
 
     private static let log = Logger(subsystem: "com.openroadie", category: "janitor")
 
+    /// CoreLocation supports ONE liveUpdates stream per process. The
+    /// janitor's conclude-the-preserved-stream consume must never coexist
+    /// with the drive's or the detection probe's own stream — a second
+    /// stream opening and closing can starve the first. Field cost of
+    /// getting this wrong: a 15-mile drive that persisted two route points.
+    private(set) static var locationActiveThisProcess = false
+    private static var consumeTask: Task<Void, Never>?
+
     static func markSessionsOpen() {
+        locationActiveThisProcess = true
+        // Real location work trumps cleanup: a consume in flight ends now.
+        consumeTask?.cancel()
         UserDefaults.standard.set(true, forKey: sessionsOpenKey)
     }
 
@@ -37,12 +49,13 @@ enum LocationSessionJanitor {
     /// upgrade from a build that didn't track it, which is exactly the
     /// population with pills already stuck). Never while a drive is live,
     /// and never when it would trigger a permission prompt.
-    static func shouldReconcile(flag: Bool?, isDriving: Bool, authorizationDetermined: Bool) -> Bool {
+    nonisolated static func shouldReconcile(flag: Bool?, isDriving: Bool, authorizationDetermined: Bool) -> Bool {
         guard !isDriving, authorizationDetermined else { return false }
         return flag ?? true
     }
 
-    /// Call once at launch, after the drive session had its chance to start.
+    /// Call once at launch, BEFORE drive detection arms — the caller
+    /// sequences this so nothing else can be opening location streams yet.
     static func reconcileIfNeeded(isDriving: Bool) async {
         let flag = UserDefaults.standard.object(forKey: sessionsOpenKey) as? Bool
         let determined = CLLocationManager().authorizationStatus != .notDetermined
@@ -55,7 +68,14 @@ enum LocationSessionJanitor {
 
         // A preserved liveUpdates stream ends only when the relaunched app
         // resumes consuming it and then stops — one update (or a short
-        // timeout, for indoors-with-no-fix) is enough to conclude it.
+        // timeout, for indoors-with-no-fix) is enough to conclude it. Only
+        // safe while this process runs no stream of its own, and it yields
+        // instantly if one starts.
+        guard !locationActiveThisProcess else {
+            // The live stream supersedes the preserved one anyway.
+            markSessionsClosed()
+            return
+        }
         let consume = Task {
             do {
                 for try await _ in CLLocationUpdate.liveUpdates() { break }
@@ -64,13 +84,19 @@ enum LocationSessionJanitor {
                 // left to conclude.
             }
         }
+        consumeTask = consume
         Task {
             try? await Task.sleep(for: .seconds(8))
             consume.cancel()
         }
         _ = await consume.result
+        consumeTask = nil
 
-        markSessionsClosed()
+        // A drive may have begun mid-consume; only its own end may clear
+        // the flag then.
+        if !locationActiveThisProcess {
+            markSessionsClosed()
+        }
         log.info("location session reconciliation complete")
     }
 }
