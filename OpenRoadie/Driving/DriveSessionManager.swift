@@ -36,6 +36,7 @@ final class DriveSessionManager {
     private let chime = ChimePlayer()
     private let hazards = HazardService()
     private let watchLink = PhoneWatchLink()
+    private let weatherService = WeatherService()
     private let store: TripStore?
     private var tracker = TripTracker()
     private var alertEngine = SpeedAlertEngine()
@@ -181,6 +182,15 @@ final class DriveSessionManager {
             // that's worth hearing about; a broken one stays silent.
             if willSave, eventsThisDrive == 0, let streak = store?.streak().current {
                 alerts.deliverCleanDrive(streak: streak)
+            }
+            // Stamp the drive's weather — best-effort, after the trip is
+            // already safely saved. Offline just means the launch-time
+            // backfill picks it up later.
+            if willSave, let anchor = trip.weatherAnchor {
+                Task { [weak self] in
+                    guard let weather = await self?.weatherService.weather(at: anchor.coordinate, date: anchor.date) else { return }
+                    self?.store?.setWeather(weather, on: trip)
+                }
             }
         }
     }

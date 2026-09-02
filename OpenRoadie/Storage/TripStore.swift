@@ -13,6 +13,13 @@ final class Trip {
     var distance: Double
     /// Meters per second.
     var maxSpeed: Double?
+    /// Weather during the drive (Open-Meteo, stamped once at drive end and
+    /// backfilled for older trips). All nil when unknown or disabled —
+    /// optional so existing stores migrate in place.
+    var weatherCode: Int?
+    var temperatureC: Double?
+    var precipitationMm: Double?
+    var windKph: Double?
 
     @Relationship(deleteRule: .cascade, inverse: \TripPoint.trip)
     var points: [TripPoint]
@@ -23,6 +30,24 @@ final class Trip {
         self.distance = 0
         self.maxSpeed = nil
         self.points = []
+    }
+
+    var weather: TripWeather? {
+        guard let weatherCode, let temperatureC else { return nil }
+        return TripWeather(
+            wmoCode: weatherCode,
+            temperatureC: temperatureC,
+            precipitationMm: precipitationMm ?? 0,
+            windKph: windKph ?? 0
+        )
+    }
+
+    /// The moment and place to ask the weather about: mid-drive, at the
+    /// last known position.
+    var weatherAnchor: (date: Date, coordinate: Coordinate)? {
+        guard let last = route.last else { return nil }
+        let mid = startDate.addingTimeInterval((endDate ?? last.timestamp).timeIntervalSince(startDate) / 2)
+        return (mid, Coordinate(latitude: last.latitude, longitude: last.longitude))
     }
 
     var duration: TimeInterval? {
@@ -140,6 +165,27 @@ final class TripStore {
             predicate: #Predicate { $0.endDate != nil }
         ))) ?? []
         return Streak.compute(trips: completed, events: allEvents())
+    }
+
+    // MARK: - Weather
+
+    func setWeather(_ weather: TripWeather, on trip: Trip) {
+        trip.weatherCode = weather.wmoCode
+        trip.temperatureC = weather.temperatureC
+        trip.precipitationMm = weather.precipitationMm
+        trip.windKph = weather.windKph
+        try? context.save()
+    }
+
+    /// Completed trips still missing weather, oldest last so recent drives
+    /// (the ones being looked at) backfill first.
+    func tripsNeedingWeather(limit: Int) -> [Trip] {
+        var descriptor = FetchDescriptor<Trip>(
+            predicate: #Predicate { $0.endDate != nil && $0.weatherCode == nil },
+            sortBy: [SortDescriptor(\.startDate, order: .reverse)]
+        )
+        descriptor.fetchLimit = limit
+        return ((try? context.fetch(descriptor)) ?? []).filter { !$0.points.isEmpty }
     }
 
     // MARK: - Driving events

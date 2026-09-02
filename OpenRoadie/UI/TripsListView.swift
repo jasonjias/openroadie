@@ -473,6 +473,16 @@ struct DayDrivesMap: View {
     var events: [DriveEvent] = []
 
     @State private var colorMode: RouteColorMode = .vsLimit
+    @State private var photosModel = MapPhotosModel()
+    @State private var viewingPhoto: MapPhoto?
+
+    /// The whole day's photos, not just drive-time — "I was here that day"
+    /// includes what happened at the stops.
+    private var photoWindows: [(start: Date, end: Date)] {
+        guard let first = trips.map(\.startDate).min() else { return [] }
+        let day = Calendar.current.startOfDay(for: first)
+        return [(day, day.addingTimeInterval(86_400))]
+    }
 
     var body: some View {
         let allRuns = trips.flatMap { RouteColoring.runs(for: $0.route, mode: colorMode) }
@@ -484,6 +494,9 @@ struct DayDrivesMap: View {
                 }
                 // The day's score-affecting mistakes, pinned where they happened.
                 EventMarkers(events: events)
+                if photosModel.isShowing {
+                    PhotoAnnotations(photos: photosModel.photos, viewing: $viewingPhoto)
+                }
             }
             .mapStyle(.standard(elevation: .flat))
 
@@ -501,6 +514,14 @@ struct DayDrivesMap: View {
         }
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                PhotoToggleButton(model: photosModel, windows: photoWindows)
+            }
+        }
+        .sheet(item: $viewingPhoto) { photo in
+            MapPhotoViewer(photo: photo)
+        }
     }
 }
 
@@ -510,6 +531,17 @@ struct AllDrivesMap: View {
 
     /// Cap the overlay work for very large histories; newest drives win.
     private static let maxTrips = 50
+
+    @State private var photosModel = MapPhotosModel()
+    @State private var viewingPhoto: MapPhoto?
+
+    /// Photos taken DURING recorded drives — the "phone came out on the
+    /// road" set, matching the drives actually drawn here.
+    private var photoWindows: [(start: Date, end: Date)] {
+        trips.prefix(Self.maxTrips).compactMap { trip in
+            trip.endDate.map { (trip.startDate, $0) }
+        }
+    }
 
     var body: some View {
         Map(initialPosition: .automatic) {
@@ -525,8 +557,40 @@ struct AllDrivesMap: View {
                         )
                 }
             }
+            if photosModel.isShowing {
+                PhotoAnnotations(photos: photosModel.photos, viewing: $viewingPhoto)
+            }
         }
         .mapStyle(.standard(elevation: .flat))
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                PhotoToggleButton(model: photosModel, windows: photoWindows)
+            }
+        }
+        .sheet(item: $viewingPhoto) { photo in
+            MapPhotoViewer(photo: photo)
+        }
+    }
+}
+
+/// The shared photos toggle for map toolbars: filled while showing,
+/// spinner while the library loads, and honest about denied access.
+struct PhotoToggleButton: View {
+    let model: MapPhotosModel
+    let windows: [(start: Date, end: Date)]
+
+    var body: some View {
+        Button {
+            model.toggle(windows: windows)
+        } label: {
+            if model.isLoading {
+                ProgressView()
+            } else {
+                Image(systemName: model.isShowing ? "photo.fill" : "photo")
+            }
+        }
+        .disabled(model.accessDenied)
+        .accessibilityLabel(model.isShowing ? "Hide photos" : "Show photos")
     }
 }
 
@@ -557,6 +621,12 @@ private struct TripRow: View {
                 } else {
                     Label("Recording…", systemImage: "record.circle")
                         .foregroundStyle(.red)
+                }
+                if let weather = trip.weather {
+                    Label(
+                        "\(DriveFormatting.fahrenheit(fromCelsius: weather.temperatureC))°",
+                        systemImage: WeatherCode.symbol(weather.wmoCode)
+                    )
                 }
             }
             .font(.caption)

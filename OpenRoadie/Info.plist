@@ -2,16 +2,18 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>OpenRoadie uses your location to show live speed, heading, and trip distance while you drive. Driving data stays on your device.</string>
-	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>With Always access, OpenRoadie notices when a drive starts and records it without you opening the app. Driving data stays on your device — nothing is uploaded.</string>
 	<key>NSAppleMusicUsageDescription</key>
 	<string>OpenRoadie searches your music library so Roadie can play songs you ask for while driving.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>With Always access, OpenRoadie notices when a drive starts and records it without you opening the app. Driving data stays on your device — nothing is uploaded.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>OpenRoadie uses your location to show live speed, heading, and trip distance while you drive. Driving data stays on your device.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>OpenRoadie uses the microphone so you can talk to Roadie hands-free while driving.</string>
 	<key>NSMotionUsageDescription</key>
 	<string>OpenRoadie uses motion activity to notice when you start driving, so drives can begin automatically.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>OpenRoadie can show photos you took during your drives on the trip maps. Photos stay in your library — nothing is copied or uploaded.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>Your questions are transcribed entirely on this device. Your voice never leaves your iPhone.</string>
 	<key>UIBackgroundModes</key>

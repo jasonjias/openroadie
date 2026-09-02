@@ -48,6 +48,9 @@ struct OpenRoadieApp: App {
                     backgroundWatcher.refresh { [weak autoDrive] in
                         autoDrive?.checkRecentActivity()
                     }
+                    // Old trips gain weather a few at a time (Open-Meteo's
+                    // archive), newest first. No-op once caught up.
+                    await WeatherBackfill.run(store: store)
                 }
         }
     }

@@ -13,6 +13,7 @@ struct SettingsView: View {
     @AppStorage(AlertCenter.maxSpeedKey) private var alertMaxSpeed = 0.0
     @AppStorage(AlertCenter.autoEndKey) private var autoEndDrive = true
     @AppStorage(AutoDriveMonitor.handsFreeKey) private var handsFree = false
+    @AppStorage(WeatherService.enabledKey) private var tripWeatherEnabled = true
     @AppStorage(ModelProviderChoice.defaultsKey) private var modelProvider = ModelProviderChoice.apple.rawValue
     @AppStorage(ModelProviderChoice.customURLKey) private var customModelURL = ""
     @AppStorage(ModelProviderChoice.customModelKey) private var customModelName = ""
@@ -124,6 +125,12 @@ struct SettingsView: View {
                     Toggle("Road awareness", isOn: $roadAwarenessEnabled)
                 } footer: {
                     Text("Shows the current road and speed limit using OpenStreetMap. While driving, your approximate location is sent to the public Overpass API (overpass-api.de) about once every few hundred meters. Turn off for a fully offline drive — everything else works identically.")
+                }
+
+                Section {
+                    Toggle("Trip weather", isOn: $tripWeatherEnabled)
+                } footer: {
+                    Text("Records the weather on each drive using Open-Meteo (open-meteo.com), free open weather data. One coordinate and a date are sent when a drive ends; older drives fill in a few per launch. Nothing else leaves the device.")
                 }
 
                 Section {

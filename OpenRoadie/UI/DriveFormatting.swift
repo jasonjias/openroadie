@@ -54,6 +54,10 @@ enum DriveFormatting {
         return "\(minutes / 60)h \(minutes % 60)m"
     }
 
+    static func fahrenheit(fromCelsius celsius: Double) -> Int {
+        Int((celsius * 9 / 5 + 32).rounded())
+    }
+
     static func coordinate(_ coordinate: Coordinate) -> String {
         String(format: "%.4f, %.4f", coordinate.latitude, coordinate.longitude)
     }

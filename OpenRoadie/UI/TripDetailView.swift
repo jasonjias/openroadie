@@ -341,6 +341,15 @@ struct TripDetailView: View {
                 stat("Max speed", trip.maxSpeed.map { "\(DriveFormatting.milesPerHour(fromMetersPerSecond: $0)) mph" } ?? "—")
                 stat("Moving", DriveFormatting.compactDuration(pace.movingSeconds))
             }
+            if let weather = trip.weather {
+                GridRow {
+                    stat(
+                        WeatherCode.label(weather.wmoCode),
+                        "\(DriveFormatting.fahrenheit(fromCelsius: weather.temperatureC))°F"
+                    )
+                    stat("Wind", "\(Int((weather.windKph * 0.621371).rounded())) mph")
+                }
+            }
         }
         .frame(maxWidth: .infinity)
         .padding()
