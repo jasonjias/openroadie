@@ -15,9 +15,15 @@ struct DashboardView: View {
     @AppStorage(AutoDriveMonitor.modeKey) private var autoStartMode = AutoDriveMonitor.Mode.off.rawValue
     @AppStorage(Vehicle.defaultsKey) private var sceneVehicle = Vehicle.classic.id
     @State private var selectedFace = ""
+    @State private var currentWeather = CurrentWeatherModel()
 
     var body: some View {
         ZStack {
+            // Ambient weather behind everything — sun glow, drifting
+            // clouds, rain — from the same live conditions as the chip.
+            if let weather = currentWeather.weather {
+                WeatherBackdrop(wmoCode: weather.wmoCode, isDay: weather.isDay)
+            }
             // A splash of color while the drive is live (user-selectable).
             if session.isDriving, let color = DrivingBackground.current.color {
                 LinearGradient(
@@ -31,6 +37,15 @@ struct DashboardView: View {
             dashboard
         }
         .animation(.easeInOut(duration: 0.6), value: session.isDriving)
+        // Refresh on appear and whenever a drive starts or ends, then
+        // every half hour while the tab stays up. Cached by time and
+        // distance inside the model, so this is mostly free.
+        .task(id: session.isDriving) {
+            while !Task.isCancelled {
+                await currentWeather.refresh(around: session.context.coordinate)
+                try? await Task.sleep(for: .seconds(1_800))
+            }
+        }
     }
 
     private var dashboard: some View {
@@ -39,6 +54,17 @@ struct DashboardView: View {
             ZStack {
                 Text("OpenRoadie")
                     .font(.system(.title3, design: .rounded).weight(.semibold))
+                // Live conditions where you are, balancing the avatar.
+                if let weather = currentWeather.weather {
+                    Label(
+                        "\(DriveFormatting.fahrenheit(fromCelsius: weather.temperatureC))°",
+                        systemImage: weather.isDay ? WeatherCode.symbol(weather.wmoCode) : WeatherCode.nightSymbol(weather.wmoCode)
+                    )
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityLabel("\(WeatherCode.label(weather.wmoCode)), \(DriveFormatting.fahrenheit(fromCelsius: weather.temperatureC)) degrees")
+                }
                 Button {
                     showsSettings = true
                 } label: {

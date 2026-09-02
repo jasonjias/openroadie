@@ -7,6 +7,9 @@ struct TripWeather: Equatable, Sendable {
     var temperatureC: Double
     var precipitationMm: Double
     var windKph: Double
+    /// Daylight at that moment — drives the backdrop's sun-or-moon choice.
+    /// Defaults to day for stored trips that predate the field.
+    var isDay: Bool = true
 }
 
 /// WMO weather code → human label + SF Symbol. Pure and unit-tested;
@@ -25,6 +28,15 @@ enum WeatherCode {
         case 71, 73, 75, 77, 85, 86: "Snow"
         case 95, 96, 99: "Thunderstorm"
         default: "Unknown"
+        }
+    }
+
+    /// Nighttime symbol: sun becomes moon; everything else is unchanged.
+    static func nightSymbol(_ code: Int) -> String {
+        switch code {
+        case 0, 1: "moon.stars"
+        case 2: "cloud.moon"
+        default: symbol(code)
         }
     }
 
@@ -66,6 +78,7 @@ final class WeatherService: Sendable {
             var precipitation: [Double?]
             var weather_code: [Int?]
             var wind_speed_10m: [Double?]
+            var is_day: [Int?]?
         }
         var hourly: Hourly
     }
@@ -86,14 +99,15 @@ final class WeatherService: Sendable {
             wmoCode: code,
             temperatureC: temp,
             precipitationMm: hourly.precipitation[index] ?? 0,
-            windKph: hourly.wind_speed_10m[index] ?? 0
+            windKph: hourly.wind_speed_10m[index] ?? 0,
+            isDay: hourly.is_day?[index].map { $0 == 1 } ?? true
         )
     }
 
     /// Recent dates come from the forecast API's `past_days`; older ones
     /// from the archive API (which lags a few days behind the present).
     static func url(for coordinate: Coordinate, date: Date, now: Date = .now) -> URL? {
-        let fields = "temperature_2m,precipitation,weather_code,wind_speed_10m"
+        let fields = "temperature_2m,precipitation,weather_code,wind_speed_10m,is_day"
         let age = now.timeIntervalSince(date)
         if age < 6 * 86_400 {
             return URL(string: "https://api.open-meteo.com/v1/forecast?latitude=\(coordinate.latitude)&longitude=\(coordinate.longitude)&hourly=\(fields)&past_days=6&forecast_days=1&timeformat=unixtime")
