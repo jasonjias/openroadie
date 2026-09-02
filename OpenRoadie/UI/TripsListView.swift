@@ -76,6 +76,13 @@ struct TripsListView: View {
                     streakCard
                 }
 
+                // The day as a story — only when it has at least a drive
+                // and its shape adds something the plain list doesn't
+                // (a stop between drives, or a named destination).
+                if completedDayTrips.count >= 1 {
+                    DayStorySection(trips: completedDayTrips)
+                }
+
                 daySection
 
                 dayNotesSection
@@ -133,6 +140,11 @@ struct TripsListView: View {
 
     private var dayTrips: [Trip] {
         trips.filter { calendar.isDate($0.startDate, inSameDayAs: selectedDay) }
+    }
+
+    /// The day's finished drives, oldest first — story order.
+    private var completedDayTrips: [Trip] {
+        dayTrips.filter { $0.endDate != nil }.sorted { $0.startDate < $1.startDate }
     }
 
     private var dayNotes: [DriveNote] {

@@ -137,6 +137,15 @@ final class AlertCenter: NSObject, UNUserNotificationCenterDelegate {
         post(content)
     }
 
+    /// NWS Severe/Extreme alert covering the current position.
+    func deliverSevereWeather(event: String) {
+        let content = UNMutableNotificationContent()
+        content.title = "Weather alert"
+        content.body = "\(event) in effect where you're driving (National Weather Service)."
+        content.sound = .default
+        post(content)
+    }
+
     func deliverDriveAutoEnded(walkedAway: Bool = false) {
         let content = UNMutableNotificationContent()
         content.title = "Drive saved"

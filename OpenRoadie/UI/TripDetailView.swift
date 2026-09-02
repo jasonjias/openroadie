@@ -74,10 +74,11 @@ struct TripDetailView: View {
 
                 RouteLegend(runs: runs, mode: colorMode)
                     .padding(.top, 6)
+                journeyLine(samples: samples)
                 paceSection(pace: pace)
                 speedChart(route: route)
                 statsGrid(pace: pace)
-                legsSection(legs: legs)
+                legsSection(legs: legs, samples: samples)
                 eventsSection
             }
         }
@@ -266,6 +267,25 @@ struct TripDetailView: View {
         }
     }
 
+    /// "Menlo Park → Draeger's · Menlo Park" — the drive as a sentence.
+    /// Names arrive asynchronously and the line simply grows.
+    @ViewBuilder
+    private func journeyLine(samples: [RouteSample]) -> some View {
+        if let first = samples.first, let last = samples.last, samples.count >= 2 {
+            HStack(spacing: 6) {
+                PlaceText(coordinate: first.coordinate)
+                Image(systemName: "arrow.right")
+                    .font(.caption2)
+                PlaceText(coordinate: last.coordinate)
+            }
+            .font(.footnote.weight(.medium))
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+            .padding(.horizontal)
+            .padding(.top, 10)
+        }
+    }
+
     /// Where the drive's time went. The callout appears only when the
     /// standing-still time is genuinely the story of the drive.
     @ViewBuilder
@@ -287,7 +307,7 @@ struct TripDetailView: View {
     /// where "there and back" becomes legible — one stored drive, shown as
     /// the two runs it really was.
     @ViewBuilder
-    private func legsSection(legs: [TripSegmenter.Leg]) -> some View {
+    private func legsSection(legs: [TripSegmenter.Leg], samples: [RouteSample]) -> some View {
         if legs.count > 1 {
             VStack(alignment: .leading, spacing: 10) {
                 Text("Legs")
@@ -298,6 +318,8 @@ struct TripDetailView: View {
                             Image(systemName: "parkingsign.circle.fill")
                                 .foregroundStyle(.secondary)
                             Text("stopped \(DriveFormatting.compactDuration(stopped))")
+                            // Where the car sat: this leg departs from it.
+                            PlaceText(coordinate: samples[leg.range.lowerBound].coordinate, prefix: "· ")
                         }
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -348,6 +370,12 @@ struct TripDetailView: View {
                         "\(DriveFormatting.fahrenheit(fromCelsius: weather.temperatureC))°F"
                     )
                     stat("Wind", "\(Int((weather.windKph * 0.621371).rounded())) mph")
+                }
+            }
+            if let aqi = trip.usAqi {
+                GridRow {
+                    stat("Air quality", "\(aqi) · \(AirQuality.label(aqi))")
+                    stat("Precip", trip.precipitationMm.map { String(format: "%.1f mm", $0) } ?? "—")
                 }
             }
         }

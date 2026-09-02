@@ -13,7 +13,8 @@ enum WeatherBackfill {
                 // hammering a free API with the same failure 25 times.
                 return
             }
-            store.setWeather(weather, on: trip)
+            let aqi = await service.airQuality(at: anchor.coordinate, date: anchor.date)
+            store.setWeather(weather, airQuality: aqi, on: trip)
             try? await Task.sleep(for: .milliseconds(400))
         }
     }

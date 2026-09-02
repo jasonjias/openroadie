@@ -37,6 +37,7 @@ final class DriveSessionManager {
     private let hazards = HazardService()
     private let watchLink = PhoneWatchLink()
     private let weatherService = WeatherService()
+    private let severeWeather = SevereWeatherWatch()
     private let store: TripStore?
     private var tracker = TripTracker()
     private var alertEngine = SpeedAlertEngine()
@@ -61,6 +62,9 @@ final class DriveSessionManager {
     private var recentSpeeds: [(Date, Double)] = []
     /// Core Motion's latest word on whether the phone is on foot.
     private var isWalking = false
+    /// Severe-weather alerts announced this drive, and the last check time.
+    private var announcedWeatherAlerts: Set<String> = []
+    private var weatherAlertsCheckedAt: Date?
     private var corneringDetector = CorneringDetector()
     private var phoneUseDetector = PhoneUseDetector()
     /// Latest yaw rate (rad/s) — read by the drive scene for turn lean.
@@ -125,6 +129,8 @@ final class DriveSessionManager {
             self?.processRotation(yawRate: yawRate, nonYaw: nonYaw)
         }
         isWalking = false
+        announcedWeatherAlerts = []
+        weatherAlertsCheckedAt = nil
         motionService.onWalkingChange = { [weak self] walking in
             self?.isWalking = walking
         }
@@ -188,8 +194,10 @@ final class DriveSessionManager {
             // backfill picks it up later.
             if willSave, let anchor = trip.weatherAnchor {
                 Task { [weak self] in
-                    guard let weather = await self?.weatherService.weather(at: anchor.coordinate, date: anchor.date) else { return }
-                    self?.store?.setWeather(weather, on: trip)
+                    guard let self else { return }
+                    guard let weather = await self.weatherService.weather(at: anchor.coordinate, date: anchor.date) else { return }
+                    let aqi = await self.weatherService.airQuality(at: anchor.coordinate, date: anchor.date)
+                    self.store?.setWeather(weather, airQuality: aqi, on: trip)
                 }
             }
         }
@@ -216,6 +224,7 @@ final class DriveSessionManager {
             }
             evaluateSpeedRules()
             checkHazards()
+            checkSevereWeather()
             watchLink.push(context: context, isDriving: isDriving)
         }
 
@@ -333,6 +342,24 @@ final class DriveSessionManager {
               let hazard = hazards.check(coordinate) else { return }
         chime.play()
         alerts.deliverHazard(crashes: hazard.crashes)
+    }
+
+    /// Severe/Extreme NWS alerts along the drive, announced once each.
+    /// Checked every ten minutes — weather cells move slower than cars.
+    private func checkSevereWeather() {
+        guard SevereWeatherWatch.isEnabled, isDriving,
+              let coordinate = context.coordinate else { return }
+        if let checked = weatherAlertsCheckedAt, Date.now.timeIntervalSince(checked) < 600 { return }
+        weatherAlertsCheckedAt = .now
+        Task { [weak self] in
+            guard let self else { return }
+            for alert in await self.severeWeather.active(at: coordinate)
+            where !self.announcedWeatherAlerts.contains(alert.id) {
+                self.announcedWeatherAlerts.insert(alert.id)
+                self.alerts.deliverSevereWeather(event: alert.event)
+                self.chime.play()
+            }
+        }
     }
 
     /// Stopping pauses the drive; only a long settled stop ends it.

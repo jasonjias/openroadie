@@ -14,6 +14,20 @@ struct TripWeather: Equatable, Sendable {
 
 /// WMO weather code → human label + SF Symbol. Pure and unit-tested;
 /// unknown codes get an honest generic answer, never an invented one.
+/// US AQI bands — EPA's fixed breakpoints, deterministic and testable.
+enum AirQuality {
+    static func label(_ aqi: Int) -> String {
+        switch aqi {
+        case ..<51: "Good"
+        case ..<101: "Moderate"
+        case ..<151: "Unhealthy for some"
+        case ..<201: "Unhealthy"
+        case ..<301: "Very unhealthy"
+        default: "Hazardous"
+        }
+    }
+}
+
 enum WeatherCode {
     static func label(_ code: Int) -> String {
         switch code {
@@ -120,6 +134,38 @@ final class WeatherService: Sendable {
         let start = formatter.string(from: date.addingTimeInterval(-86_400))
         let end = formatter.string(from: date.addingTimeInterval(86_400))
         return URL(string: "https://archive-api.open-meteo.com/v1/archive?latitude=\(coordinate.latitude)&longitude=\(coordinate.longitude)&start_date=\(start)&end_date=\(end)&hourly=\(fields)&timeformat=unixtime")
+    }
+
+    /// US AQI, from Open-Meteo's air-quality endpoint (same provider, same
+    /// trust decision). Only the recent window exists there, so older trips
+    /// honestly stay without one.
+    struct AirQualityResponse: Decodable {
+        struct Hourly: Decodable {
+            var time: [Int]
+            var us_aqi: [Int?]
+        }
+        var hourly: Hourly
+    }
+
+    static func nearestAQI(to date: Date, in response: AirQualityResponse) -> Int? {
+        let target = Int(date.timeIntervalSince1970)
+        let hourly = response.hourly
+        guard let index = hourly.time.indices.min(by: {
+            abs(hourly.time[$0] - target) < abs(hourly.time[$1] - target)
+        }), abs(hourly.time[index] - target) <= 7_200 else { return nil }
+        return hourly.us_aqi[index]
+    }
+
+    func airQuality(at coordinate: Coordinate, date: Date) async -> Int? {
+        guard Self.isEnabled, Date.now.timeIntervalSince(date) < 6 * 86_400 else { return nil }
+        let url = URL(string: "https://air-quality-api.open-meteo.com/v1/air-quality?latitude=\(coordinate.latitude)&longitude=\(coordinate.longitude)&hourly=us_aqi&past_days=6&forecast_days=1&timeformat=unixtime")
+        guard let url else { return nil }
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 15
+        guard let (data, response) = try? await URLSession.shared.data(for: request),
+              (response as? HTTPURLResponse)?.statusCode == 200,
+              let decoded = try? JSONDecoder().decode(AirQualityResponse.self, from: data) else { return nil }
+        return Self.nearestAQI(to: date, in: decoded)
     }
 
     /// Best-effort: `nil` on any failure, and the caller just tries again

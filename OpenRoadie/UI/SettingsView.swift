@@ -14,6 +14,7 @@ struct SettingsView: View {
     @AppStorage(AlertCenter.autoEndKey) private var autoEndDrive = true
     @AppStorage(AutoDriveMonitor.handsFreeKey) private var handsFree = false
     @AppStorage(WeatherService.enabledKey) private var tripWeatherEnabled = true
+    @AppStorage(SevereWeatherWatch.enabledKey) private var weatherAlertsEnabled = true
     @AppStorage(ModelProviderChoice.defaultsKey) private var modelProvider = ModelProviderChoice.apple.rawValue
     @AppStorage(ModelProviderChoice.customURLKey) private var customModelURL = ""
     @AppStorage(ModelProviderChoice.customModelKey) private var customModelName = ""
@@ -129,8 +130,9 @@ struct SettingsView: View {
 
                 Section {
                     Toggle("Trip weather", isOn: $tripWeatherEnabled)
+                    Toggle("Severe weather alerts", isOn: $weatherAlertsEnabled)
                 } footer: {
-                    Text("Records the weather on each drive using Open-Meteo (open-meteo.com), free open weather data. One coordinate and a date are sent when a drive ends; older drives fill in a few per launch. Nothing else leaves the device.")
+                    Text("Trip weather records conditions and air quality on each drive using Open-Meteo (open-meteo.com), free open weather data; one coordinate and a date are sent when a drive ends, and older drives fill in a few per launch. Severe weather alerts check the U.S. National Weather Service (weather.gov) every few minutes while driving and chime once per Severe or Extreme alert. Nothing else leaves the device.")
                 }
 
                 Section {

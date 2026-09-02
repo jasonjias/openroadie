@@ -20,6 +20,9 @@ final class Trip {
     var temperatureC: Double?
     var precipitationMm: Double?
     var windKph: Double?
+    /// US AQI during the drive; nil when unknown (or the drive predates
+    /// Open-Meteo's recent-window air-quality data).
+    var usAqi: Int?
 
     @Relationship(deleteRule: .cascade, inverse: \TripPoint.trip)
     var points: [TripPoint]
@@ -169,11 +172,14 @@ final class TripStore {
 
     // MARK: - Weather
 
-    func setWeather(_ weather: TripWeather, on trip: Trip) {
+    func setWeather(_ weather: TripWeather, airQuality: Int? = nil, on trip: Trip) {
         trip.weatherCode = weather.wmoCode
         trip.temperatureC = weather.temperatureC
         trip.precipitationMm = weather.precipitationMm
         trip.windKph = weather.windKph
+        if let airQuality {
+            trip.usAqi = airQuality
+        }
         try? context.save()
     }
 
