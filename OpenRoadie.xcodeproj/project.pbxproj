@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		0B00000000000000000000A8 /* OpenRoadieWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 0B00000000000000000000A3 /* OpenRoadieWatch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		0C00000000000000000000C8 /* OpenRoadieWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 0C00000000000000000000C3 /* OpenRoadieWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -25,6 +26,13 @@
 			remoteGlobalIDString = 0B00000000000000000000A2;
 			remoteInfo = OpenRoadieWatch;
 		};
+		0C00000000000000000000C9 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 0A0000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 0C00000000000000000000C2;
+			remoteInfo = OpenRoadieWidgets;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -39,6 +47,17 @@
 			name = "Embed Watch Content";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		0C00000000000000000000C7 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				0C00000000000000000000C8 /* OpenRoadieWidgets.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
@@ -46,6 +65,7 @@
 		0A0000000000000000000007 /* OpenRoadieTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OpenRoadieTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		0A0000000000000000000020 /* Shared.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Shared.xcconfig; path = Config/Shared.xcconfig; sourceTree = "<group>"; };
 		0B00000000000000000000A3 /* OpenRoadieWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OpenRoadieWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		0C00000000000000000000C3 /* OpenRoadieWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = OpenRoadieWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -56,6 +76,20 @@
 			);
 			target = 0A0000000000000000000002 /* OpenRoadie */;
 		};
+		0C00000000000000000000CE /* Exceptions for "OpenRoadieWidgets" folder in "OpenRoadieWidgets" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 0C00000000000000000000C2 /* OpenRoadieWidgets */;
+		};
+		0C00000000000000000000CF /* Exceptions for "OpenRoadie" folder in "OpenRoadieWidgets" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Activity/DriveActivityAttributes.swift,
+			);
+			target = 0C00000000000000000000C2 /* OpenRoadieWidgets */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -63,8 +97,17 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				0A000000000000000000000A /* Exceptions for "OpenRoadie" folder in "OpenRoadie" target */,
+				0C00000000000000000000CF /* Exceptions for "OpenRoadie" folder in "OpenRoadieWidgets" target */,
 			);
 			path = OpenRoadie;
+			sourceTree = "<group>";
+		};
+		0C00000000000000000000C1 /* OpenRoadieWidgets */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				0C00000000000000000000CE /* Exceptions for "OpenRoadieWidgets" folder in "OpenRoadieWidgets" target */,
+			);
+			path = OpenRoadieWidgets;
 			sourceTree = "<group>";
 		};
 		0A0000000000000000000009 /* OpenRoadieTests */ = {
@@ -101,6 +144,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		0C00000000000000000000C5 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -111,6 +161,7 @@
 				0A0000000000000000000008 /* OpenRoadie */,
 				0A0000000000000000000009 /* OpenRoadieTests */,
 				0B00000000000000000000A1 /* OpenRoadieWatch */,
+				0C00000000000000000000C1 /* OpenRoadieWidgets */,
 				0A0000000000000000000005 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -121,6 +172,7 @@
 				0A0000000000000000000006 /* OpenRoadie.app */,
 				0A0000000000000000000007 /* OpenRoadieTests.xctest */,
 				0B00000000000000000000A3 /* OpenRoadieWatch.app */,
+				0C00000000000000000000C3 /* OpenRoadieWidgets.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -136,11 +188,13 @@
 				0A000000000000000000000C /* Frameworks */,
 				0A000000000000000000000D /* Resources */,
 				0B00000000000000000000A7 /* Embed Watch Content */,
+				0C00000000000000000000C7 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 				0B00000000000000000000AA /* PBXTargetDependency */,
+				0C00000000000000000000CA /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				0A0000000000000000000008 /* OpenRoadie */,
@@ -197,6 +251,28 @@
 			productReference = 0B00000000000000000000A3 /* OpenRoadieWatch.app */;
 			productType = "com.apple.product-type.application";
 		};
+		0C00000000000000000000C2 /* OpenRoadieWidgets */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0C00000000000000000000CB /* Build configuration list for PBXNativeTarget "OpenRoadieWidgets" */;
+			buildPhases = (
+				0C00000000000000000000C4 /* Sources */,
+				0C00000000000000000000C5 /* Frameworks */,
+				0C00000000000000000000C6 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				0C00000000000000000000C1 /* OpenRoadieWidgets */,
+			);
+			name = OpenRoadieWidgets;
+			packageProductDependencies = (
+			);
+			productName = OpenRoadieWidgets;
+			productReference = 0C00000000000000000000C3 /* OpenRoadieWidgets.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -229,6 +305,7 @@
 				0A0000000000000000000002 /* OpenRoadie */,
 				0A0000000000000000000003 /* OpenRoadieTests */,
 				0B00000000000000000000A2 /* OpenRoadieWatch */,
+				0C00000000000000000000C2 /* OpenRoadieWidgets */,
 			);
 		};
 /* End PBXProject section */
@@ -249,6 +326,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		0B00000000000000000000A6 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		0C00000000000000000000C6 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -279,6 +363,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		0C00000000000000000000C4 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -291,6 +382,11 @@
 			isa = PBXTargetDependency;
 			target = 0B00000000000000000000A2 /* OpenRoadieWatch */;
 			targetProxy = 0B00000000000000000000A9 /* PBXContainerItemProxy */;
+		};
+		0C00000000000000000000CA /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 0C00000000000000000000C2 /* OpenRoadieWidgets */;
+			targetProxy = 0C00000000000000000000C9 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -560,6 +656,52 @@
 			};
 			name = Release;
 		};
+		0C00000000000000000000CC /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 0A0000000000000000000020 /* Shared.xcconfig */;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = OpenRoadieWidgets/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = OpenRoadie;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.openroadie.OpenRoadie.Widgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		0C00000000000000000000CD /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 0A0000000000000000000020 /* Shared.xcconfig */;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = OpenRoadieWidgets/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = OpenRoadie;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.openroadie.OpenRoadie.Widgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -595,6 +737,15 @@
 			buildConfigurations = (
 				0B00000000000000000000AC /* Debug */,
 				0B00000000000000000000AD /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		0C00000000000000000000CB /* Build configuration list for PBXNativeTarget "OpenRoadieWidgets" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0C00000000000000000000CC /* Debug */,
+				0C00000000000000000000CD /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

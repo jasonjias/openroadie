@@ -38,6 +38,7 @@ final class DriveSessionManager {
     private let watchLink = PhoneWatchLink()
     private let weatherService = WeatherService()
     private let severeWeather = SevereWeatherWatch()
+    private let liveActivity = DriveActivityController()
     private let store: TripStore?
     private var tracker = TripTracker()
     private var alertEngine = SpeedAlertEngine()
@@ -135,6 +136,7 @@ final class DriveSessionManager {
             self?.isWalking = walking
         }
         motionService.start()
+        liveActivity.start(startDate: tracker.context.tripStart ?? .now)
 
         updatesTask = Task { [weak self] in
             guard let service = self?.locationService else { return }
@@ -163,6 +165,7 @@ final class DriveSessionManager {
         motionService.stop()
         tracker.stop()
         context = tracker.context
+        liveActivity.end(distanceMeters: context.tripDistance)
         watchLink.push(context: context, isDriving: false)
         if let trip = currentTrip {
             let willSave = trip.points.count >= 2
@@ -225,6 +228,12 @@ final class DriveSessionManager {
             evaluateSpeedRules()
             checkHazards()
             checkSevereWeather()
+            liveActivity.update(
+                speedMph: context.speed.map { Int(($0 * 2.236936).rounded()) },
+                distanceMeters: context.tripDistance,
+                isPaused: isPaused,
+                roadName: context.road?.displayName
+            )
             watchLink.push(context: context, isDriving: isDriving)
         }
 

@@ -16,6 +16,8 @@
 	<string>OpenRoadie can show photos you took during your drives on the trip maps. Photos stay in your library — nothing is copied or uploaded.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>Your questions are transcribed entirely on this device. Your voice never leaves your iPhone.</string>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>location</string>
