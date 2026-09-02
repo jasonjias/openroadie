@@ -24,6 +24,13 @@ struct TripDetailView: View {
         })
     }
 
+    /// "Aug 31, 10:04 – 10:32" — the drive as a time range.
+    private var titleText: String {
+        let start = trip.startDate.formatted(.dateTime.month().day().hour().minute())
+        guard let end = trip.endDate else { return start }
+        return "\(start) – \(end.formatted(.dateTime.hour().minute()))"
+    }
+
     @State private var colorMode: RouteColorMode = .speed
     @State private var shareURL: URL?
     @State private var showsFullMap = false
@@ -74,7 +81,7 @@ struct TripDetailView: View {
                 eventsSection
             }
         }
-        .navigationTitle(trip.startDate.formatted(.dateTime.month().day().hour().minute()))
+        .navigationTitle(titleText)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if let shareURL {
@@ -145,7 +152,7 @@ struct TripDetailView: View {
                 }
             }
             .animation(.snappy(duration: 0.25), value: selectedPin)
-            .navigationTitle(trip.startDate.formatted(.dateTime.month().day().hour().minute()))
+            .navigationTitle(titleText)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {

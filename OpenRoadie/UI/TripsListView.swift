@@ -539,8 +539,14 @@ private struct TripRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(trip.startDate, format: .dateTime.hour().minute())
-                .font(.headline)
+            // The drive as a time range — "10:04 – 10:32" — once it has an
+            // end; a still-recording drive shows just where it began.
+            Text(
+                trip.endDate.map {
+                    "\(trip.startDate.formatted(.dateTime.hour().minute())) – \($0.formatted(.dateTime.hour().minute()))"
+                } ?? trip.startDate.formatted(.dateTime.hour().minute())
+            )
+            .font(.headline)
             HStack(spacing: 12) {
                 if let duration = trip.duration {
                     Label(DriveFormatting.duration(duration), systemImage: "clock")

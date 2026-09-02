@@ -90,6 +90,35 @@ struct ParkDetectorTests {
         #expect(detector.process(speedMps: 0, stationary: true, at: t0 + 810) == .paused)
     }
 
+    /// The walk home used to BE part of the drive: ~3 mph of GPS speed
+    /// kept the trip alive and recorded the walk as a slow, roadless tail.
+    /// Core Motion saying "walking" now ends the drive within a minute.
+    @Test func walkingAwayEndsTheDriveFast() {
+        var detector = rolling(from: t0)
+        #expect(detector.process(speedMps: 1.6, stationary: false, walking: true, at: t0 + 60) == .unchanged)
+        #expect(detector.process(speedMps: 1.6, stationary: false, walking: true, at: t0 + 90) == .unchanged)
+        #expect(detector.process(speedMps: 1.6, stationary: false, walking: true, at: t0 + 106) == .endedWalkedAway)
+    }
+
+    @Test func walkingOverridesGPSSpeedAsEvidenceOfMotion() {
+        var detector = rolling(from: t0)
+        // Brisk walking at ~3.6 mph: without the walking flag this counts
+        // as vehicle motion and restarts the stop clock.
+        _ = detector.process(speedMps: 1.6, stationary: false, walking: true, at: t0 + 10)
+        #expect(detector.lastMovingAt == t0)
+    }
+
+    /// A phone jostled at a red light can misread as walking for a moment;
+    /// only SUSTAINED walking ends the drive.
+    @Test func aBlipOfWalkingChangesNothing() {
+        var detector = rolling(from: t0)
+        _ = detector.process(speedMps: 0, stationary: true, walking: true, at: t0 + 30)
+        let afterBlip = detector.process(speedMps: 12, stationary: false, walking: false, at: t0 + 50)
+        #expect(afterBlip == .unchanged)
+        // The walking clock restarted: another blip doesn't inherit the first.
+        #expect(detector.process(speedMps: 0, stationary: true, walking: true, at: t0 + 80) == .unchanged)
+    }
+
     @Test func fixesWithoutSpeedStayNeutral() {
         var detector = ParkDetector()
         detector.reset(at: t0)

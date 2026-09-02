@@ -29,6 +29,10 @@ struct ParkDetector: Equatable {
         /// A drive that never moves at all — Start Drive tapped and then
         /// nothing — closes itself out rather than holding GPS forever.
         var neverMovedTimeout: TimeInterval = 900
+        /// Core Motion saying "walking" for this long ends the drive now.
+        /// A walking driver is a parked car — waiting out `endedAfter`
+        /// would record the walk into the drive as a slow, roadless tail.
+        var walkedAwayAfter: TimeInterval = 45
     }
 
     /// What changed with this sample. Each transition is reported exactly
@@ -41,6 +45,8 @@ struct ParkDetector: Equatable {
         case resumed
         /// Settled long enough that the drive is over.
         case ended
+        /// The driver is on foot: the drive is over right now.
+        case endedWalkedAway
     }
 
     var config = Config()
@@ -54,16 +60,31 @@ struct ParkDetector: Equatable {
     /// The stop clock only runs once the drive has actually gone somewhere;
     /// before that, `neverMovedTimeout` applies instead.
     private var hasEverMoved = false
+    private var walkingSince: Date?
 
-    /// Feed every telemetry update.
-    mutating func process(speedMps: Double?, stationary: Bool, at now: Date) -> Decision {
+    /// Feed every telemetry update. `walking` is Core Motion's activity
+    /// classification: it overrides GPS speed, because a brisk walk reads
+    /// as ~3 mph of "vehicle" motion and used to keep the drive alive —
+    /// appending the walk to the route until the long-stop timer fired.
+    mutating func process(speedMps: Double?, stationary: Bool, walking: Bool = false, at now: Date) -> Decision {
         let startedAt = startedAt ?? now
         self.startedAt = startedAt
 
+        if walking {
+            let since = walkingSince ?? now
+            walkingSince = since
+            if now.timeIntervalSince(since) >= config.walkedAwayAfter {
+                return .endedWalkedAway
+            }
+        } else {
+            walkingSince = nil
+        }
+
         // Moving means either real road speed OR CoreLocation saying so —
         // a fix with no speed while not flagged stationary stays neutral
-        // rather than counting as parked.
-        let moving = (speedMps ?? 0) >= config.movingSpeed || (!stationary && speedMps == nil)
+        // rather than counting as parked. A walking phone is not a moving
+        // car, whatever its GPS speed says.
+        let moving = !walking && ((speedMps ?? 0) >= config.movingSpeed || (!stationary && speedMps == nil))
         if moving {
             hasEverMoved = true
             lastMovingAt = now
@@ -98,5 +119,6 @@ struct ParkDetector: Equatable {
         startedAt = now
         hasEverMoved = false
         isPaused = false
+        walkingSince = nil
     }
 }

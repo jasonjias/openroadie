@@ -117,6 +117,7 @@ struct PhoneUseDetector {
 @MainActor
 final class MotionService {
     private let manager = CMMotionManager()
+    private let activityManager = CMMotionActivityManager()
     private var detector = GForceDetector()
 
     /// Fired with the event's peak g-force.
@@ -125,10 +126,15 @@ final class MotionService {
     /// magnitude) — the raw material for cornering, phone-use, and the
     /// drive scene's lean. Values only; motion data stays here.
     var onRotationSample: ((Double, Double) -> Void)?
+    /// Fired when Core Motion's activity classification flips between
+    /// on-foot (walking/running) and anything else. The end-of-drive signal:
+    /// a walking driver is a parked car.
+    var onWalkingChange: ((Bool) -> Void)?
 
     var isAvailable: Bool { manager.isDeviceMotionAvailable }
 
     func start() {
+        startActivity()
         guard manager.isDeviceMotionAvailable, !manager.isDeviceMotionActive else { return }
         detector = GForceDetector()
         manager.deviceMotionUpdateInterval = 0.1
@@ -140,8 +146,19 @@ final class MotionService {
         }
     }
 
+    private func startActivity() {
+        guard CMMotionActivityManager.isActivityAvailable() else { return }
+        activityManager.startActivityUpdates(to: .main) { [weak self] activity in
+            guard let activity else { return }
+            MainActor.assumeIsolated {
+                self?.onWalkingChange?(activity.walking || activity.running)
+            }
+        }
+    }
+
     func stop() {
         manager.stopDeviceMotionUpdates()
+        activityManager.stopActivityUpdates()
     }
 
     private func process(_ motion: CMDeviceMotion) {

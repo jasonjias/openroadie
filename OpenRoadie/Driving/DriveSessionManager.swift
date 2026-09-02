@@ -57,6 +57,8 @@ final class DriveSessionManager {
     var speakCoaching: ((String) -> Void)?
     /// Recent (timestamp, mph) samples for classifying hard maneuvers.
     private var recentSpeeds: [(Date, Double)] = []
+    /// Core Motion's latest word on whether the phone is on foot.
+    private var isWalking = false
     private var corneringDetector = CorneringDetector()
     private var phoneUseDetector = PhoneUseDetector()
     /// Latest yaw rate (rad/s) — read by the drive scene for turn lean.
@@ -119,6 +121,10 @@ final class DriveSessionManager {
         hazards.startDrive()
         motionService.onRotationSample = { [weak self] yawRate, nonYaw in
             self?.processRotation(yawRate: yawRate, nonYaw: nonYaw)
+        }
+        isWalking = false
+        motionService.onWalkingChange = { [weak self] walking in
+            self?.isWalking = walking
         }
         motionService.start()
 
@@ -316,7 +322,7 @@ final class DriveSessionManager {
     /// "was that one trip or two?" now lives — reversible, and off the
     /// critical path.
     private func applyParkDecision() {
-        switch parkDetector.process(speedMps: context.speed, stationary: isStationary, at: .now) {
+        switch parkDetector.process(speedMps: context.speed, stationary: isStationary, walking: isWalking, at: .now) {
         case .unchanged:
             break
         case .paused:
@@ -330,7 +336,11 @@ final class DriveSessionManager {
             // that never ends itself would run until the battery died.
             guard AlertCenter.autoEndEnabled || AutoDriveMonitor.handsFree else { break }
             stopDrive()
-            alerts.deliverDriveAutoEnded()
+            alerts.deliverDriveAutoEnded(walkedAway: false)
+        case .endedWalkedAway:
+            guard AlertCenter.autoEndEnabled || AutoDriveMonitor.handsFree else { break }
+            stopDrive()
+            alerts.deliverDriveAutoEnded(walkedAway: true)
         }
     }
 

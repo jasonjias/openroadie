@@ -137,10 +137,12 @@ final class AlertCenter: NSObject, UNUserNotificationCenterDelegate {
         post(content)
     }
 
-    func deliverDriveAutoEnded() {
+    func deliverDriveAutoEnded(walkedAway: Bool = false) {
         let content = UNMutableNotificationContent()
         content.title = "Drive saved"
-        content.body = "You've been parked a while, so OpenRoadie ended and saved the drive."
+        content.body = walkedAway
+            ? "Looks like you walked away, so OpenRoadie ended and saved the drive."
+            : "You've been parked a while, so OpenRoadie ended and saved the drive."
         post(content)
     }
 
