@@ -475,6 +475,9 @@ struct DayDrivesMap: View {
     @State private var colorMode: RouteColorMode = .vsLimit
     @State private var photosModel = MapPhotosModel()
     @State private var viewingPhoto: MapPhoto?
+    /// The day's event pins (hard braking, over-limit, and friends) can
+    /// bury a photo-browsing session — one tap hides them.
+    @State private var showsEventPins = true
 
     /// The whole day's photos, not just drive-time — "I was here that day"
     /// includes what happened at the stops.
@@ -493,7 +496,9 @@ struct DayDrivesMap: View {
                     ColoredRoute(route: trip.route, mode: colorMode)
                 }
                 // The day's score-affecting mistakes, pinned where they happened.
-                EventMarkers(events: events)
+                if showsEventPins {
+                    EventMarkers(events: events)
+                }
                 if photosModel.isShowing {
                     PhotoAnnotations(photos: photosModel.photos, viewing: $viewingPhoto)
                 }
@@ -515,6 +520,14 @@ struct DayDrivesMap: View {
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    showsEventPins.toggle()
+                } label: {
+                    Image(systemName: showsEventPins ? "mappin.circle.fill" : "mappin.slash.circle")
+                }
+                .accessibilityLabel(showsEventPins ? "Hide event pins" : "Show event pins")
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 PhotoToggleButton(model: photosModel, windows: photoWindows)
             }
@@ -603,14 +616,25 @@ private struct TripRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            // The drive as a time range — "10:04 – 10:32" — once it has an
-            // end; a still-recording drive shows just where it began.
-            Text(
-                trip.endDate.map {
-                    "\(trip.startDate.formatted(.dateTime.hour().minute())) – \($0.formatted(.dateTime.hour().minute()))"
-                } ?? trip.startDate.formatted(.dateTime.hour().minute())
-            )
-            .font(.headline)
+            // Top line: when (the drive as a time range) and what the sky
+            // was doing — bottom line: the driving numbers.
+            HStack {
+                Text(
+                    trip.endDate.map {
+                        "\(trip.startDate.formatted(.dateTime.hour().minute())) – \($0.formatted(.dateTime.hour().minute()))"
+                    } ?? trip.startDate.formatted(.dateTime.hour().minute())
+                )
+                .font(.headline)
+                Spacer()
+                if let weather = trip.weather {
+                    Label(
+                        "\(DriveFormatting.fahrenheit(fromCelsius: weather.temperatureC))°",
+                        systemImage: WeatherCode.symbol(weather.wmoCode)
+                    )
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                }
+            }
             HStack(spacing: 12) {
                 if let duration = trip.duration {
                     Label(DriveFormatting.duration(duration), systemImage: "clock")
@@ -621,12 +645,6 @@ private struct TripRow: View {
                 } else {
                     Label("Recording…", systemImage: "record.circle")
                         .foregroundStyle(.red)
-                }
-                if let weather = trip.weather {
-                    Label(
-                        "\(DriveFormatting.fahrenheit(fromCelsius: weather.temperatureC))°",
-                        systemImage: WeatherCode.symbol(weather.wmoCode)
-                    )
                 }
             }
             .font(.caption)
