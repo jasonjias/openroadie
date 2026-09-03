@@ -34,6 +34,17 @@ final class AutoDriveMonitor {
     }
 
     static let modeKey = "autoStartDriveMode"
+    /// Rolling log of what detection last did — surfaced in Settings so a
+    /// silently missed drive can explain itself (field case: background
+    /// wake-ups fired but the probe died unseen).
+    static let eventLogKey = "autoDriveEventLog"
+
+    static func note(_ event: String) {
+        let stamp = Date.now.formatted(.dateTime.month(.defaultDigits).day().hour().minute())
+        var log = UserDefaults.standard.stringArray(forKey: eventLogKey) ?? []
+        log.append("\(stamp)  \(event)")
+        UserDefaults.standard.set(Array(log.suffix(6)), forKey: eventLogKey)
+    }
     /// Hands-free: no Start Drive button at all — OpenRoadie begins and ends
     /// drives on its own.
     static let handsFreeKey = "handsFreeDriveControl"
@@ -95,7 +106,9 @@ final class AutoDriveMonitor {
             MainActor.assumeIsolated {
                 guard let self, let activities, !activities.isEmpty else { return }
                 let automotive = activities.filter(\.automotive).count
-                if Double(automotive) / Double(activities.count) > 0.6 {
+                let share = Double(automotive) / Double(activities.count)
+                Self.note("wake check: \(Int(share * 100))% automotive")
+                if share > 0.6 {
                     self.log.info("recent history is automotive — probing for speed")
                     _ = self.detector.processMotion(automotive: true, otherActivity: false, at: .now.addingTimeInterval(-60))
                     if case .idle = self.detector.state {
@@ -164,19 +177,28 @@ final class AutoDriveMonitor {
         // walk recording. The walk ends itself at vehicle speed, and the
         // next driveLikely re-triggers the probe.
         guard probeTask == nil, !WalkRecorder.isActive else { return }
+        Self.note("probe started")
         probeTask = Task { [weak self] in
             // Always when granted: a probe that starts from a background
             // wake-up has no foreground to borrow When-In-Use from.
             let location = CLLocationManager().authorizationStatus == .authorizedAlways
                 ? CLServiceSession(authorization: .always)
                 : CLServiceSession(authorization: .whenInUse)
+            // THE background-relaunch fix: without an activity session iOS
+            // suspends a background-launched app seconds after the wake
+            // event — before the probe ever sees a road-speed fix. Field
+            // case: two wakes fired on the way to FedEx, both probes died
+            // silently, the drive went unrecorded.
+            let background = CLBackgroundActivitySession()
             LocationSessionJanitor.markSessionsOpen()
             defer {
                 location.invalidate()
+                background.invalidate()
                 // Only stand the flag down if no drive took over the
                 // sessions — a confirmed drive holds its own.
                 if self?.session.isDriving != true {
                     LocationSessionJanitor.markSessionsClosed()
+                    AutoDriveMonitor.note("probe ended unconfirmed")
                 }
             }
             var samples = 0
@@ -213,6 +235,7 @@ final class AutoDriveMonitor {
         switch Self.mode {
         case .automatic:
             log.info("drive confirmed — starting automatically")
+            Self.note("drive confirmed — started")
             session.startDrive()
             postNotification(
                 title: "Drive started",

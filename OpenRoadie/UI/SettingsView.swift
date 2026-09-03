@@ -148,6 +148,17 @@ struct SettingsView: View {
                         .disabled(autoStartMode == AutoDriveMonitor.Mode.off.rawValue)
                     Toggle("Hands-free (no Start Drive button)", isOn: $handsFree)
                         .disabled(autoStartMode != AutoDriveMonitor.Mode.automatic.rawValue)
+                    // What detection last did, so a missed drive explains
+                    // itself instead of failing silently.
+                    if let events = UserDefaults.standard.stringArray(forKey: AutoDriveMonitor.eventLogKey), !events.isEmpty {
+                        VStack(alignment: .leading, spacing: 2) {
+                            ForEach(events.reversed(), id: \.self) { event in
+                                Text(event)
+                            }
+                        }
+                        .font(.caption2.monospaced())
+                        .foregroundStyle(.secondary)
+                    }
                 } header: {
                     Text("Drive detection")
                 } footer: {
