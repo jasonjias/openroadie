@@ -65,6 +65,9 @@ final class AutoDriveMonitor {
     private var detector = DriveDetector()
     private var monitoring = false
     private var probeTask: Task<Void, Never>?
+    /// Keeps a background-launched app awake from the wake event until the
+    /// probe owns its own session.
+    private var wakeSession: CLBackgroundActivitySession?
     /// After a suggestion notification, stay quiet for a while — nagging
     /// every 20 seconds of the same drive would get the feature turned off.
     private var snoozedUntil: Date?
@@ -99,25 +102,67 @@ final class AutoDriveMonitor {
     /// Cold-start check: if the phone was already in automotive motion over
     /// the last few minutes, the drive is happening NOW — skip the wait.
     func checkRecentActivity() {
-        guard Self.mode != .off, !session.isDriving,
-              CMMotionActivityManager.isActivityAvailable() else { return }
+        guard Self.mode != .off, !session.isDriving else { return }
+        // A background-LAUNCHED app is suspended within seconds of its wake
+        // event unless it holds an activity session — including across this
+        // motion query. Held until the probe takes over its own.
+        wakeSession = CLBackgroundActivitySession()
+        guard CMMotionActivityManager.isActivityAvailable() else {
+            // No motion classifier on this device: the 500 m wake alone is
+            // reason enough to look at the speedometer.
+            Self.note("wake: no motion data — probing")
+            detector = Self.likelyDetector()
+            startSpeedProbe()
+            endWakeSession()
+            return
+        }
         let start = Date.now.addingTimeInterval(-180)
         activityManager.queryActivityStarting(from: start, to: .now, to: .main) { [weak self] activities, _ in
             MainActor.assumeIsolated {
-                guard let self, let activities, !activities.isEmpty else { return }
-                let automotive = activities.filter(\.automotive).count
-                let share = Double(automotive) / Double(activities.count)
-                Self.note("wake check: \(Int(share * 100))% automotive")
-                if share > 0.6 {
-                    self.log.info("recent history is automotive — probing for speed")
-                    _ = self.detector.processMotion(automotive: true, otherActivity: false, at: .now.addingTimeInterval(-60))
-                    if case .idle = self.detector.state {
-                        self.detector = Self.likelyDetector()
-                    }
-                    self.startSpeedProbe()
+                guard let self else { return }
+                let samples = activities ?? []
+                let automotive = samples.filter(\.automotive).count
+                let onFoot = samples.filter { $0.walking || $0.running }.count
+                guard Self.shouldProbe(automotive: automotive, onFoot: onFoot, samples: samples.count) else {
+                    Self.note("wake: on foot (\(onFoot)/\(samples.count)) — no probe")
+                    self.endWakeSession()
+                    return
                 }
+                Self.note("wake: \(automotive) auto / \(samples.count) samples — probing")
+                self.log.info("wake justifies a probe")
+                _ = self.detector.processMotion(automotive: true, otherActivity: false, at: .now.addingTimeInterval(-60))
+                if case .idle = self.detector.state {
+                    self.detector = Self.likelyDetector()
+                }
+                self.startSpeedProbe()
+                self.endWakeSession()
             }
         }
+    }
+
+    private func endWakeSession() {
+        wakeSession?.invalidate()
+        wakeSession = nil
+    }
+
+    /// Whether a background wake-up justifies spending GPS on a probe.
+    ///
+    /// The wake itself already means iOS saw ~500 m of travel — that is
+    /// evidence, not noise. The old rule demanded 60% automotive over the
+    /// previous three minutes, which the START of a drive can never
+    /// satisfy: that window is dominated by walking to the car and sitting
+    /// down, and Core Motion emits samples on CHANGE, so a real departure
+    /// looks like {walking, stationary, automotive} = 33%. Field case: the
+    /// wake at the top of the FedEx drive failed this gate and never
+    /// probed at all.
+    ///
+    /// Now the probe runs unless the window is dominated by on-foot
+    /// motion — you walked the 500 m. Pure and unit-tested.
+    nonisolated static func shouldProbe(automotive: Int, onFoot: Int, samples: Int) -> Bool {
+        if automotive > 0 { return true }
+        // No classification either way: the travel itself stands alone.
+        guard samples > 0 else { return true }
+        return Double(onFoot) / Double(samples) <= 0.6
     }
 
     /// A detector already in the possible-drive state (history proved the
@@ -178,6 +223,8 @@ final class AutoDriveMonitor {
         // next driveLikely re-triggers the probe.
         guard probeTask == nil, !WalkRecorder.isActive else { return }
         Self.note("probe started")
+        // The probe already primed the detector into possibleDrive, so
+        // confirmSpeed (~10 mph) applies rather than the undeniable bar.
         probeTask = Task { [weak self] in
             // Always when granted: a probe that starts from a background
             // wake-up has no foreground to borrow When-In-Use from.

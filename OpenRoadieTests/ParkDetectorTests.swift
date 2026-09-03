@@ -129,6 +129,32 @@ struct ParkDetectorTests {
     }
 }
 
+/// The wake-up gate, rewritten after the FedEx drive went unrecorded.
+struct WakeProbeGateTests {
+    /// The field case: departing means {walking, stationary, automotive} —
+    /// one automotive sample in three. The old 60% rule rejected it; a
+    /// single automotive sample is now enough.
+    @Test func oneAutomotiveSampleJustifiesAProbe() {
+        #expect(AutoDriveMonitor.shouldProbe(automotive: 1, onFoot: 1, samples: 3))
+    }
+
+    /// Core Motion had no opinion — but iOS still saw ~500 m of travel.
+    @Test func noSamplesStillProbes() {
+        #expect(AutoDriveMonitor.shouldProbe(automotive: 0, onFoot: 0, samples: 0))
+    }
+
+    /// You walked the 500 m: no reason to spend GPS.
+    @Test func onFootDominanceSkipsTheProbe() {
+        #expect(!AutoDriveMonitor.shouldProbe(automotive: 0, onFoot: 4, samples: 5))
+    }
+
+    /// Ambiguous windows (stationary-heavy, no automotive, little walking)
+    /// still probe — the speedometer is the cheap, definitive test.
+    @Test func ambiguousWindowsProbe() {
+        #expect(AutoDriveMonitor.shouldProbe(automotive: 0, onFoot: 1, samples: 4))
+    }
+}
+
 /// Reliability additions after the field report that auto-start "doesn't
 /// seem reliable".
 struct DriveDetectorFastPathTests {
