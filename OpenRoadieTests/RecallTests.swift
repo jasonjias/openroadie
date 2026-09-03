@@ -191,6 +191,8 @@ struct SessionBuilderTests {
         #expect(SessionBuilder.stopSymbol(forPlaceName: "Philz Coffee · Palo Alto") == "cup.and.saucer")
         #expect(SessionBuilder.stopSymbol(forPlaceName: "Chevron") == "fuelpump")
         #expect(SessionBuilder.stopSymbol(forPlaceName: "Oak Grove Ave · Menlo Park") == "mappin.circle")
+        // A street named Park is not a park.
+        #expect(SessionBuilder.stopSymbol(forPlaceName: "Park Blvd · Palo Alto") == "mappin.circle")
         #expect(SessionBuilder.stopSymbol(forPlaceName: nil) == "mappin.circle")
     }
 
@@ -228,5 +230,24 @@ struct SessionBuilderTests {
 
     @Test func aTwentyMinuteDozeIsNotANight() {
         #expect(HealthSessions.nights(from: [(t0, t0 + 1_200)]).isEmpty)
+    }
+}
+
+struct RouteThinningTests {
+    private func coord(_ i: Int) -> Coordinate {
+        Coordinate(latitude: Double(i), longitude: 0)
+    }
+
+    @Test func shortRoutesPassThroughUntouched() {
+        let route = (0..<50).map(coord)
+        #expect(HealthSessions.thin(route, to: 300) == route)
+    }
+
+    @Test func longRoutesKeepEndsAndSpreadEvenly() {
+        let route = (0..<3_000).map(coord)
+        let thinned = HealthSessions.thin(route, to: 300)
+        #expect(thinned.count == 300)
+        #expect(thinned.first == route.first)
+        #expect(thinned.last == route.last)
     }
 }

@@ -25,6 +25,8 @@ struct SessionItem: Identifiable, Equatable, Sendable {
     /// The backing trip, for drive cards — tapping opens the full trip
     /// detail, same as the Drives list.
     var tripID: PersistentIdentifier?
+    /// The backing HealthKit workout, for fetching its recorded route.
+    var workoutUUID: UUID?
     /// Where it happened, for stops — the detail view pins it.
     var coordinate: Coordinate?
 
@@ -51,7 +53,7 @@ enum SessionBuilder {
             (["restaurant", "grill", "kitchen", "pizza", "sushi", "ramen", "bbq", "taqueria", "diner"], "fork.knife"),
             (["gas", "chevron", "shell", "76", "arco", "supercharger", "charging"], "fuelpump"),
             (["school", "university", "college", "library"], "books.vertical"),
-            (["park", "trail", "beach"], "tree"),
+            (["trail", "beach"], "tree"),
             (["hospital", "medical", "clinic", "dental"], "cross.case"),
             (["mall", "plaza", "shopping"], "bag"),
         ]

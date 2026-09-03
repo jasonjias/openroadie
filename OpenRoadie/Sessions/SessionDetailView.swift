@@ -8,6 +8,9 @@ struct SessionDetailView: View {
     let item: SessionItem
     let accent: Color
 
+    @State private var route: [Coordinate] = []
+    @State private var health = HealthSessions()
+
     var body: some View {
         ScrollView {
             VStack(spacing: 18) {
@@ -58,6 +61,39 @@ struct SessionDetailView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 18))
                     .padding(.horizontal)
                 }
+
+                // The GPS trail the watch recorded with an outdoor workout.
+                if route.count >= 2 {
+                    let coordinates = route.map {
+                        CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude)
+                    }
+                    Map(initialPosition: .automatic, interactionModes: []) {
+                        MapPolyline(coordinates: coordinates)
+                            .stroke(accent, style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round))
+                        if let start = coordinates.first {
+                            Marker("Start", systemImage: "flag.fill", coordinate: start).tint(.green)
+                        }
+                        if let end = coordinates.last {
+                            Marker("End", systemImage: "flag.checkered", coordinate: end).tint(.red)
+                        }
+                    }
+                    .frame(height: 280)
+                    .clipShape(RoundedRectangle(cornerRadius: 18))
+                    .padding(.horizontal)
+                }
+
+                if item.kind == .walk {
+                    Text("No route for ambient walks — they come from the motion coprocessor's history, which records activity but not location. Walks recorded as watch workouts carry their route.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 28)
+                }
+            }
+        }
+        .task {
+            if let uuid = item.workoutUUID {
+                route = await health.route(forWorkoutWith: uuid)
             }
         }
         .background(Color.black)

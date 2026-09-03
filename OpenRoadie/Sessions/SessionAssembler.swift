@@ -81,7 +81,8 @@ enum SessionAssembler {
             items.append(SessionItem(
                 id: "workout-\(workout.start.timeIntervalSince1970)",
                 kind: .workout, symbol: look.symbol, title: look.title,
-                metric: metric, start: workout.start, end: workout.end
+                metric: metric, start: workout.start, end: workout.end,
+                workoutUUID: workout.uuid
             ))
         }
 

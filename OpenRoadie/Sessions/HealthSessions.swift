@@ -18,12 +18,14 @@ final class HealthSessions {
         guard isAvailable else { return }
         let types: Set<HKObjectType> = [
             .workoutType(),
+            HKSeriesType.workoutRoute(),
             HKObjectType.categoryType(forIdentifier: .sleepAnalysis)!,
         ]
         try? await store.requestAuthorization(toShare: [], read: types)
     }
 
     struct Workout: Equatable, Sendable {
+        var uuid: UUID
         var start: Date
         var end: Date
         var activity: UInt   // HKWorkoutActivityType rawValue
@@ -41,6 +43,7 @@ final class HealthSessions {
         guard let samples = try? await descriptor.result(for: store) else { return [] }
         return samples.map { workout in
             Workout(
+                uuid: workout.uuid,
                 start: workout.startDate,
                 end: workout.endDate,
                 activity: workout.workoutActivityType.rawValue,
@@ -50,6 +53,63 @@ final class HealthSessions {
                     .sumQuantity()?.doubleValue(for: .meter())
             )
         }
+    }
+
+    /// The GPS trail the watch recorded with an outdoor workout, thinned
+    /// for drawing. Empty when the workout has no route (indoor, or route
+    /// access not granted).
+    func route(forWorkoutWith uuid: UUID) async -> [Coordinate] {
+        guard isAvailable else { return [] }
+        // The workout itself, by identity.
+        let workoutDescriptor = HKSampleQueryDescriptor(
+            predicates: [.workout(HKQuery.predicateForObject(with: uuid))],
+            sortDescriptors: [], limit: 1
+        )
+        guard let workout = try? await workoutDescriptor.result(for: store).first else { return [] }
+        // Its route sample(s)…
+        let routeDescriptor = HKSampleQueryDescriptor(
+            predicates: [.sample(
+                type: HKSeriesType.workoutRoute(),
+                predicate: HKQuery.predicateForObjects(from: workout)
+            )],
+            sortDescriptors: [], limit: HKObjectQueryNoLimit
+        )
+        guard let samples = try? await routeDescriptor.result(for: store) else { return [] }
+        let routes = samples.compactMap { $0 as? HKWorkoutRoute }
+        guard !routes.isEmpty else { return [] }
+        // …streamed out as locations. The callback arrives repeatedly on
+        // HealthKit's queue: accumulate in a locked box, resume once done.
+        final class Box: @unchecked Sendable {
+            let lock = NSLock()
+            var coordinates: [Coordinate] = []
+        }
+        let box = Box()
+        for routeSample in routes {
+            await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+                let query = HKWorkoutRouteQuery(route: routeSample) { @Sendable _, locations, done, _ in
+                    if let locations {
+                        box.lock.lock()
+                        box.coordinates += locations.map {
+                            Coordinate(latitude: $0.coordinate.latitude, longitude: $0.coordinate.longitude)
+                        }
+                        box.lock.unlock()
+                    }
+                    if done {
+                        continuation.resume()
+                    }
+                }
+                store.execute(query)
+            }
+        }
+        return Self.thin(box.coordinates, to: 300)
+    }
+
+    /// Every Nth point plus the last — a watch walk records at 1 Hz and a
+    /// map needs nothing like that. Pure and unit-tested.
+    nonisolated static func thin(_ route: [Coordinate], to maximum: Int) -> [Coordinate] {
+        guard route.count > maximum, maximum >= 2 else { return route }
+        let stride = Double(route.count - 1) / Double(maximum - 1)
+        return (0..<maximum).map { route[Int((Double($0) * stride).rounded())] }
     }
 
     struct SleepNight: Equatable, Sendable {
