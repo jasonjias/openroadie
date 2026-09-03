@@ -348,6 +348,12 @@ struct TripDetailView: View {
 
     private func statsGrid(pace: PaceBands.Breakdown) -> some View {
         Grid(horizontalSpacing: 24, verticalSpacing: 12) {
+            // The when, explicitly — the nav title carries it too, but a
+            // stat this basic shouldn't hide in a title.
+            GridRow {
+                stat("Started", trip.startDate.formatted(.dateTime.hour().minute()))
+                stat("Ended", trip.endDate?.formatted(.dateTime.hour().minute()) ?? "—")
+            }
             GridRow {
                 stat("Distance", DriveFormatting.miles(fromMeters: trip.distance))
                 stat("Duration", trip.duration.map(DriveFormatting.duration) ?? "—")

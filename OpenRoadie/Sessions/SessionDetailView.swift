@@ -34,6 +34,12 @@ struct SessionDetailView: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.5)
 
+                if let subtitle = item.subtitle {
+                    Text(subtitle)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+
                 Grid(horizontalSpacing: 28, verticalSpacing: 12) {
                     GridRow {
                         fact("Started", item.start.formatted(.dateTime.hour().minute()))
