@@ -4,6 +4,8 @@
 <dict>
 	<key>NSAppleMusicUsageDescription</key>
 	<string>OpenRoadie searches your music library so Roadie can play songs you ask for while driving.</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>OpenRoadie can show your workouts and sleep from Health in the Sessions timeline, next to your drives and walks. Health data is read on this device only and never leaves it.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>With Always access, OpenRoadie notices when a drive starts and records it without you opening the app. Driving data stays on your device — nothing is uploaded.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>

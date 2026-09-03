@@ -181,3 +181,52 @@ struct WalkHistoryTests {
         #expect(kept[0].start == t0 + 2_000)
     }
 }
+
+struct SessionBuilderTests {
+    private let t0 = Date(timeIntervalSince1970: 1_724_500_000)
+
+    @Test func stopIconsMatchThePlace() {
+        #expect(SessionBuilder.stopSymbol(forPlaceName: "24 Hour Fitness · San Leandro") == "dumbbell")
+        #expect(SessionBuilder.stopSymbol(forPlaceName: "Walmart Supercenter") == "cart")
+        #expect(SessionBuilder.stopSymbol(forPlaceName: "Philz Coffee · Palo Alto") == "cup.and.saucer")
+        #expect(SessionBuilder.stopSymbol(forPlaceName: "Chevron") == "fuelpump")
+        #expect(SessionBuilder.stopSymbol(forPlaceName: "Oak Grove Ave · Menlo Park") == "mappin.circle")
+        #expect(SessionBuilder.stopSymbol(forPlaceName: nil) == "mappin.circle")
+    }
+
+    /// The same walk seen by two sensors is one event: the deliberate
+    /// HealthKit workout wins over the ambient motion-history walk.
+    @Test func ambientWalksCoveredByWorkoutsDrop() {
+        let kept = SessionBuilder.walks(
+            [(t0, t0 + 600), (t0 + 5_000, t0 + 5_600)],
+            notCoveredBy: [(t0 - 60, t0 + 700)]
+        )
+        #expect(kept.count == 1)
+        #expect(kept[0].start == t0 + 5_000)
+    }
+
+    @Test func sleepSamplesCoalesceIntoNights() {
+        // Core sleep, brief 3 AM wake, more sleep: one night, asleep time
+        // excludes the gap.
+        let nights = HealthSessions.nights(from: [
+            (t0, t0 + 3 * 3_600),
+            (t0 + 3 * 3_600 + 900, t0 + 7 * 3_600),
+        ])
+        #expect(nights.count == 1)
+        #expect(nights[0].start == t0)
+        #expect(nights[0].end == t0 + 7 * 3_600)
+        #expect(abs(nights[0].asleepSeconds - (7 * 3_600 - 900)) < 1)
+    }
+
+    @Test func aNapAndANightAreSeparate() {
+        let nights = HealthSessions.nights(from: [
+            (t0, t0 + 2 * 3_600),
+            (t0 + 10 * 3_600, t0 + 17 * 3_600),
+        ])
+        #expect(nights.count == 2)
+    }
+
+    @Test func aTwentyMinuteDozeIsNotANight() {
+        #expect(HealthSessions.nights(from: [(t0, t0 + 1_200)]).isEmpty)
+    }
+}

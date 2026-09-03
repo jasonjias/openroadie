@@ -88,6 +88,11 @@ struct TripsListView: View {
                 dayNotesSection
 
                 Section {
+                    NavigationLink {
+                        SessionsView()
+                    } label: {
+                        Label("Sessions", systemImage: "figure.run.square.stack")
+                    }
                     if !dayTrips.isEmpty {
                         NavigationLink {
                             DayDrivesMap(
