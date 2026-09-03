@@ -41,6 +41,9 @@ struct SessionItem: Identifiable, Equatable, Sendable {
     var usAqi: Int?
     /// A recorded trail (walk breadcrumbs) to draw in the detail.
     var route: [Coordinate]?
+    /// True when the trail is wake-up crumbs (~one point per 500 m), not a
+    /// continuous recording — the detail says so.
+    var routeIsCoarse: Bool = false
 
     var duration: TimeInterval { end.timeIntervalSince(start) }
 }
@@ -92,6 +95,20 @@ enum SessionBuilder {
     /// while parked at Walmart happened AT Walmart. Pure and unit-tested.
     static func enclosingStop(of date: Date, in stops: [(start: Date, end: Date)]) -> Int? {
         stops.firstIndex { $0.start <= date && date < $0.end }
+    }
+
+    /// The crumbs that fell during a walk, in order — its coarse trail.
+    /// A little slack either side catches the wake that fired just before
+    /// the coprocessor decided the walking had started. Pure, tested.
+    static func crumbTrail(
+        for interval: (start: Date, end: Date),
+        crumbs: [(date: Date, coordinate: Coordinate)],
+        slack: TimeInterval = 120
+    ) -> [Coordinate] {
+        crumbs
+            .filter { $0.date >= interval.start - slack && $0.date <= interval.end + slack }
+            .sorted { $0.date < $1.date }
+            .map(\.coordinate)
     }
 
     /// The known position nearest in time to a moment — how an ambient

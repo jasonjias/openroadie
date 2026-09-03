@@ -112,6 +112,14 @@ struct SessionDetailView: View {
                     .padding(.horizontal)
                 }
 
+                if item.kind == .walk, item.routeIsCoarse, !route.isEmpty {
+                    Text("Coarse trail — one point per ~500 m, from Always-on wake-ups. Walks recorded as watch workouts carry an exact route.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 28)
+                }
+
                 if item.kind == .walk, item.coordinate == nil, item.route == nil {
                     Text("No location for this walk — it comes from the motion coprocessor's history, which records activity but not position, and no drive pinned the phone nearby. Walks recorded as watch workouts carry their exact route.")
                         .font(.caption)

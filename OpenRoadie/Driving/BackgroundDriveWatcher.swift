@@ -36,7 +36,7 @@ final class BackgroundDriveWatcher: NSObject, CLLocationManagerDelegate {
 
     private let manager = CLLocationManager()
     private var running = false
-    private var onWake: (() -> Void)?
+    private var onWake: ((Coordinate?, Double) -> Void)?
     private let log = Logger(subsystem: "com.openroadie", category: "background")
 
     override init() {
@@ -55,7 +55,7 @@ final class BackgroundDriveWatcher: NSObject, CLLocationManagerDelegate {
 
     /// Starts (or stops) monitoring to match the setting. Safe to call on
     /// every launch and whenever the setting changes.
-    func refresh(onWake: @escaping () -> Void) {
+    func refresh(onWake: @escaping (Coordinate?, Double) -> Void) {
         self.onWake = onWake
         guard Self.isEnabled else {
             stop()
@@ -107,9 +107,14 @@ final class BackgroundDriveWatcher: NSObject, CLLocationManagerDelegate {
     // (main here), but the protocol isn't main-actor annotated.
 
     nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        // Pull the Sendable pieces out before hopping to the main actor.
+        let coordinate = locations.last.map {
+            Coordinate(latitude: $0.coordinate.latitude, longitude: $0.coordinate.longitude)
+        }
+        let accuracy = locations.last?.horizontalAccuracy ?? -1
         MainActor.assumeIsolated {
             log.info("woken by significant location change")
-            onWake?()
+            onWake?(coordinate, accuracy)
         }
     }
 

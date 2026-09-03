@@ -45,9 +45,16 @@ struct OpenRoadieApp: App {
                     // Then arm always-on detection — including the
                     // background relaunches iOS itself triggers, where this
                     // closure is the whole reason we woke up.
-                    backgroundWatcher.refresh { [weak autoDrive] in
+                    backgroundWatcher.refresh { [weak autoDrive, weak session] coordinate, accuracy in
+                        // Each wake drops a breadcrumb (unless a drive is
+                        // already recording the real route) — ambient walks
+                        // assemble coarse trails from these at read time.
+                        if let coordinate, accuracy >= 0, session?.isDriving != true {
+                            store.saveCrumb(coordinate, accuracy: accuracy)
+                        }
                         autoDrive?.checkRecentActivity()
                     }
+                    store.pruneCrumbs(olderThan: .now.addingTimeInterval(-8 * 86_400))
                     // Old trips gain weather a few at a time (Open-Meteo's
                     // archive), newest first. No-op once caught up.
                     await WeatherBackfill.run(store: store)

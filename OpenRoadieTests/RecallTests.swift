@@ -340,6 +340,29 @@ struct WalkAttributionTests {
     }
 }
 
+struct CrumbTrailTests {
+    private let t0 = Date(timeIntervalSince1970: 1_724_500_000)
+    private func c(_ i: Double) -> Coordinate { Coordinate(latitude: i, longitude: 0) }
+
+    @Test func crumbsInsideTheWalkFormATrailInOrder() {
+        let crumbs = [(t0 + 900, c(3)), (t0 + 100, c(1)), (t0 + 500, c(2)), (t0 + 9_000, c(9))]
+        let trail = SessionBuilder.crumbTrail(for: (t0, t0 + 1_000), crumbs: crumbs)
+        #expect(trail == [c(1), c(2), c(3)])
+    }
+
+    /// The wake that fired moments before the coprocessor called it a walk
+    /// still belongs to the walk.
+    @Test func slackCatchesTheEdgeCrumbs() {
+        let crumbs = [(t0 - 60, c(1)), (t0 + 1_060, c(2)), (t0 - 500, c(9))]
+        let trail = SessionBuilder.crumbTrail(for: (t0, t0 + 1_000), crumbs: crumbs)
+        #expect(trail == [c(1), c(2)])
+    }
+
+    @Test func noCrumbsMeansNoTrail() {
+        #expect(SessionBuilder.crumbTrail(for: (t0, t0 + 1_000), crumbs: []).isEmpty)
+    }
+}
+
 struct WalkAnchorTests {
     private let t0 = Date(timeIntervalSince1970: 1_724_500_000)
     private let home = Coordinate(latitude: 37.0, longitude: -122.0)

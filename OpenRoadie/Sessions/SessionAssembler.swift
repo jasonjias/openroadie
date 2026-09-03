@@ -16,6 +16,7 @@ enum SessionAssembler {
     static func assemble(
         trips: [Trip],
         walkPaths: [WalkPath] = [],
+        crumbs: [(date: Date, coordinate: Coordinate)] = [],
         from: Date,
         to: Date,
         sleepLookback: TimeInterval = 0,
@@ -170,6 +171,12 @@ enum SessionAssembler {
             // was I shopping" answered from time-window logic alone.
             var walkPlace: String?
             var anchor = SessionBuilder.nearestFix(to: interval.start, in: fixes)
+            // Always-on wake crumbs that fell during this walk: two or more
+            // make a coarse trail; even one beats a nearest-fix guess.
+            let trail = SessionBuilder.crumbTrail(for: interval, crumbs: crumbs)
+            if let first = trail.first {
+                anchor = first
+            }
             if let index = SessionBuilder.enclosingStop(
                 of: interval.start,
                 in: placedStops.map { ($0.start, $0.end) }
@@ -186,7 +193,9 @@ enum SessionAssembler {
                 subtitle: walkFacts.isEmpty ? nil : walkFacts.joined(separator: " · "),
                 start: interval.start, end: interval.end,
                 coordinate: anchor,
-                meters: meters
+                meters: meters,
+                route: trail.count >= 2 ? trail : nil,
+                routeIsCoarse: trail.count >= 2
             ))
         }
 

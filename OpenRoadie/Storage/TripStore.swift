@@ -113,12 +113,12 @@ final class TripStore {
     }
 
     static func persistent() throws -> TripStore {
-        TripStore(container: try ModelContainer(for: Trip.self, TripPoint.self, DriveNote.self, DriveEvent.self, WalkPath.self))
+        TripStore(container: try ModelContainer(for: Trip.self, TripPoint.self, DriveNote.self, DriveEvent.self, WalkPath.self, LocationCrumb.self))
     }
 
     static func inMemory() throws -> TripStore {
         let config = ModelConfiguration(isStoredInMemoryOnly: true)
-        return TripStore(container: try ModelContainer(for: Trip.self, TripPoint.self, DriveNote.self, DriveEvent.self, WalkPath.self, configurations: config))
+        return TripStore(container: try ModelContainer(for: Trip.self, TripPoint.self, DriveNote.self, DriveEvent.self, WalkPath.self, LocationCrumb.self, configurations: config))
     }
 
     func beginTrip(at date: Date = .now) -> Trip {
@@ -186,6 +186,25 @@ final class TripStore {
     func saveWalkPath(start: Date, end: Date, distance: Double, coordinates: [Coordinate]) {
         context.insert(WalkPath(startDate: start, endDate: end, distance: distance, coordinates: coordinates))
         try? context.save()
+    }
+
+    func saveCrumb(_ coordinate: Coordinate, accuracy: Double, at date: Date = .now) {
+        context.insert(LocationCrumb(timestamp: date, coordinate: coordinate, accuracy: accuracy))
+        try? context.save()
+    }
+
+    /// Crumbs older than the motion-history window have nothing to attach
+    /// to — prune them at launch.
+    func pruneCrumbs(olderThan cutoff: Date) {
+        let stale = (try? context.fetch(FetchDescriptor<LocationCrumb>(
+            predicate: #Predicate { $0.timestamp < cutoff }
+        ))) ?? []
+        for crumb in stale {
+            context.delete(crumb)
+        }
+        if !stale.isEmpty {
+            try? context.save()
+        }
     }
 
     // MARK: - Weather

@@ -118,15 +118,18 @@ struct DaySessionsSection: View {
         let paths = (try? modelContext.fetch(FetchDescriptor<WalkPath>(
             predicate: #Predicate { $0.startDate >= from && $0.startDate < to }
         ))) ?? []
+        let crumbs = ((try? modelContext.fetch(FetchDescriptor<LocationCrumb>(
+            predicate: #Predicate { $0.timestamp >= from && $0.timestamp < to }
+        ))) ?? []).map { (date: $0.timestamp, coordinate: $0.coordinate) }
         let result = await SessionAssembler.assemble(
-            trips: trips, walkPaths: paths, from: from, to: to, sleepLookback: 12 * 3_600,
+            trips: trips, walkPaths: paths, crumbs: crumbs, from: from, to: to, sleepLookback: 12 * 3_600,
             health: health, walkHistory: walkHistory
         )
         items = result.items
         if !result.unresolved.isEmpty {
             await SessionAssembler.warmNames(result.unresolved)
             items = await SessionAssembler.assemble(
-                trips: trips, walkPaths: paths, from: from, to: to, sleepLookback: 12 * 3_600,
+                trips: trips, walkPaths: paths, crumbs: crumbs, from: from, to: to, sleepLookback: 12 * 3_600,
                 health: health, walkHistory: walkHistory
             ).items
         }

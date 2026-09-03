@@ -90,15 +90,18 @@ struct SessionsView: View {
         let paths = (try? modelContext.fetch(FetchDescriptor<WalkPath>(
             predicate: #Predicate { $0.startDate >= from && $0.startDate < now }
         ))) ?? []
+        let crumbs = ((try? modelContext.fetch(FetchDescriptor<LocationCrumb>(
+            predicate: #Predicate { $0.timestamp >= from && $0.timestamp < now }
+        ))) ?? []).map { (date: $0.timestamp, coordinate: $0.coordinate) }
         let result = await SessionAssembler.assemble(
-            trips: trips, walkPaths: paths, from: from, to: now, health: health, walkHistory: walkHistory
+            trips: trips, walkPaths: paths, crumbs: crumbs, from: from, to: now, health: health, walkHistory: walkHistory
         )
         items = result.items
         loaded = true
         if !result.unresolved.isEmpty {
             await SessionAssembler.warmNames(result.unresolved)
             items = await SessionAssembler.assemble(
-                trips: trips, walkPaths: paths, from: from, to: now, health: health, walkHistory: walkHistory
+                trips: trips, walkPaths: paths, crumbs: crumbs, from: from, to: now, health: health, walkHistory: walkHistory
             ).items
         }
     }
