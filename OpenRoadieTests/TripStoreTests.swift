@@ -30,6 +30,20 @@ struct TripStoreTests {
         #expect(trip.endDate == Date(timeIntervalSinceReferenceDate: 20))
     }
 
+    /// Session drive-cards route via persistentModelID → model(for:) —
+    /// if this stops resolving, taps silently fall back to the sparse
+    /// session page instead of the full trip detail.
+    @Test func persistentIDRoundTripsToTheSameTrip() throws {
+        let store = try TripStore.inMemory()
+        let trip = store.beginTrip(at: Date(timeIntervalSinceReferenceDate: 0))
+        store.recordPoint(from: drivingContext(lat: 37.0, lon: -122.0, at: 10), in: trip)
+        store.recordPoint(from: drivingContext(lat: 37.001, lon: -122.0, at: 20), in: trip)
+        store.endTrip(trip, at: Date(timeIntervalSinceReferenceDate: 20), distance: 111, maxSpeed: 15)
+        let resolved = store.container.mainContext.model(for: trip.persistentModelID) as? Trip
+        #expect(resolved != nil)
+        #expect(resolved?.startDate == trip.startDate)
+    }
+
     private func makeStore() throws -> TripStore {
         try TripStore.inMemory()
     }

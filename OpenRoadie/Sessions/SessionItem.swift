@@ -34,6 +34,9 @@ struct SessionItem: Identifiable, Equatable, Sendable {
     var coordinate: Coordinate?
     /// Distance covered, when known — sizes a walk's approximate area.
     var meters: Double?
+    /// The drive's stamped weather and air quality, for the detail view.
+    var weather: TripWeather?
+    var usAqi: Int?
 
     var duration: TimeInterval { end.timeIntervalSince(start) }
 }

@@ -52,7 +52,9 @@ enum SessionAssembler {
                 metric: DriveFormatting.miles(fromMeters: trip.distance).uppercased(),
                 subtitle: facts.joined(separator: " · "),
                 start: trip.startDate, end: end,
-                tripID: trip.persistentModelID
+                tripID: trip.persistentModelID,
+                weather: trip.weather,
+                usAqi: trip.usAqi
             ))
         }
 
