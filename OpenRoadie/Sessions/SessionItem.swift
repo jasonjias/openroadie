@@ -86,6 +86,12 @@ enum SessionBuilder {
         return (0.5...2.0).contains(ratio) ? pedometerMeters : fromSteps
     }
 
+    /// The stop whose window contains this moment — a walk that happened
+    /// while parked at Walmart happened AT Walmart. Pure and unit-tested.
+    static func enclosingStop(of date: Date, in stops: [(start: Date, end: Date)]) -> Int? {
+        stops.firstIndex { $0.start <= date && date < $0.end }
+    }
+
     /// The known position nearest in time to a moment — how an ambient
     /// walk (recorded without location) gets anchored to the parking spot
     /// it started from. Pure and unit-tested; nil beyond the tolerance,

@@ -274,6 +274,20 @@ struct WalkDistanceSanityTests {
     }
 }
 
+struct WalkAttributionTests {
+    private let t0 = Date(timeIntervalSince1970: 1_724_500_000)
+
+    @Test func aWalkInsideAStopWindowBelongsToThatStop() {
+        let stops = [(t0, t0 + 1_000), (t0 + 5_000, t0 + 9_000)]
+        #expect(SessionBuilder.enclosingStop(of: t0 + 500, in: stops) == 0)
+        #expect(SessionBuilder.enclosingStop(of: t0 + 6_000, in: stops) == 1)
+        // Walking between stops (mid-drive misread window) matches nothing.
+        #expect(SessionBuilder.enclosingStop(of: t0 + 3_000, in: stops) == nil)
+        // Boundaries: start inclusive, end exclusive.
+        #expect(SessionBuilder.enclosingStop(of: t0 + 1_000, in: stops) == nil)
+    }
+}
+
 struct WalkAnchorTests {
     private let t0 = Date(timeIntervalSince1970: 1_724_500_000)
     private let home = Coordinate(latitude: 37.0, longitude: -122.0)

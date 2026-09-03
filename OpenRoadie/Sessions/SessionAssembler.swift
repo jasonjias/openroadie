@@ -57,6 +57,8 @@ enum SessionAssembler {
         }
 
         // Stops: gaps between one day's drives, named from cache only.
+        // Also remembered as windows, so walks can be attributed to them.
+        var placedStops: [(start: Date, end: Date, name: String?, coordinate: Coordinate?)] = []
         let byDay = Dictionary(grouping: completed) { calendar.startOfDay(for: $0.startDate) }
         for (_, dayTrips) in byDay {
             let ordered = dayTrips.sorted { $0.startDate < $1.startDate }
@@ -72,6 +74,7 @@ enum SessionAssembler {
                     name = PlaceNamer.shared.cachedName(for: coordinate)
                     if name == nil { unresolved.append(coordinate) }
                 }
+                placedStops.append((start, start.addingTimeInterval(stop.duration), name, stop.coordinate))
                 items.append(SessionItem(
                     id: "stop-\(start.timeIntervalSince1970)",
                     kind: .stop,
@@ -159,13 +162,29 @@ enum SessionAssembler {
             if let steps = walk?.steps {
                 walkFacts.append("\(steps) steps")
             }
+            // A walk inside a stop's window happened AT that place — "where
+            // was I shopping" answered from time-window logic alone.
+            var walkPlace: String?
+            var anchor = SessionBuilder.nearestFix(to: interval.start, in: fixes)
+            if let index = SessionBuilder.enclosingStop(
+                of: interval.start,
+                in: placedStops.map { ($0.start, $0.end) }
+            ) {
+                let stop = placedStops[index]
+                walkPlace = stop.name
+                anchor = stop.coordinate ?? anchor
+                if let base = stop.name?.components(separatedBy: " · ").first {
+                    walkFacts.append("at \(base)")
+                }
+            }
             items.append(SessionItem(
                 id: "walk-\(interval.start.timeIntervalSince1970)",
                 kind: .walk, symbol: "figure.walk", title: "Walk",
+                placeName: walkPlace,
                 metric: metric,
                 subtitle: walkFacts.isEmpty ? nil : walkFacts.joined(separator: " · "),
                 start: interval.start, end: interval.end,
-                coordinate: SessionBuilder.nearestFix(to: interval.start, in: fixes),
+                coordinate: anchor,
                 meters: meters
             ))
         }
