@@ -78,8 +78,13 @@ final class WalkHistory {
 
         var walks: [Walk] = []
         for interval in intervals {
+            // @Sendable is load-bearing: without it this closure inherits the
+            // class's main-actor isolation, and CMPedometer invokes it on its
+            // own queue — Swift 6's runtime isolation check then traps.
+            // (The activity query above survives because it takes an explicit
+            // OperationQueue; this API takes none.)
             let (meters, steps): (Double?, Int?) = await withCheckedContinuation { continuation in
-                pedometer.queryPedometerData(from: interval.start, to: interval.end) { data, _ in
+                pedometer.queryPedometerData(from: interval.start, to: interval.end) { @Sendable data, _ in
                     continuation.resume(returning: (data?.distance?.doubleValue, data?.numberOfSteps.intValue))
                 }
             }
