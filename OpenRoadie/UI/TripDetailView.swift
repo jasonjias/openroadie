@@ -78,6 +78,7 @@ struct TripDetailView: View {
                 paceSection(pace: pace)
                 speedChart(route: route)
                 statsGrid(pace: pace)
+                weatherCard
                 legsSection(legs: legs, samples: samples)
                 eventsSection
             }
@@ -369,25 +370,26 @@ struct TripDetailView: View {
                 stat("Max speed", trip.maxSpeed.map { "\(DriveFormatting.milesPerHour(fromMetersPerSecond: $0)) mph" } ?? "—")
                 stat("Moving", DriveFormatting.compactDuration(pace.movingSeconds))
             }
-            if let weather = trip.weather {
-                GridRow {
-                    stat(
-                        WeatherCode.label(weather.wmoCode),
-                        "\(DriveFormatting.fahrenheit(fromCelsius: weather.temperatureC))°F"
-                    )
-                    stat("Wind", "\(Int((weather.windKph * 0.621371).rounded())) mph")
-                }
-            }
-            if let aqi = trip.usAqi {
-                GridRow {
-                    stat("Air quality", "\(aqi) · \(AirQuality.label(aqi))")
-                    stat("Precip", trip.precipitationMm.map { String(format: "%.1f mm", $0) } ?? "—")
-                }
-            }
         }
         .frame(maxWidth: .infinity)
         .padding()
         .background(.bar)
+    }
+
+    /// Weather as its own widget-style card, not grid cells.
+    @ViewBuilder
+    private var weatherCard: some View {
+        if let weather = trip.weather {
+            WeatherCard(
+                weather: weather,
+                usAqi: trip.usAqi,
+                placeName: trip.route.last.flatMap {
+                    PlaceNamer.shared.cachedName(for: Coordinate(latitude: $0.latitude, longitude: $0.longitude))
+                }
+            )
+            .padding(.horizontal)
+            .padding(.top, 12)
+        }
     }
 
     private func stat(_ label: String, _ value: String) -> some View {

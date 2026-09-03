@@ -46,18 +46,16 @@ struct SessionDetailView: View {
                         fact("Ended", item.end.formatted(.dateTime.hour().minute()))
                         fact("Total", DriveFormatting.compactDuration(item.duration))
                     }
-                    if let weather = item.weather {
-                        GridRow {
-                            fact(WeatherCode.label(weather.wmoCode), "\(DriveFormatting.fahrenheit(fromCelsius: weather.temperatureC))°F")
-                            fact("Wind", "\(Int((weather.windKph * 0.621371).rounded())) mph")
-                            fact("Air", item.usAqi.map { "\($0) \(AirQuality.label($0))" } ?? "—")
-                        }
-                    }
                 }
                 .padding(.vertical, 14)
                 .frame(maxWidth: .infinity)
                 .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 18))
                 .padding(.horizontal)
+
+                if let weather = item.weather {
+                    WeatherCard(weather: weather, usAqi: item.usAqi, placeName: item.title)
+                        .padding(.horizontal)
+                }
 
                 if let coordinate = item.coordinate {
                     let center = CLLocationCoordinate2D(

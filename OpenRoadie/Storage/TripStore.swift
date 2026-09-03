@@ -20,6 +20,9 @@ final class Trip {
     var temperatureC: Double?
     var precipitationMm: Double?
     var windKph: Double?
+    /// Daylight during the drive — drives the weather card's sun-or-moon.
+    /// nil on rows stamped before the field existed (hour heuristic then).
+    var weatherIsDay: Bool?
     /// US AQI during the drive; nil when unknown (or the drive predates
     /// Open-Meteo's recent-window air-quality data).
     var usAqi: Int?
@@ -37,11 +40,14 @@ final class Trip {
 
     var weather: TripWeather? {
         guard let weatherCode, let temperatureC else { return nil }
+        // Rows stamped before day/night was stored fall back to the hour.
+        let hour = Calendar.current.component(.hour, from: startDate)
         return TripWeather(
             wmoCode: weatherCode,
             temperatureC: temperatureC,
             precipitationMm: precipitationMm ?? 0,
-            windKph: windKph ?? 0
+            windKph: windKph ?? 0,
+            isDay: weatherIsDay ?? (6..<20).contains(hour)
         )
     }
 
@@ -182,6 +188,7 @@ final class TripStore {
         trip.temperatureC = weather.temperatureC
         trip.precipitationMm = weather.precipitationMm
         trip.windKph = weather.windKph
+        trip.weatherIsDay = weather.isDay
         if let airQuality {
             trip.usAqi = airQuality
         }
