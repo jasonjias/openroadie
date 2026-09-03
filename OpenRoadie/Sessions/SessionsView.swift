@@ -125,11 +125,20 @@ struct SessionCard: View {
                     .foregroundStyle(tint)
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
+                if let subtitle = item.subtitle {
+                    Text(subtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
             }
             Spacer(minLength: 4)
             VStack(alignment: .trailing, spacing: 3) {
                 Text(item.start.formatted(.dateTime.month(.defaultDigits).day().year(.twoDigits)))
-                Text(item.start.formatted(.dateTime.hour().minute()))
+                // The span, not just the start — what the Drives rows say.
+                Text(item.duration >= 60
+                     ? "\(item.start.formatted(.dateTime.hour().minute())) – \(item.end.formatted(.dateTime.hour().minute()))"
+                     : item.start.formatted(.dateTime.hour().minute()))
             }
             .font(.footnote)
             .foregroundStyle(.secondary)

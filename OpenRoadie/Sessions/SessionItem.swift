@@ -20,6 +20,8 @@ struct SessionItem: Identifiable, Equatable, Sendable {
     var title: String
     /// The big lime number — "1.9 MI", "152 CAL", "7h 12m".
     var metric: String
+    /// Small secondary facts under the metric — "27 min · 74° Clear".
+    var subtitle: String?
     var start: Date
     var end: Date
     /// The backing trip, for drive cards — tapping opens the full trip

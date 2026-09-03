@@ -31,10 +31,28 @@ enum SessionAssembler {
 
         for trip in completed {
             guard let end = trip.endDate else { continue }
+            // The card says where the drive WENT — same noun the Story uses.
+            var title = "Drive"
+            if let last = trip.route.last {
+                let destination = Coordinate(latitude: last.latitude, longitude: last.longitude)
+                if let name = PlaceNamer.shared.cachedName(for: destination) {
+                    title = "→ \(name)"
+                } else {
+                    unresolved.append(destination)
+                }
+            }
+            var facts = [DriveFormatting.compactDuration(end.timeIntervalSince(trip.startDate))]
+            if let weather = trip.weather {
+                facts.append("\(DriveFormatting.fahrenheit(fromCelsius: weather.temperatureC))° \(WeatherCode.label(weather.wmoCode))")
+            }
+            if let maxSpeed = trip.maxSpeed {
+                facts.append("max \(DriveFormatting.milesPerHour(fromMetersPerSecond: maxSpeed)) mph")
+            }
             items.append(SessionItem(
                 id: "drive-\(trip.startDate.timeIntervalSince1970)",
-                kind: .drive, symbol: "car.fill", title: "Drive",
+                kind: .drive, symbol: "car.fill", title: title,
                 metric: DriveFormatting.miles(fromMeters: trip.distance).uppercased(),
+                subtitle: facts.joined(separator: " · "),
                 start: trip.startDate, end: end,
                 tripID: trip.persistentModelID
             ))
@@ -78,10 +96,15 @@ enum SessionAssembler {
             } else {
                 DriveFormatting.compactDuration(workout.end.timeIntervalSince(workout.start)).uppercased()
             }
+            var workoutFacts = [DriveFormatting.compactDuration(workout.end.timeIntervalSince(workout.start))]
+            if let kcal = workout.kilocalories, metric.hasSuffix("MI") {
+                workoutFacts.append("\(Int(kcal.rounded())) cal")
+            }
             items.append(SessionItem(
                 id: "workout-\(workout.start.timeIntervalSince1970)",
                 kind: .workout, symbol: look.symbol, title: look.title,
-                metric: metric, start: workout.start, end: workout.end,
+                metric: metric, subtitle: workoutFacts.joined(separator: " · "),
+                start: workout.start, end: workout.end,
                 workoutUUID: workout.uuid
             ))
         }
@@ -91,28 +114,40 @@ enum SessionAssembler {
                 id: "sleep-\(night.start.timeIntervalSince1970)",
                 kind: .sleep, symbol: "bed.double.fill", title: "Sleep",
                 metric: DriveFormatting.compactDuration(night.asleepSeconds).uppercased(),
+                subtitle: "in bed \(DriveFormatting.compactDuration(night.end.timeIntervalSince(night.start)))",
                 start: night.start, end: night.end
             ))
         }
 
         // Ambient walks (motion history reaches back ~a week), minus any
         // covered by a deliberate workout.
-        var walkIntervals: [(start: Date, end: Date)] = []
+        var allWalks: [WalkHistory.Walk] = []
         var day = calendar.startOfDay(for: min(to, .now))
         while day >= calendar.startOfDay(for: from),
               day > calendar.startOfDay(for: .now.addingTimeInterval(-8 * 86_400)) {
-            walkIntervals += (await walkHistory.walks(on: day))
-                .filter { $0.start >= from && $0.start < to }
-                .map { ($0.start, $0.end) }
+            allWalks += (await walkHistory.walks(on: day)).filter { $0.start >= from && $0.start < to }
             guard let previous = calendar.date(byAdding: .day, value: -1, to: day) else { break }
             day = previous
         }
-        for walk in SessionBuilder.walks(walkIntervals, notCoveredBy: workouts.map { ($0.start, $0.end) }) {
+        let kept = SessionBuilder.walks(
+            allWalks.map { ($0.start, $0.end) },
+            notCoveredBy: workouts.map { ($0.start, $0.end) }
+        )
+        for interval in kept {
+            let walk = allWalks.first { $0.start == interval.start }
+            var walkFacts: [String] = []
+            if let meters = walk?.meters {
+                walkFacts.append(DriveFormatting.shortDistance(fromMeters: meters))
+            }
+            if let steps = walk?.steps {
+                walkFacts.append("\(steps) steps")
+            }
             items.append(SessionItem(
-                id: "walk-\(walk.start.timeIntervalSince1970)",
+                id: "walk-\(interval.start.timeIntervalSince1970)",
                 kind: .walk, symbol: "figure.walk", title: "Walk",
-                metric: DriveFormatting.compactDuration(walk.end.timeIntervalSince(walk.start)).uppercased(),
-                start: walk.start, end: walk.end
+                metric: DriveFormatting.compactDuration(interval.end.timeIntervalSince(interval.start)).uppercased(),
+                subtitle: walkFacts.isEmpty ? nil : walkFacts.joined(separator: " · "),
+                start: interval.start, end: interval.end
             ))
         }
 
