@@ -163,7 +163,13 @@ final class DriveSessionManager {
         locationService.end()
         roadService.cancel()
         motionService.stop()
-        tracker.stop()
+        // The drive ended when the car last MOVED — not minutes later when
+        // the walk-away or settle detector got around to closing it. The
+        // parked tail otherwise lands inside the trip as phantom "Stopped"
+        // time (field report: a 14-minute trip showing 50% stopped).
+        let lastMoving = parkDetector.lastMovingAt
+        let endMoment = lastMoving.map { max($0, tracker.context.tripStart ?? $0) } ?? .now
+        tracker.stop(at: min(endMoment, .now))
         context = tracker.context
         liveActivity.end(distanceMeters: context.tripDistance)
         watchLink.push(context: context, isDriving: false)

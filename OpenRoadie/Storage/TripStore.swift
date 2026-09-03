@@ -141,6 +141,11 @@ final class TripStore {
     /// Finalizes a trip. Trips with fewer than two points carry no route worth
     /// keeping (a Start/Stop tap in a parking spot) and are discarded.
     func endTrip(_ trip: Trip, at date: Date, distance: Double, maxSpeed: Double?) {
+        // Points after the end are parked GPS drift recorded while the
+        // auto-end detectors were still deciding — not route.
+        for point in trip.points where point.timestamp > date.addingTimeInterval(1) {
+            context.delete(point)
+        }
         if trip.points.count < 2 {
             context.delete(trip)
             return

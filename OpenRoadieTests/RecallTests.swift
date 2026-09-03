@@ -119,3 +119,65 @@ struct AirQualityAndAlertTests {
         #expect(SevereWeatherWatch.parse(Data("{}".utf8)).isEmpty)
     }
 }
+
+struct WalkHistoryTests {
+    private let t0 = Date(timeIntervalSince1970: 1_724_500_000)
+
+    private func sample(_ offset: TimeInterval, _ walking: Bool) -> (date: Date, walking: Bool) {
+        (t0 + offset, walking)
+    }
+
+    @Test func contiguousWalkingSamplesChainIntoOneWalk() {
+        let intervals = WalkHistory.walkIntervals(
+            from: [sample(0, true), sample(120, true), sample(300, false)],
+            until: t0 + 600
+        )
+        #expect(intervals.count == 1)
+        #expect(intervals[0].start == t0)
+        #expect(intervals[0].end == t0 + 300)
+    }
+
+    /// A crosswalk light isn't the end of a walk: brief pauses merge.
+    @Test func briefPausesMergeLongOnesSplit() {
+        let merged = WalkHistory.walkIntervals(
+            from: [sample(0, true), sample(200, false), sample(290, true), sample(500, false)],
+            until: t0 + 900
+        )
+        #expect(merged.count == 1)
+        #expect(merged[0].end == t0 + 500)
+
+        let split = WalkHistory.walkIntervals(
+            from: [sample(0, true), sample(200, false), sample(600, true), sample(900, false)],
+            until: t0 + 1_200
+        )
+        #expect(split.count == 2)
+    }
+
+    /// A 40-second shuffle to the mailbox is not a walk worth a story line.
+    @Test func blipsBelowTheMinimumDrop() {
+        let intervals = WalkHistory.walkIntervals(
+            from: [sample(0, true), sample(40, false)],
+            until: t0 + 600
+        )
+        #expect(intervals.isEmpty)
+    }
+
+    @Test func aWalkStillInProgressRunsToTheQueryEnd() {
+        let intervals = WalkHistory.walkIntervals(
+            from: [sample(0, true)],
+            until: t0 + 400
+        )
+        #expect(intervals.count == 1)
+        #expect(intervals[0].start == t0)
+        #expect(intervals[0].end == t0 + 400)
+    }
+
+    @Test func walksInsideDrivesAreMisreadsAndDrop() {
+        let kept = DayStory.walksOutsideDrives(
+            [(t0 + 100, t0 + 400), (t0 + 2_000, t0 + 2_400)],
+            drives: [(t0, t0 + 1_000)]
+        )
+        #expect(kept.count == 1)
+        #expect(kept[0].start == t0 + 2_000)
+    }
+}

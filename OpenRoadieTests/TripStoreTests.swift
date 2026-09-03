@@ -16,6 +16,20 @@ private func drivingContext(
 
 @MainActor
 struct TripStoreTests {
+    /// The parked tail: points recorded after the drive's last moving
+    /// moment (while the auto-end detectors were deciding) are drift, not
+    /// route — ending the trip prunes them.
+    @Test func endTripPrunesPointsAfterTheEnd() throws {
+        let store = try TripStore.inMemory()
+        let trip = store.beginTrip(at: Date(timeIntervalSinceReferenceDate: 0))
+        store.recordPoint(from: drivingContext(lat: 37.0, lon: -122.0, at: 10), in: trip)
+        store.recordPoint(from: drivingContext(lat: 37.001, lon: -122.0, at: 20), in: trip)
+        store.recordPoint(from: drivingContext(lat: 37.00101, lon: -122.0, speed: 0, at: 200), in: trip)
+        store.endTrip(trip, at: Date(timeIntervalSinceReferenceDate: 20), distance: 111, maxSpeed: 15)
+        #expect(trip.points.count == 2)
+        #expect(trip.endDate == Date(timeIntervalSinceReferenceDate: 20))
+    }
+
     private func makeStore() throws -> TripStore {
         try TripStore.inMemory()
     }

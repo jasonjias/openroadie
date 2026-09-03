@@ -80,7 +80,7 @@ struct TripsListView: View {
                 // and its shape adds something the plain list doesn't
                 // (a stop between drives, or a named destination).
                 if completedDayTrips.count >= 1 {
-                    DayStorySection(trips: completedDayTrips)
+                    DayStorySection(trips: completedDayTrips, day: selectedDay)
                 }
 
                 daySection

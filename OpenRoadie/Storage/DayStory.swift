@@ -31,6 +31,19 @@ enum DayStory {
         }
     }
 
+    /// Walks whose midpoint lands inside a drive are Core Motion misreads
+    /// (a passenger's fidgeting, a stop-and-go crawl) — the story keeps
+    /// only walks that happened between drives. Pure and unit-tested.
+    static func walksOutsideDrives(
+        _ walks: [(start: Date, end: Date)],
+        drives: [(start: Date, end: Date)]
+    ) -> [(start: Date, end: Date)] {
+        walks.filter { walk in
+            let midpoint = walk.start.addingTimeInterval(walk.end.timeIntervalSince(walk.start) / 2)
+            return !drives.contains { $0.start <= midpoint && midpoint <= $0.end }
+        }
+    }
+
     /// The day's headline numbers, tied out over the same trips the story
     /// shows: total distance and total recorded drive time.
     static func totals(
