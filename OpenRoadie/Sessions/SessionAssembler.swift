@@ -131,6 +131,16 @@ enum SessionAssembler {
             allWalks.map { ($0.start, $0.end) },
             notCoveredBy: workouts.map { ($0.start, $0.end) }
         )
+        // Every moment a trip pinned the phone somewhere — walk anchors.
+        var fixes: [(date: Date, coordinate: Coordinate)] = []
+        for trip in completed {
+            if let first = trip.route.first {
+                fixes.append((trip.startDate, Coordinate(latitude: first.latitude, longitude: first.longitude)))
+            }
+            if let last = trip.route.last, let end = trip.endDate {
+                fixes.append((end, Coordinate(latitude: last.latitude, longitude: last.longitude)))
+            }
+        }
         for interval in kept {
             let walk = allWalks.first { $0.start == interval.start }
             let duration = DriveFormatting.compactDuration(interval.end.timeIntervalSince(interval.start))
@@ -151,7 +161,9 @@ enum SessionAssembler {
                 kind: .walk, symbol: "figure.walk", title: "Walk",
                 metric: metric,
                 subtitle: walkFacts.isEmpty ? nil : walkFacts.joined(separator: " · "),
-                start: interval.start, end: interval.end
+                start: interval.start, end: interval.end,
+                coordinate: SessionBuilder.nearestFix(to: interval.start, in: fixes),
+                meters: walk?.meters
             ))
         }
 

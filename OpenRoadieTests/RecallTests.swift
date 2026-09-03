@@ -251,3 +251,22 @@ struct RouteThinningTests {
         #expect(thinned.last == route.last)
     }
 }
+
+struct WalkAnchorTests {
+    private let t0 = Date(timeIntervalSince1970: 1_724_500_000)
+    private let home = Coordinate(latitude: 37.0, longitude: -122.0)
+    private let store = Coordinate(latitude: 37.05, longitude: -122.0)
+
+    @Test func aWalkAnchorsToTheNearestFixInTime() {
+        let fixes = [(t0, home), (t0 + 3_000, store)]
+        #expect(SessionBuilder.nearestFix(to: t0 + 600, in: fixes) == home)
+        #expect(SessionBuilder.nearestFix(to: t0 + 2_500, in: fixes) == store)
+    }
+
+    /// A fix hours away is a guess, not an anchor — better no map than a
+    /// wrong one.
+    @Test func fixesBeyondToleranceDoNotAnchor() {
+        #expect(SessionBuilder.nearestFix(to: t0 + 5 * 3_600, in: [(t0, home)]) == nil)
+        #expect(SessionBuilder.nearestFix(to: t0, in: []) == nil)
+    }
+}

@@ -29,8 +29,11 @@ struct SessionItem: Identifiable, Equatable, Sendable {
     var tripID: PersistentIdentifier?
     /// The backing HealthKit workout, for fetching its recorded route.
     var workoutUUID: UUID?
-    /// Where it happened, for stops — the detail view pins it.
+    /// Where it happened — exact for stops; for ambient walks, the nearest
+    /// known fix (usually where the car parked just before).
     var coordinate: Coordinate?
+    /// Distance covered, when known — sizes a walk's approximate area.
+    var meters: Double?
 
     var duration: TimeInterval { end.timeIntervalSince(start) }
 }
@@ -63,6 +66,20 @@ enum SessionBuilder {
             return match.symbol
         }
         return "mappin.circle"
+    }
+
+    /// The known position nearest in time to a moment — how an ambient
+    /// walk (recorded without location) gets anchored to the parking spot
+    /// it started from. Pure and unit-tested; nil beyond the tolerance,
+    /// because a fix from hours away would be a guess, not an anchor.
+    static func nearestFix(
+        to date: Date,
+        in fixes: [(date: Date, coordinate: Coordinate)],
+        tolerance: TimeInterval = 3 * 3_600
+    ) -> Coordinate? {
+        let best = fixes.min { abs($0.date.timeIntervalSince(date)) < abs($1.date.timeIntervalSince(date)) }
+        guard let best, abs(best.date.timeIntervalSince(date)) <= tolerance else { return nil }
+        return best.coordinate
     }
 
     /// Ambient walks that overlap a deliberate HealthKit workout are the

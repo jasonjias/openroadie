@@ -47,20 +47,37 @@ struct SessionDetailView: View {
                 .padding(.horizontal)
 
                 if let coordinate = item.coordinate {
+                    let center = CLLocationCoordinate2D(
+                        latitude: coordinate.latitude, longitude: coordinate.longitude
+                    )
+                    // A walk's location is inferred (nearest parked fix), so
+                    // it draws as an AREA around the anchor — never a fake
+                    // route. Stops pin their exact spot.
+                    let roaming = item.kind == .walk
+                        ? max(150, (item.meters ?? 300) * 0.5)
+                        : 0
                     Map(initialPosition: .camera(MapCamera(
-                        centerCoordinate: CLLocationCoordinate2D(
-                            latitude: coordinate.latitude, longitude: coordinate.longitude
-                        ),
-                        distance: 1_200
+                        centerCoordinate: center,
+                        distance: max(1_200, roaming * 6)
                     )), interactionModes: []) {
-                        Marker(item.title, systemImage: item.symbol, coordinate: CLLocationCoordinate2D(
-                            latitude: coordinate.latitude, longitude: coordinate.longitude
-                        ))
-                        .tint(accent)
+                        if roaming > 0 {
+                            MapCircle(center: center, radius: roaming)
+                                .foregroundStyle(accent.opacity(0.15))
+                                .stroke(accent.opacity(0.6), lineWidth: 2)
+                        }
+                        Marker(item.title, systemImage: item.symbol, coordinate: center)
+                            .tint(accent)
                     }
                     .frame(height: 240)
                     .clipShape(RoundedRectangle(cornerRadius: 18))
                     .padding(.horizontal)
+                    if item.kind == .walk {
+                        Text("Approximate — anchored to where the phone last had a fix (usually where you parked). Walks recorded as watch workouts carry their exact route.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 28)
+                    }
                 }
 
                 // The GPS trail the watch recorded with an outdoor workout.
@@ -83,8 +100,8 @@ struct SessionDetailView: View {
                     .padding(.horizontal)
                 }
 
-                if item.kind == .walk {
-                    Text("No route for ambient walks — they come from the motion coprocessor's history, which records activity but not location. Walks recorded as watch workouts carry their route.")
+                if item.kind == .walk, item.coordinate == nil {
+                    Text("No location for this walk — it comes from the motion coprocessor's history, which records activity but not position, and no drive pinned the phone nearby. Walks recorded as watch workouts carry their exact route.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
