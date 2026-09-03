@@ -13,8 +13,6 @@ struct DaySessionsSection: View {
     @State private var health = HealthSessions()
     @State private var walkHistory = WalkHistory()
 
-    private static let accent = Color(red: 0.75, green: 0.95, blue: 0.1)
-
     var body: some View {
         Section {
             ScrollView(.horizontal, showsIndicators: false) {
@@ -36,7 +34,7 @@ struct DaySessionsSection: View {
                     .foregroundStyle(.secondary)
             }
             ForEach(shown) { item in
-                SessionCardLink(item: item, accent: Self.accent)
+                SessionCardLink(item: item)
                     .listRowSeparator(.hidden)
                     .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
             }
@@ -55,19 +53,9 @@ struct DaySessionsSection: View {
     }
 
     private func chip(_ kind: SessionItem.Kind?, _ label: String) -> some View {
-        let selected = filter == kind
-        return Button {
+        SessionChip(kind: kind, label: label, selected: filter == kind) {
             filter = kind
-        } label: {
-            Text(label)
-                .font(.caption.weight(.semibold))
-                .fixedSize()
-                .padding(.horizontal, 13)
-                .padding(.vertical, 7)
-                .background(selected ? Self.accent : Color(.systemGray5), in: Capsule())
-                .foregroundStyle(selected ? .black : .primary)
         }
-        .buttonStyle(.plain)
     }
 
     private func rebuild() async {

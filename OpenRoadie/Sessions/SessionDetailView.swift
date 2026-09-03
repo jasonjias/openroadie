@@ -6,7 +6,8 @@ import SwiftUI
 /// the exact time range, and — for a stop — where it happened.
 struct SessionDetailView: View {
     let item: SessionItem
-    let accent: Color
+
+    private var accent: Color { item.kind.tint }
 
     @State private var route: [Coordinate] = []
     @State private var health = HealthSessions()
@@ -42,7 +43,7 @@ struct SessionDetailView: View {
                 }
                 .padding(.vertical, 14)
                 .frame(maxWidth: .infinity)
-                .background(Color(white: 0.11), in: RoundedRectangle(cornerRadius: 18))
+                .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 18))
                 .padding(.horizontal)
 
                 if let coordinate = item.coordinate {
@@ -96,8 +97,7 @@ struct SessionDetailView: View {
                 route = await health.route(forWorkoutWith: uuid)
             }
         }
-        .background(Color.black)
-        .preferredColorScheme(.dark)
+        .background(Color(.systemGroupedBackground))
         .navigationTitle(item.start.formatted(.dateTime.month().day()))
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -118,7 +118,6 @@ struct SessionDetailView: View {
 /// detail (same as the Drives list), everything else the session detail.
 struct SessionCardLink: View {
     let item: SessionItem
-    let accent: Color
 
     @Environment(\.modelContext) private var modelContext
 
@@ -128,10 +127,10 @@ struct SessionCardLink: View {
                let trip = modelContext.model(for: tripID) as? Trip {
                 TripDetailView(trip: trip)
             } else {
-                SessionDetailView(item: item, accent: accent)
+                SessionDetailView(item: item)
             }
         } label: {
-            SessionCard(item: item, accent: accent)
+            SessionCard(item: item)
         }
         .buttonStyle(.plain)
     }

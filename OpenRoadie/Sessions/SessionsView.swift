@@ -13,8 +13,6 @@ struct SessionsView: View {
     @State private var health = HealthSessions()
     @State private var walkHistory = WalkHistory()
 
-    private static let accent = Color(red: 0.75, green: 0.95, blue: 0.1)
-
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
@@ -29,8 +27,7 @@ struct SessionsView: View {
             }
             .padding(.horizontal)
         }
-        .background(Color.black)
-        .preferredColorScheme(.dark)
+        .background(Color(.systemGroupedBackground))
         .navigationTitle("Sessions")
         .task {
             await health.requestAccess()
@@ -53,19 +50,9 @@ struct SessionsView: View {
     }
 
     private func chip(_ kind: SessionItem.Kind?, _ label: String) -> some View {
-        let selected = filter == kind
-        return Button {
+        SessionChip(kind: kind, label: label, selected: filter == kind) {
             filter = kind
-        } label: {
-            Text(label)
-                .font(.subheadline.weight(.semibold))
-                .fixedSize()
-                .padding(.horizontal, 16)
-                .padding(.vertical, 9)
-                .background(selected ? Self.accent : Color(white: 0.14), in: Capsule())
-                .foregroundStyle(selected ? .black : .white)
         }
-        .buttonStyle(.plain)
     }
 
     @ViewBuilder
@@ -88,7 +75,7 @@ struct SessionsView: View {
                 .font(.title.bold())
                 .padding(.top, 6)
             ForEach(months[month] ?? []) { item in
-                SessionCardLink(item: item, accent: Self.accent)
+                SessionCardLink(item: item)
             }
         }
     }
@@ -117,26 +104,25 @@ struct SessionsView: View {
 /// accent metric, date at the trailing edge.
 struct SessionCard: View {
     let item: SessionItem
-    let accent: Color
 
     var body: some View {
+        let tint = item.kind.tint
         HStack(spacing: 14) {
             ZStack {
                 Circle()
-                    .fill(accent.opacity(0.16))
+                    .fill(tint.opacity(0.16))
                 Image(systemName: item.symbol)
                     .font(.title3)
-                    .foregroundStyle(accent)
+                    .foregroundStyle(tint)
             }
             .frame(width: 52, height: 52)
             VStack(alignment: .leading, spacing: 3) {
                 Text(item.title)
                     .font(.headline)
-                    .foregroundStyle(.white)
                     .lineLimit(1)
                 Text(item.metric)
-                    .font(.system(size: 30, weight: .heavy, design: .rounded))
-                    .foregroundStyle(accent)
+                    .font(.system(size: 26, weight: .bold, design: .rounded))
+                    .foregroundStyle(tint)
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
             }
@@ -148,7 +134,32 @@ struct SessionCard: View {
             .font(.footnote)
             .foregroundStyle(.secondary)
         }
-        .padding(16)
-        .background(Color(white: 0.11), in: RoundedRectangle(cornerRadius: 22))
+        .padding(14)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 18))
+    }
+}
+
+/// A filter chip that shows its kind's color when selected — "All" gets
+/// the app accent.
+struct SessionChip: View {
+    let kind: SessionItem.Kind?
+    let label: String
+    let selected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(label)
+                .font(.subheadline.weight(.semibold))
+                .fixedSize()
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(
+                    selected ? (kind?.tint ?? .accentColor) : Color(.secondarySystemGroupedBackground),
+                    in: Capsule()
+                )
+                .foregroundStyle(selected ? Color.white : .primary)
+        }
+        .buttonStyle(.plain)
     }
 }
