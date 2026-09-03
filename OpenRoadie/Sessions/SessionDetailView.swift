@@ -24,7 +24,7 @@ struct SessionDetailView: View {
                 .frame(width: 104, height: 104)
                 .padding(.top, 24)
 
-                Text(item.title)
+                Text(item.placeName ?? item.title)
                     .font(.title2.bold())
                     .multilineTextAlignment(.center)
 
@@ -53,7 +53,7 @@ struct SessionDetailView: View {
                 .padding(.horizontal)
 
                 if let weather = item.weather {
-                    WeatherCard(weather: weather, usAqi: item.usAqi, placeName: item.title)
+                    WeatherCard(weather: weather, usAqi: item.usAqi, placeName: item.placeName)
                         .padding(.horizontal)
                 }
 
@@ -76,7 +76,8 @@ struct SessionDetailView: View {
                                 .foregroundStyle(accent.opacity(0.15))
                                 .stroke(accent.opacity(0.6), lineWidth: 2)
                         }
-                        Marker(item.title, systemImage: item.symbol, coordinate: center)
+                        Marker(item.placeName?.components(separatedBy: " · ").first ?? item.title,
+                               systemImage: item.symbol, coordinate: center)
                             .tint(accent)
                     }
                     .frame(height: 240)

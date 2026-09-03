@@ -31,24 +31,22 @@ enum SessionAssembler {
 
         for trip in completed {
             guard let end = trip.endDate else { continue }
-            // The card says where the drive WENT — same noun the Story uses.
-            var title = "Drive"
+            // Kind is the title; where it went joins the facts line —
+            // long street names were truncating the headline.
+            var placeName: String?
             if let last = trip.route.last {
                 let destination = Coordinate(latitude: last.latitude, longitude: last.longitude)
-                if let name = PlaceNamer.shared.cachedName(for: destination) {
-                    title = "→ \(name)"
-                } else {
-                    unresolved.append(destination)
-                }
+                placeName = PlaceNamer.shared.cachedName(for: destination)
+                if placeName == nil { unresolved.append(destination) }
             }
-            // Two facts fit a card; the rest live one tap away in the detail.
             var facts = [DriveFormatting.compactDuration(end.timeIntervalSince(trip.startDate))]
-            if let weather = trip.weather {
-                facts.append("\(DriveFormatting.fahrenheit(fromCelsius: weather.temperatureC))° \(WeatherCode.label(weather.wmoCode))")
+            if let base = placeName?.components(separatedBy: " · ").first {
+                facts.append("→ \(base)")
             }
             items.append(SessionItem(
                 id: "drive-\(trip.startDate.timeIntervalSince1970)",
-                kind: .drive, symbol: "car.fill", title: title,
+                kind: .drive, symbol: "car.fill", title: "Drive",
+                placeName: placeName,
                 metric: DriveFormatting.miles(fromMeters: trip.distance).uppercased(),
                 subtitle: facts.joined(separator: " · "),
                 start: trip.startDate, end: end,
@@ -78,8 +76,10 @@ enum SessionAssembler {
                     id: "stop-\(start.timeIntervalSince1970)",
                     kind: .stop,
                     symbol: SessionBuilder.stopSymbol(forPlaceName: name),
-                    title: name ?? "Stop",
+                    title: "Parked",
+                    placeName: name,
                     metric: DriveFormatting.compactDuration(stop.duration).uppercased(),
+                    subtitle: name?.components(separatedBy: " · ").first,
                     start: start, end: start.addingTimeInterval(stop.duration),
                     coordinate: stop.coordinate
                 ))

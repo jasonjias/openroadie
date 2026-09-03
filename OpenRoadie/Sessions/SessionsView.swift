@@ -117,9 +117,7 @@ struct SessionCard: View {
             }
             .frame(width: 52, height: 52)
             VStack(alignment: .leading, spacing: 3) {
-                // The card gets the base name; the "· City" suffix would
-                // just truncate it. The detail keeps the full name.
-                Text(item.title.components(separatedBy: " · ").first ?? item.title)
+                Text(item.title)
                     .font(.headline)
                     .lineLimit(1)
                 Text(item.metric)

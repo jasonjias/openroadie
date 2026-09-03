@@ -18,6 +18,8 @@ struct SessionItem: Identifiable, Equatable, Sendable {
     /// SF Symbol for the card's circular icon.
     var symbol: String
     var title: String
+    /// Where — shown in the facts line on cards, in full on the detail.
+    var placeName: String?
     /// The big lime number — "1.9 MI", "152 CAL", "7h 12m".
     var metric: String
     /// Small secondary facts under the metric — "27 min · 74° Clear".
