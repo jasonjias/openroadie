@@ -73,6 +73,19 @@ enum SessionBuilder {
         return "mappin.circle"
     }
 
+    /// A walk's believable distance. The pedometer sometimes reports a
+    /// distance wildly out of step (sorry) with its own step count; when
+    /// the two disagree beyond ballpark (2× either way against a 0.75 m
+    /// stride), the steps win — they're the direct measurement.
+    static func walkMeters(pedometerMeters: Double?, steps: Int?) -> Double? {
+        let strideMeters = 0.75
+        let fromSteps = steps.map { Double($0) * strideMeters }
+        guard let pedometerMeters else { return fromSteps }
+        guard let fromSteps, fromSteps > 0 else { return pedometerMeters }
+        let ratio = pedometerMeters / fromSteps
+        return (0.5...2.0).contains(ratio) ? pedometerMeters : fromSteps
+    }
+
     /// The known position nearest in time to a moment — how an ambient
     /// walk (recorded without location) gets anchored to the parking spot
     /// it started from. Pure and unit-tested; nil beyond the tolerance,

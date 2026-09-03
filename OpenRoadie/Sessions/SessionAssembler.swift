@@ -151,7 +151,8 @@ enum SessionAssembler {
             // with its duration.
             var metric = duration.uppercased()
             var walkFacts: [String] = []
-            if let meters = walk?.meters {
+            let meters = SessionBuilder.walkMeters(pedometerMeters: walk?.meters, steps: walk?.steps)
+            if let meters {
                 metric = DriveFormatting.shortDistance(fromMeters: meters).uppercased()
                 walkFacts.append(duration)
             }
@@ -165,7 +166,7 @@ enum SessionAssembler {
                 subtitle: walkFacts.isEmpty ? nil : walkFacts.joined(separator: " · "),
                 start: interval.start, end: interval.end,
                 coordinate: SessionBuilder.nearestFix(to: interval.start, in: fixes),
-                meters: walk?.meters
+                meters: meters
             ))
         }
 

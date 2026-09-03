@@ -107,38 +107,44 @@ struct SessionCard: View {
 
     var body: some View {
         let tint = item.kind.tint
-        HStack(spacing: 14) {
-            ZStack {
-                Circle()
-                    .fill(tint.opacity(0.16))
-                Image(systemName: item.symbol)
-                    .font(.title3)
-                    .foregroundStyle(tint)
-            }
-            .frame(width: 52, height: 52)
-            VStack(alignment: .leading, spacing: 3) {
-                Text(item.title)
-                    .font(.headline)
-                    .lineLimit(1)
-                Text(item.metric)
-                    .font(.system(size: 26, weight: .bold, design: .rounded))
-                    .foregroundStyle(tint)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.6)
-                if let subtitle = item.subtitle {
-                    Text(subtitle)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+        VStack(alignment: .leading, spacing: 5) {
+            HStack(spacing: 14) {
+                ZStack {
+                    Circle()
+                        .fill(tint.opacity(0.16))
+                    Image(systemName: item.symbol)
+                        .font(.title3)
+                        .foregroundStyle(tint)
                 }
+                .frame(width: 52, height: 52)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(item.title)
+                        .font(.headline)
+                        .lineLimit(1)
+                    Text(item.metric)
+                        .font(.system(size: 26, weight: .bold, design: .rounded))
+                        .foregroundStyle(tint)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                }
+                Spacer(minLength: 4)
+                VStack(alignment: .trailing, spacing: 3) {
+                    Text(item.start.formatted(.dateTime.month(.defaultDigits).day().year(.twoDigits)))
+                    Text(item.start.formatted(.dateTime.hour().minute()))
+                }
+                .font(.footnote)
+                .foregroundStyle(.secondary)
             }
-            Spacer(minLength: 4)
-            VStack(alignment: .trailing, spacing: 3) {
-                Text(item.start.formatted(.dateTime.month(.defaultDigits).day().year(.twoDigits)))
-                Text(item.start.formatted(.dateTime.hour().minute()))
+            if let subtitle = item.subtitle {
+                // Its own full-width row under the header, aligned with the
+                // text column — long street names get the whole card width
+                // instead of squeezing beside the date.
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .padding(.leading, 66)
             }
-            .font(.footnote)
-            .foregroundStyle(.secondary)
         }
         .padding(14)
         .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 18))

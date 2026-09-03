@@ -252,6 +252,28 @@ struct RouteThinningTests {
     }
 }
 
+struct WalkDistanceSanityTests {
+    /// The field case: 311 steps reported as 0.1 mi is inside ballpark and
+    /// keeps the pedometer's number; a wild disagreement hands the answer
+    /// to the step count.
+    @Test func ballparkAgreementKeepsThePedometer() {
+        #expect(SessionBuilder.walkMeters(pedometerMeters: 160, steps: 311) == 160)
+    }
+
+    @Test func wildDisagreementTrustsTheSteps() {
+        // 40 m claimed for 400 steps (~300 m of walking): steps win.
+        #expect(SessionBuilder.walkMeters(pedometerMeters: 40, steps: 400) == 300)
+        // 2 km claimed for 200 steps: steps win again.
+        #expect(SessionBuilder.walkMeters(pedometerMeters: 2_000, steps: 200) == 150)
+    }
+
+    @Test func missingHalvesFallBackHonestly() {
+        #expect(SessionBuilder.walkMeters(pedometerMeters: 120, steps: nil) == 120)
+        #expect(SessionBuilder.walkMeters(pedometerMeters: nil, steps: 100) == 75)
+        #expect(SessionBuilder.walkMeters(pedometerMeters: nil, steps: nil) == nil)
+    }
+}
+
 struct WalkAnchorTests {
     private let t0 = Date(timeIntervalSince1970: 1_724_500_000)
     private let home = Coordinate(latitude: 37.0, longitude: -122.0)
