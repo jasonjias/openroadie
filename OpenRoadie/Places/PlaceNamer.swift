@@ -49,6 +49,13 @@ final class PlaceNamer {
         }
     }
 
+    /// Instant, cache-only. For assembly paths that must never wait on
+    /// the network — resolve misses in the background and re-ask.
+    func cachedName(for coordinate: Coordinate) -> String? {
+        guard let cached = cache[Self.cacheKey(for: coordinate)], !cached.isEmpty else { return nil }
+        return cached
+    }
+
     func name(for coordinate: Coordinate) async -> String? {
         let key = Self.cacheKey(for: coordinate)
         if let cached = cache[key] {

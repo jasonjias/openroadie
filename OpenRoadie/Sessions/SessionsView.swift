@@ -93,106 +93,25 @@ struct SessionsView: View {
         }
     }
 
-    /// Assembles the timeline from every source. Walks come from motion
-    /// history (~a week); trips and Health reach back 30 days.
+    /// Assembles instantly from cache, then warms missing stop names in
+    /// the background and assembles once more with them filled in.
     private func rebuild() async {
-        let calendar = Calendar.current
         let now = Date.now
-        let from = calendar.date(byAdding: .day, value: -30, to: now) ?? now
-        var built: [SessionItem] = []
-
-        let completed = trips.filter { $0.endDate != nil && $0.startDate >= from }
-
-        for trip in completed {
-            guard let end = trip.endDate else { continue }
-            built.append(SessionItem(
-                id: "drive-\(trip.startDate.timeIntervalSince1970)",
-                kind: .drive, symbol: "car.fill", title: "Drive",
-                metric: DriveFormatting.miles(fromMeters: trip.distance).uppercased(),
-                start: trip.startDate, end: end
-            ))
-        }
-
-        // Stops: the gaps between one day's drives, named by the geocoder.
-        let byDay = Dictionary(grouping: completed) { calendar.startOfDay(for: $0.startDate) }
-        for (_, dayTrips) in byDay {
-            let ordered = dayTrips.sorted { $0.startDate < $1.startDate }
-            let stops = DayStory.stops(between: ordered.map { trip in
-                let last = trip.route.last
-                return (trip.startDate, trip.endDate ?? trip.startDate,
-                        last.map { Coordinate(latitude: $0.latitude, longitude: $0.longitude) })
-            })
-            for stop in stops {
-                let start = ordered[stop.afterTrip].endDate ?? ordered[stop.afterTrip].startDate
-                let name = await stop.coordinate.asyncFlatMap { await PlaceNamer.shared.name(for: $0) }
-                built.append(SessionItem(
-                    id: "stop-\(start.timeIntervalSince1970)",
-                    kind: .stop,
-                    symbol: SessionBuilder.stopSymbol(forPlaceName: name),
-                    title: name ?? "Stop",
-                    metric: DriveFormatting.compactDuration(stop.duration).uppercased(),
-                    start: start, end: start.addingTimeInterval(stop.duration)
-                ))
-            }
-        }
-
-        let workouts = await health.workouts(from: from, to: now)
-        for workout in workouts {
-            let look = HealthSessions.workoutPresentation(activity: workout.activity)
-            let metric: String = if let meters = workout.meters, meters > 150 {
-                String(format: "%.2f MI", meters / 1609.344)
-            } else if let kcal = workout.kilocalories {
-                "\(Int(kcal.rounded())) CAL"
-            } else {
-                DriveFormatting.compactDuration(workout.end.timeIntervalSince(workout.start)).uppercased()
-            }
-            built.append(SessionItem(
-                id: "workout-\(workout.start.timeIntervalSince1970)",
-                kind: .workout, symbol: look.symbol, title: look.title,
-                metric: metric, start: workout.start, end: workout.end
-            ))
-        }
-
-        for night in await health.sleepNights(from: from, to: now) {
-            built.append(SessionItem(
-                id: "sleep-\(night.start.timeIntervalSince1970)",
-                kind: .sleep, symbol: "bed.double.fill", title: "Sleep",
-                metric: DriveFormatting.compactDuration(night.asleepSeconds).uppercased(),
-                start: night.start, end: night.end
-            ))
-        }
-
-        // Ambient walks last, minus any covered by a deliberate workout.
-        var walkIntervals: [(start: Date, end: Date)] = []
-        for dayOffset in 0...7 {
-            guard let day = calendar.date(byAdding: .day, value: -dayOffset, to: now) else { continue }
-            walkIntervals += (await walkHistory.walks(on: day)).map { ($0.start, $0.end) }
-        }
-        let ambient = SessionBuilder.walks(
-            walkIntervals,
-            notCoveredBy: workouts.map { ($0.start, $0.end) }
+        let from = Calendar.current.date(byAdding: .day, value: -30, to: now) ?? now
+        let result = await SessionAssembler.assemble(
+            trips: trips, from: from, to: now, health: health, walkHistory: walkHistory
         )
-        for walk in ambient {
-            built.append(SessionItem(
-                id: "walk-\(walk.start.timeIntervalSince1970)",
-                kind: .walk, symbol: "figure.walk", title: "Walk",
-                metric: DriveFormatting.compactDuration(walk.end.timeIntervalSince(walk.start)).uppercased(),
-                start: walk.start, end: walk.end
-            ))
-        }
-
-        items = built.sorted { $0.start > $1.start }
-    }
-}
-
-private extension Optional {
-    func asyncFlatMap<T>(_ transform: (Wrapped) async -> T?) async -> T? {
-        switch self {
-        case .some(let value): await transform(value)
-        case .none: nil
+        items = result.items
+        loaded = true
+        if !result.unresolved.isEmpty {
+            await SessionAssembler.warmNames(result.unresolved)
+            items = await SessionAssembler.assemble(
+                trips: trips, from: from, to: now, health: health, walkHistory: walkHistory
+            ).items
         }
     }
 }
+
 
 /// One Fitness-style card: dark rounded rectangle, circular icon, big
 /// accent metric, date at the trailing edge.

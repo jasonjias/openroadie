@@ -85,6 +85,10 @@ struct TripsListView: View {
 
                 daySection
 
+                // Fitness-style cards for the same day — intentionally
+                // redundant with Story while the presentation gets chosen.
+                DaySessionsSection(trips: completedDayTrips, day: selectedDay)
+
                 dayNotesSection
 
                 Section {
