@@ -39,6 +39,8 @@ struct SessionItem: Identifiable, Equatable, Sendable {
     /// The drive's stamped weather and air quality, for the detail view.
     var weather: TripWeather?
     var usAqi: Int?
+    /// A recorded trail (walk breadcrumbs) to draw in the detail.
+    var route: [Coordinate]?
 
     var duration: TimeInterval { end.timeIntervalSince(start) }
 }

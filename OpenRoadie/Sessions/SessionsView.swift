@@ -7,6 +7,8 @@ import SwiftUI
 struct SessionsView: View {
     @Query(sort: \Trip.startDate, order: .reverse) private var trips: [Trip]
 
+    @Environment(\.modelContext) private var modelContext
+
     @State private var filter: SessionItem.Kind?
     @State private var items: [SessionItem] = []
     @State private var loaded = false
@@ -85,15 +87,18 @@ struct SessionsView: View {
     private func rebuild() async {
         let now = Date.now
         let from = Calendar.current.date(byAdding: .day, value: -30, to: now) ?? now
+        let paths = (try? modelContext.fetch(FetchDescriptor<WalkPath>(
+            predicate: #Predicate { $0.startDate >= from && $0.startDate < now }
+        ))) ?? []
         let result = await SessionAssembler.assemble(
-            trips: trips, from: from, to: now, health: health, walkHistory: walkHistory
+            trips: trips, walkPaths: paths, from: from, to: now, health: health, walkHistory: walkHistory
         )
         items = result.items
         loaded = true
         if !result.unresolved.isEmpty {
             await SessionAssembler.warmNames(result.unresolved)
             items = await SessionAssembler.assemble(
-                trips: trips, from: from, to: now, health: health, walkHistory: walkHistory
+                trips: trips, walkPaths: paths, from: from, to: now, health: health, walkHistory: walkHistory
             ).items
         }
     }

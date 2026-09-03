@@ -39,6 +39,7 @@ final class DriveSessionManager {
     private let weatherService = WeatherService()
     private let severeWeather = SevereWeatherWatch()
     private let liveActivity = DriveActivityController()
+    private let walkRecorder: WalkRecorder
     private let store: TripStore?
     private var tracker = TripTracker()
     private var alertEngine = SpeedAlertEngine()
@@ -75,6 +76,7 @@ final class DriveSessionManager {
     /// `store` is optional so previews and tests can run without persistence.
     init(store: TripStore? = nil) {
         self.store = store
+        self.walkRecorder = WalkRecorder(store: store)
         // Alert rules apply live: whether changed in Settings or written by
         // Roadie ("warn me at 80"), the engine reconfigures mid-drive.
         NotificationCenter.default.addObserver(
@@ -96,6 +98,7 @@ final class DriveSessionManager {
 
     func startDrive() {
         guard !isDriving else { return }
+        walkRecorder.finish()
         lastErrorDescription = nil
         isStationary = false
         isPaused = false
@@ -405,6 +408,9 @@ final class DriveSessionManager {
             guard AlertCenter.autoEndEnabled || AutoDriveMonitor.handsFree else { break }
             stopDrive()
             alerts.deliverDriveAutoEnded(walkedAway: true)
+            // The one window where walk breadcrumbs exist without always-on
+            // location: the app is alive RIGHT NOW because the drive was.
+            walkRecorder.start()
         }
     }
 

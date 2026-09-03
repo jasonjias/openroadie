@@ -160,7 +160,10 @@ final class AutoDriveMonitor {
     /// Short-lived GPS session purely to see road speed. Ends as soon as the
     /// detector decides either way.
     private func startSpeedProbe() {
-        guard probeTask == nil else { return }
+        // One liveUpdates stream per process: never probe over an active
+        // walk recording. The walk ends itself at vehicle speed, and the
+        // next driveLikely re-triggers the probe.
+        guard probeTask == nil, !WalkRecorder.isActive else { return }
         probeTask = Task { [weak self] in
             // Always when granted: a probe that starts from a background
             // wake-up has no foreground to borrow When-In-Use from.

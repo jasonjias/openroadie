@@ -1,3 +1,4 @@
+import SwiftData
 import SwiftUI
 
 /// The selected day's activities as Fitness-style cards, inline on the
@@ -114,15 +115,18 @@ struct DaySessionsSection: View {
         let from = calendar.startOfDay(for: day)
         let to = calendar.date(byAdding: .day, value: 1, to: from) ?? from
         // Sleep looks 12 h back so last night belongs to this morning.
+        let paths = (try? modelContext.fetch(FetchDescriptor<WalkPath>(
+            predicate: #Predicate { $0.startDate >= from && $0.startDate < to }
+        ))) ?? []
         let result = await SessionAssembler.assemble(
-            trips: trips, from: from, to: to, sleepLookback: 12 * 3_600,
+            trips: trips, walkPaths: paths, from: from, to: to, sleepLookback: 12 * 3_600,
             health: health, walkHistory: walkHistory
         )
         items = result.items
         if !result.unresolved.isEmpty {
             await SessionAssembler.warmNames(result.unresolved)
             items = await SessionAssembler.assemble(
-                trips: trips, from: from, to: to, sleepLookback: 12 * 3_600,
+                trips: trips, walkPaths: paths, from: from, to: to, sleepLookback: 12 * 3_600,
                 health: health, walkHistory: walkHistory
             ).items
         }

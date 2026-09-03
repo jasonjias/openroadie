@@ -57,7 +57,7 @@ struct SessionDetailView: View {
                         .padding(.horizontal)
                 }
 
-                if let coordinate = item.coordinate {
+                if let coordinate = item.coordinate, item.route == nil {
                     let center = CLLocationCoordinate2D(
                         latitude: coordinate.latitude, longitude: coordinate.longitude
                     )
@@ -112,7 +112,7 @@ struct SessionDetailView: View {
                     .padding(.horizontal)
                 }
 
-                if item.kind == .walk, item.coordinate == nil {
+                if item.kind == .walk, item.coordinate == nil, item.route == nil {
                     Text("No location for this walk — it comes from the motion coprocessor's history, which records activity but not position, and no drive pinned the phone nearby. Walks recorded as watch workouts carry their exact route.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -122,7 +122,9 @@ struct SessionDetailView: View {
             }
         }
         .task {
-            if let uuid = item.workoutUUID {
+            if let trail = item.route {
+                route = HealthSessions.thin(trail, to: 300)
+            } else if let uuid = item.workoutUUID {
                 route = await health.route(forWorkoutWith: uuid)
             }
         }

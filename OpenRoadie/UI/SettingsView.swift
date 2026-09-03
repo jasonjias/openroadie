@@ -16,6 +16,7 @@ struct SettingsView: View {
     @AppStorage(WeatherService.enabledKey) private var tripWeatherEnabled = true
     @AppStorage(SevereWeatherWatch.enabledKey) private var weatherAlertsEnabled = true
     @AppStorage(DriveActivityController.enabledKey) private var liveActivityEnabled = true
+    @AppStorage(WalkRecorder.enabledKey) private var walkBreadcrumbs = true
     @AppStorage(ModelProviderChoice.defaultsKey) private var modelProvider = ModelProviderChoice.apple.rawValue
     @AppStorage(ModelProviderChoice.customURLKey) private var customModelURL = ""
     @AppStorage(ModelProviderChoice.customModelKey) private var customModelName = ""
@@ -162,10 +163,11 @@ struct SettingsView: View {
                 Section {
                     Toggle("End drive when settled", isOn: $autoEndDrive)
                     Toggle("Live Activity", isOn: $liveActivityEnabled)
+                    Toggle("Record walks after parking", isOn: $walkBreadcrumbs)
                 } header: {
                     Text("Recording")
                 } footer: {
-                    Text("A drive keeps recording through stops. Sit still for 5 minutes and it pauses \u{2014} a gas stop, a drive-thru, a jam \u{2014} then resumes on its own when you move, all as one drive. After 25 minutes settled it ends and saves. Trip detail splits a drive into legs at any stop over 10 minutes, so \u{201C}there and back\u{201D} still reads as two runs without ever risking a lost trip. Live Activity puts the drive in the Dynamic Island and on the Lock Screen while recording \u{2014} speed, distance, and the trip timer at a glance.")
+                    Text("A drive keeps recording through stops. Sit still for 5 minutes and it pauses \u{2014} a gas stop, a drive-thru, a jam \u{2014} then resumes on its own when you move, all as one drive. After 25 minutes settled it ends and saves. Trip detail splits a drive into legs at any stop over 10 minutes, so \u{201C}there and back\u{201D} still reads as two runs without ever risking a lost trip. Live Activity puts the drive in the Dynamic Island and on the Lock Screen while recording \u{2014} speed, distance, and the trip timer at a glance. When a drive ends because you walked away, OpenRoadie can keep GPS for that walk and record its trail \u{2014} it stops within minutes of you stopping, and the walk appears with its own map. Everything stays on this device.")
                 }
 
                 Section {

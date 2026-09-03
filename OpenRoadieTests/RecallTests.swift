@@ -274,6 +274,58 @@ struct WalkDistanceSanityTests {
     }
 }
 
+struct WalkEndDetectorTests {
+    private let t0 = Date(timeIntervalSince1970: 1_724_500_000)
+
+    @Test func walkingKeepsRecording() {
+        var detector = WalkEndDetector()
+        for minute in 0...20 {
+            let ended = detector.process(walking: true, speedMps: 1.4, at: t0 + Double(minute) * 60)
+            #expect(!ended)
+        }
+    }
+
+    /// Standing still in an aisle isn't the end; three minutes of not
+    /// walking is.
+    @Test func stoppingWalkingEndsAfterThreeMinutes() {
+        var detector = WalkEndDetector()
+        _ = detector.process(walking: true, speedMps: 1.2, at: t0)
+        let early = detector.process(walking: false, speedMps: 0, at: t0 + 100)
+        let late = detector.process(walking: false, speedMps: 0, at: t0 + 290)
+        #expect(!early)
+        #expect(late)
+    }
+
+    @Test func vehicleSpeedEndsImmediately() {
+        var detector = WalkEndDetector()
+        _ = detector.process(walking: true, speedMps: 1.2, at: t0)
+        let ended = detector.process(walking: false, speedMps: 9, at: t0 + 30)
+        #expect(ended)
+    }
+
+    @Test func theCapEndsEvenAPerpetualWalker() {
+        var detector = WalkEndDetector()
+        _ = detector.process(walking: true, speedMps: 1.4, at: t0)
+        let ended = detector.process(walking: true, speedMps: 1.4, at: t0 + 46 * 60)
+        #expect(ended)
+    }
+}
+
+struct WalkPathModelTests {
+    @Test func coordinatesRoundTrip() {
+        let coords = [
+            Coordinate(latitude: 37.1, longitude: -122.2),
+            Coordinate(latitude: 37.2, longitude: -122.3),
+        ]
+        let path = WalkPath(
+            startDate: .init(timeIntervalSince1970: 0),
+            endDate: .init(timeIntervalSince1970: 600),
+            distance: 400, coordinates: coords
+        )
+        #expect(path.coordinates == coords)
+    }
+}
+
 struct WalkAttributionTests {
     private let t0 = Date(timeIntervalSince1970: 1_724_500_000)
 

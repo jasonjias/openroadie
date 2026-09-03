@@ -15,6 +15,7 @@ enum SessionAssembler {
 
     static func assemble(
         trips: [Trip],
+        walkPaths: [WalkPath] = [],
         from: Date,
         to: Date,
         sleepLookback: TimeInterval = 0,
@@ -132,9 +133,12 @@ enum SessionAssembler {
             guard let previous = calendar.date(byAdding: .day, value: -1, to: day) else { break }
             day = previous
         }
+        // Recorded trails first: real breadcrumbs beat inferred intervals.
+        let recorded = walkPaths.filter { $0.startDate >= from && $0.startDate < to }
         let kept = SessionBuilder.walks(
             allWalks.map { ($0.start, $0.end) },
             notCoveredBy: workouts.map { ($0.start, $0.end) }
+                + recorded.map { ($0.startDate, $0.endDate) }
         )
         // Every moment a trip pinned the phone somewhere — walk anchors.
         var fixes: [(date: Date, coordinate: Coordinate)] = []
@@ -173,9 +177,6 @@ enum SessionAssembler {
                 let stop = placedStops[index]
                 walkPlace = stop.name
                 anchor = stop.coordinate ?? anchor
-                if let base = stop.name?.components(separatedBy: " · ").first {
-                    walkFacts.append("at \(base)")
-                }
             }
             items.append(SessionItem(
                 id: "walk-\(interval.start.timeIntervalSince1970)",
@@ -186,6 +187,29 @@ enum SessionAssembler {
                 start: interval.start, end: interval.end,
                 coordinate: anchor,
                 meters: meters
+            ))
+        }
+
+        for path in recorded {
+            let coordinates = path.coordinates
+            var trailPlace: String?
+            if let index = SessionBuilder.enclosingStop(
+                of: path.startDate,
+                in: placedStops.map { ($0.start, $0.end) }
+            ) {
+                trailPlace = placedStops[index].name
+            }
+            let duration = DriveFormatting.compactDuration(path.endDate.timeIntervalSince(path.startDate))
+            items.append(SessionItem(
+                id: "walkpath-\(path.startDate.timeIntervalSince1970)",
+                kind: .walk, symbol: "figure.walk", title: "Walk",
+                placeName: trailPlace,
+                metric: DriveFormatting.shortDistance(fromMeters: path.distance).uppercased(),
+                subtitle: duration,
+                start: path.startDate, end: path.endDate,
+                coordinate: coordinates.first,
+                meters: path.distance,
+                route: coordinates
             ))
         }
 

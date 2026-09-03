@@ -113,12 +113,12 @@ final class TripStore {
     }
 
     static func persistent() throws -> TripStore {
-        TripStore(container: try ModelContainer(for: Trip.self, TripPoint.self, DriveNote.self, DriveEvent.self))
+        TripStore(container: try ModelContainer(for: Trip.self, TripPoint.self, DriveNote.self, DriveEvent.self, WalkPath.self))
     }
 
     static func inMemory() throws -> TripStore {
         let config = ModelConfiguration(isStoredInMemoryOnly: true)
-        return TripStore(container: try ModelContainer(for: Trip.self, TripPoint.self, DriveNote.self, DriveEvent.self, configurations: config))
+        return TripStore(container: try ModelContainer(for: Trip.self, TripPoint.self, DriveNote.self, DriveEvent.self, WalkPath.self, configurations: config))
     }
 
     func beginTrip(at date: Date = .now) -> Trip {
@@ -179,6 +179,13 @@ final class TripStore {
             predicate: #Predicate { $0.endDate != nil }
         ))) ?? []
         return Streak.compute(trips: completed, events: allEvents())
+    }
+
+    // MARK: - Walk trails
+
+    func saveWalkPath(start: Date, end: Date, distance: Double, coordinates: [Coordinate]) {
+        context.insert(WalkPath(startDate: start, endDate: end, distance: distance, coordinates: coordinates))
+        try? context.save()
     }
 
     // MARK: - Weather
