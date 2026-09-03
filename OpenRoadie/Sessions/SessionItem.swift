@@ -49,6 +49,48 @@ struct SessionItem: Identifiable, Equatable, Sendable {
 }
 
 enum SessionBuilder {
+    /// Every moment between drives is a STAY somewhere — computed across
+    /// day boundaries (the overnight at home is one stay), with the final
+    /// gap running to `until` (where you are right now). This is what makes
+    /// the day a continuous stream instead of cards with holes. Pure.
+    static func stays(
+        between trips: [(start: Date, end: Date, lastCoordinate: Coordinate?)],
+        until: Date,
+        minimumDuration: TimeInterval = 180
+    ) -> [(start: Date, end: Date, coordinate: Coordinate?)] {
+        let ordered = trips.sorted { $0.start < $1.start }
+        var stays: [(start: Date, end: Date, coordinate: Coordinate?)] = []
+        for (earlier, later) in zip(ordered, ordered.dropFirst()) {
+            let gap = later.start.timeIntervalSince(earlier.end)
+            if gap >= minimumDuration {
+                stays.append((earlier.end, later.start, earlier.lastCoordinate))
+            }
+        }
+        if let last = ordered.last, until.timeIntervalSince(last.end) >= minimumDuration {
+            stays.append((last.end, until, last.lastCoordinate))
+        }
+        return stays
+    }
+
+    /// What a stay at a place most likely WAS — the "I shouldn't have to
+    /// record this" guess: a restaurant stop is a meal, a gym stop is a
+    /// workout. Guessed from the place name; unrecognized places stay an
+    /// honest "Parked". Pure and tested.
+    static func stopActivity(forPlaceName name: String?) -> (title: String, symbol: String) {
+        switch stopSymbol(forPlaceName: name) {
+        case "fork.knife": ("Meal", "fork.knife")
+        case "cup.and.saucer": ("Coffee", "cup.and.saucer")
+        case "cart": ("Shopping", "cart")
+        case "bag": ("Shopping", "bag")
+        case "dumbbell": ("Gym", "dumbbell")
+        case "fuelpump": ("Fuel stop", "fuelpump")
+        case "books.vertical": ("School", "books.vertical")
+        case "tree": ("Outdoors", "tree")
+        case "cross.case": ("Appointment", "cross.case")
+        case let symbol: ("Parked", symbol)
+        }
+    }
+
     /// Which icon a stop's place name earns. Keyword heuristics, pure and
     /// tested; anything unrecognized gets an honest map pin.
     static func stopSymbol(forPlaceName name: String?) -> String {

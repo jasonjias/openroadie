@@ -36,50 +36,6 @@ struct PlaceNameFormattingTests {
     }
 }
 
-struct DayStoryTests {
-    private let t0 = Date(timeIntervalSince1970: 1_724_500_000)
-    private let home = Coordinate(latitude: 37.0, longitude: -122.0)
-
-    @Test func stopsFillTheGapsBetweenDrives() {
-        let stops = DayStory.stops(between: [
-            (t0, t0 + 1_000, home),
-            (t0 + 4_600, t0 + 5_600, nil),
-            (t0 + 9_200, t0 + 10_000, home),
-        ])
-        #expect(stops.count == 2)
-        #expect(stops[0] == DayStory.Stop(afterTrip: 0, duration: 3_600, coordinate: home))
-        #expect(stops[1].afterTrip == 1)
-        #expect(stops[1].coordinate == nil)
-    }
-
-    @Test func unsortedTripsStillTellTheStoryInOrder() {
-        let stops = DayStory.stops(between: [
-            (t0 + 9_200, t0 + 10_000, nil),
-            (t0, t0 + 1_000, home),
-        ])
-        #expect(stops.count == 1)
-        #expect(stops[0].afterTrip == 0)
-        #expect(stops[0].coordinate == home)
-    }
-
-    /// Overlapping records (a data bug upstream) produce no negative stop.
-    @Test func overlapsYieldNoStop() {
-        let stops = DayStory.stops(between: [
-            (t0, t0 + 2_000, home),
-            (t0 + 1_000, t0 + 3_000, nil),
-        ])
-        #expect(stops.isEmpty)
-    }
-
-    @Test func totalsTieOut() {
-        let totals = DayStory.totals(of: [
-            (t0, t0 + 600, 5_000),
-            (t0 + 4_000, t0 + 4_900, 7_000),
-        ])
-        #expect(totals.meters == 12_000)
-        #expect(totals.seconds == 1_500)
-    }
-}
 
 struct AirQualityAndAlertTests {
     @Test func aqiBandsAreTheEPABreakpoints() {
@@ -173,9 +129,11 @@ struct WalkHistoryTests {
     }
 
     @Test func walksInsideDrivesAreMisreadsAndDrop() {
-        let kept = DayStory.walksOutsideDrives(
+        // The same overlap dedupe that suppresses double-counted workouts
+        // also drops passenger-fidget "walks" that overlap a drive.
+        let kept = SessionBuilder.walks(
             [(t0 + 100, t0 + 400), (t0 + 2_000, t0 + 2_400)],
-            drives: [(t0, t0 + 1_000)]
+            notCoveredBy: [(t0, t0 + 1_000)]
         )
         #expect(kept.count == 1)
         #expect(kept[0].start == t0 + 2_000)
@@ -323,6 +281,47 @@ struct WalkPathModelTests {
             distance: 400, coordinates: coords
         )
         #expect(path.coordinates == coords)
+    }
+}
+
+struct StayTests {
+    private let t0 = Date(timeIntervalSince1970: 1_724_500_000)
+    private let home = Coordinate(latitude: 37.0, longitude: -122.0)
+
+    /// The continuity guarantee: gaps between drives — including across
+    /// midnight and up to "now" — are all stays.
+    @Test func staysFillEveryGapIncludingTheOngoingOne() {
+        let stays = SessionBuilder.stays(
+            between: [
+                (t0, t0 + 1_000, home),
+                (t0 + 50_000, t0 + 51_000, nil),   // next day, same list
+            ],
+            until: t0 + 60_000
+        )
+        #expect(stays.count == 2)
+        #expect(stays[0].start == t0 + 1_000)
+        #expect(stays[0].end == t0 + 50_000)
+        #expect(stays[0].coordinate == home)
+        // The ongoing stay runs to the query moment.
+        #expect(stays[1].end == t0 + 60_000)
+    }
+
+    @Test func aParkingShuffleGapIsNotAStay() {
+        let stays = SessionBuilder.stays(
+            between: [(t0, t0 + 1_000, home), (t0 + 1_060, t0 + 2_000, nil)],
+            until: t0 + 2_060
+        )
+        #expect(stays.isEmpty)
+    }
+
+    @Test func placesBecomeActivities() {
+        #expect(SessionBuilder.stopActivity(forPlaceName: "Ramen Nagi · Palo Alto").title == "Meal")
+        #expect(SessionBuilder.stopActivity(forPlaceName: "Philz Coffee").title == "Coffee")
+        #expect(SessionBuilder.stopActivity(forPlaceName: "Trader Joe's").title == "Shopping")
+        #expect(SessionBuilder.stopActivity(forPlaceName: "24 Hour Fitness").title == "Gym")
+        #expect(SessionBuilder.stopActivity(forPlaceName: "Chevron").title == "Fuel stop")
+        #expect(SessionBuilder.stopActivity(forPlaceName: "Oak Grove Ave · Menlo Park").title == "Parked")
+        #expect(SessionBuilder.stopActivity(forPlaceName: nil).title == "Parked")
     }
 }
 

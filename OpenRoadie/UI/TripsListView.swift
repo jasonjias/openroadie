@@ -74,7 +74,7 @@ struct TripsListView: View {
                 // Sessions won the three-way presentation bake-off: the
                 // Story and Drives sections it absorbed are gone.
                 DaySessionsSection(
-                    trips: completedDayTrips,
+                    trips: trips.filter { $0.endDate != nil },
                     day: selectedDay,
                     recordingTrip: dayTrips.first { $0.endDate == nil }
                 )

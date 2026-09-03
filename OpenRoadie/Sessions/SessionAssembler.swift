@@ -27,8 +27,11 @@ enum SessionAssembler {
         var items: [SessionItem] = []
         var unresolved: [Coordinate] = []
 
-        let completed = trips.filter {
-            $0.endDate != nil && $0.startDate >= from && $0.startDate < to
+        // Drives shown are the window's; stays are computed over ALL
+        // completed trips so the overnight at home is one stay, not a hole.
+        let allCompleted = trips.filter { $0.endDate != nil }
+        let completed = allCompleted.filter {
+            $0.startDate >= from && $0.startDate < to
         }
 
         for trip in completed {
@@ -58,37 +61,37 @@ enum SessionAssembler {
             ))
         }
 
-        // Stops: gaps between one day's drives, named from cache only.
-        // Also remembered as windows, so walks can be attributed to them.
+        // Stays: every moment between drives, across day boundaries and up
+        // to now — the continuous stream. Named from cache; the place name
+        // decides what the stay most likely WAS (Meal, Gym, Shopping…).
         var placedStops: [(start: Date, end: Date, name: String?, coordinate: Coordinate?)] = []
-        let byDay = Dictionary(grouping: completed) { calendar.startOfDay(for: $0.startDate) }
-        for (_, dayTrips) in byDay {
-            let ordered = dayTrips.sorted { $0.startDate < $1.startDate }
-            let stops = DayStory.stops(between: ordered.map { trip in
+        let stays = SessionBuilder.stays(
+            between: allCompleted.map { trip in
                 let last = trip.route.last
                 return (trip.startDate, trip.endDate ?? trip.startDate,
                         last.map { Coordinate(latitude: $0.latitude, longitude: $0.longitude) })
-            })
-            for stop in stops {
-                let start = ordered[stop.afterTrip].endDate ?? ordered[stop.afterTrip].startDate
-                var name: String?
-                if let coordinate = stop.coordinate {
-                    name = PlaceNamer.shared.cachedName(for: coordinate)
-                    if name == nil { unresolved.append(coordinate) }
-                }
-                placedStops.append((start, start.addingTimeInterval(stop.duration), name, stop.coordinate))
-                items.append(SessionItem(
-                    id: "stop-\(start.timeIntervalSince1970)",
-                    kind: .stop,
-                    symbol: SessionBuilder.stopSymbol(forPlaceName: name),
-                    title: "Parked",
-                    placeName: name,
-                    metric: DriveFormatting.compactDuration(stop.duration).uppercased(),
-                    subtitle: name?.components(separatedBy: " · ").first,
-                    start: start, end: start.addingTimeInterval(stop.duration),
-                    coordinate: stop.coordinate
-                ))
+            },
+            until: min(to, .now)
+        )
+        for stay in stays where stay.end > from && stay.start < to {
+            var name: String?
+            if let coordinate = stay.coordinate {
+                name = PlaceNamer.shared.cachedName(for: coordinate)
+                if name == nil { unresolved.append(coordinate) }
             }
+            placedStops.append((stay.start, stay.end, name, stay.coordinate))
+            let activity = SessionBuilder.stopActivity(forPlaceName: name)
+            items.append(SessionItem(
+                id: "stop-\(stay.start.timeIntervalSince1970)",
+                kind: .stop,
+                symbol: activity.symbol,
+                title: activity.title,
+                placeName: name,
+                metric: DriveFormatting.compactDuration(stay.end.timeIntervalSince(stay.start)).uppercased(),
+                subtitle: name?.components(separatedBy: " · ").first,
+                start: stay.start, end: stay.end,
+                coordinate: stay.coordinate
+            ))
         }
 
         let workouts = await health.workouts(from: from, to: to)
@@ -140,6 +143,9 @@ enum SessionAssembler {
             allWalks.map { ($0.start, $0.end) },
             notCoveredBy: workouts.map { ($0.start, $0.end) }
                 + recorded.map { ($0.startDate, $0.endDate) }
+                // A "walk" overlapping a drive is a Core Motion misread —
+                // a passenger's fidgeting is not a walk.
+                + completed.map { ($0.startDate, $0.endDate ?? $0.startDate) }
         )
         // Every moment a trip pinned the phone somewhere — walk anchors.
         var fixes: [(date: Date, coordinate: Coordinate)] = []
