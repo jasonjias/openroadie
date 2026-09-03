@@ -88,7 +88,7 @@ struct SessionsView: View {
                 .font(.title.bold())
                 .padding(.top, 6)
             ForEach(months[month] ?? []) { item in
-                SessionCard(item: item, accent: Self.accent)
+                SessionCardLink(item: item, accent: Self.accent)
             }
         }
     }

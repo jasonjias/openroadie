@@ -1,4 +1,5 @@
 import Foundation
+import SwiftData
 
 /// One entry in the Sessions timeline — a drive, a walk, a workout, a
 /// night's sleep, or a stop at a place. The unifying shape behind the
@@ -21,6 +22,11 @@ struct SessionItem: Identifiable, Equatable, Sendable {
     var metric: String
     var start: Date
     var end: Date
+    /// The backing trip, for drive cards — tapping opens the full trip
+    /// detail, same as the Drives list.
+    var tripID: PersistentIdentifier?
+    /// Where it happened, for stops — the detail view pins it.
+    var coordinate: Coordinate?
 
     var duration: TimeInterval { end.timeIntervalSince(start) }
 }

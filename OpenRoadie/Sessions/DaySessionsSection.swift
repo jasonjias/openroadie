@@ -36,7 +36,7 @@ struct DaySessionsSection: View {
                     .foregroundStyle(.secondary)
             }
             ForEach(shown) { item in
-                SessionCard(item: item, accent: Self.accent)
+                SessionCardLink(item: item, accent: Self.accent)
                     .listRowSeparator(.hidden)
                     .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
             }

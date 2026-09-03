@@ -35,7 +35,8 @@ enum SessionAssembler {
                 id: "drive-\(trip.startDate.timeIntervalSince1970)",
                 kind: .drive, symbol: "car.fill", title: "Drive",
                 metric: DriveFormatting.miles(fromMeters: trip.distance).uppercased(),
-                start: trip.startDate, end: end
+                start: trip.startDate, end: end,
+                tripID: trip.persistentModelID
             ))
         }
 
@@ -61,7 +62,8 @@ enum SessionAssembler {
                     symbol: SessionBuilder.stopSymbol(forPlaceName: name),
                     title: name ?? "Stop",
                     metric: DriveFormatting.compactDuration(stop.duration).uppercased(),
-                    start: start, end: start.addingTimeInterval(stop.duration)
+                    start: start, end: start.addingTimeInterval(stop.duration),
+                    coordinate: stop.coordinate
                 ))
             }
         }
