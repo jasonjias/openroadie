@@ -53,11 +53,6 @@ struct TripsListView: View {
                     overallScore: overallScore
                 )
             }
-            .navigationDestination(for: PersistentIdentifier.self) { id in
-                if let trip = modelContext.model(for: id) as? Trip {
-                    TripDetailView(trip: trip)
-                }
-            }
         }
     }
 
@@ -76,18 +71,13 @@ struct TripsListView: View {
                     streakCard
                 }
 
-                // The day as a story — only when it has at least a drive
-                // and its shape adds something the plain list doesn't
-                // (a stop between drives, or a named destination).
-                if completedDayTrips.count >= 1 {
-                    DayStorySection(trips: completedDayTrips, day: selectedDay)
-                }
-
-                daySection
-
-                // Fitness-style cards for the same day — intentionally
-                // redundant with Story while the presentation gets chosen.
-                DaySessionsSection(trips: completedDayTrips, day: selectedDay)
+                // Sessions won the three-way presentation bake-off: the
+                // Story and Drives sections it absorbed are gone.
+                DaySessionsSection(
+                    trips: completedDayTrips,
+                    day: selectedDay,
+                    recordingTrip: dayTrips.first { $0.endDate == nil }
+                )
 
                 dayNotesSection
 
@@ -296,31 +286,7 @@ struct TripsListView: View {
         }
     }
 
-    // MARK: - Day drives & notes
-
-    @ViewBuilder
-    private var daySection: some View {
-        Section {
-            if dayTrips.isEmpty {
-                Text(calendar.isDateInToday(selectedDay) ? "No drives yet today." : "No drives this day.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            } else {
-                ForEach(dayTrips) { trip in
-                    if trip.endDate == nil {
-                        TripRow(trip: trip)
-                    } else {
-                        NavigationLink(value: trip.persistentModelID) {
-                            TripRow(trip: trip)
-                        }
-                    }
-                }
-                .onDelete(perform: deleteTrips)
-            }
-        } header: {
-            SectionHeader("Drives")
-        }
-    }
+    // MARK: - Day notes
 
     @ViewBuilder
     private var dayNotesSection: some View {
@@ -339,12 +305,6 @@ struct TripsListView: View {
             } header: {
                 SectionHeader("Notes")
             }
-        }
-    }
-
-    private func deleteTrips(at offsets: IndexSet) {
-        for index in offsets {
-            modelContext.delete(dayTrips[index])
         }
     }
 
@@ -623,61 +583,6 @@ struct PhotoToggleButton: View {
     }
 }
 
-private struct TripRow: View {
-    let trip: Trip
-
-    private var pace: PaceBands.Breakdown {
-        PaceBands.compute(trip.routeSamples)
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            // Top line: when (the drive as a time range) and what the sky
-            // was doing — bottom line: the driving numbers.
-            HStack {
-                Text(
-                    trip.endDate.map {
-                        "\(trip.startDate.formatted(.dateTime.hour().minute())) – \($0.formatted(.dateTime.hour().minute()))"
-                    } ?? trip.startDate.formatted(.dateTime.hour().minute())
-                )
-                .font(.headline)
-                Spacer()
-                if let weather = trip.weather {
-                    Label(
-                        "\(DriveFormatting.fahrenheit(fromCelsius: weather.temperatureC))°",
-                        systemImage: WeatherCode.symbol(weather.wmoCode)
-                    )
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                }
-            }
-            HStack(spacing: 12) {
-                if let duration = trip.duration {
-                    Label(DriveFormatting.duration(duration), systemImage: "clock")
-                    Label(DriveFormatting.miles(fromMeters: trip.distance), systemImage: "road.lanes")
-                    if let maxSpeed = trip.maxSpeed {
-                        Label("\(DriveFormatting.milesPerHour(fromMetersPerSecond: maxSpeed)) mph max", systemImage: "gauge.high")
-                    }
-                } else {
-                    Label("Recording…", systemImage: "record.circle")
-                        .foregroundStyle(.red)
-                }
-            }
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            // The row's one editorial note: this drive was mostly waiting.
-            if trip.endDate != nil, PaceBands.isTrafficHeavy(pace) {
-                Label(
-                    "\(DriveFormatting.compactDuration(pace.slowSeconds)) in traffic",
-                    systemImage: "car.side.rear.and.collision.and.car.side.front"
-                )
-                .font(.caption2.weight(.medium))
-                .foregroundStyle(.orange)
-            }
-        }
-        .padding(.vertical, 2)
-    }
-}
 
 #Preview {
     TripsListView()

@@ -7,6 +7,10 @@ struct DaySessionsSection: View {
     /// The day's completed trips, oldest first.
     let trips: [Trip]
     let day: Date
+    /// A drive still recording right now, shown as a live card up top.
+    var recordingTrip: Trip? = nil
+
+    @Environment(\.modelContext) private var modelContext
 
     @State private var filter: SessionItem.Kind?
     @State private var items: [SessionItem] = []
@@ -27,8 +31,13 @@ struct DaySessionsSection: View {
             }
             .listRowSeparator(.hidden)
 
+            if let recordingTrip {
+                recordingCard(recordingTrip)
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+            }
             let shown = items.filter { filter == nil || $0.kind == filter }
-            if shown.isEmpty {
+            if shown.isEmpty, recordingTrip == nil {
                 Text("Nothing for this day yet.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -37,6 +46,20 @@ struct DaySessionsSection: View {
                 SessionCardLink(item: item)
                     .listRowSeparator(.hidden)
                     .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+                    .swipeActions(edge: .trailing) {
+                        // Only drives are OURS to delete — walks, workouts
+                        // and sleep belong to Health and motion history.
+                        if item.kind == .drive, let tripID = item.tripID {
+                            Button(role: .destructive) {
+                                if let trip = modelContext.model(for: tripID) as? Trip {
+                                    modelContext.delete(trip)
+                                    try? modelContext.save()
+                                }
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
+                    }
             }
         } header: {
             SectionHeader("Sessions")
@@ -50,6 +73,34 @@ struct DaySessionsSection: View {
     /// Re-assemble when the day changes or its drives do.
     private var taskKey: String {
         "\(day.timeIntervalSinceReferenceDate)-\(trips.count)"
+    }
+
+    /// A drive in progress — live pulse, started time, no navigation
+    /// (its numbers live on the Drive tab until it saves).
+    private func recordingCard(_ trip: Trip) -> some View {
+        HStack(spacing: 14) {
+            ZStack {
+                Circle().fill(Color.red.opacity(0.14))
+                Image(systemName: "record.circle")
+                    .font(.title3)
+                    .foregroundStyle(.red)
+                    .symbolEffect(.pulse)
+            }
+            .frame(width: 52, height: 52)
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Drive")
+                    .font(.headline)
+                Text("Recording…")
+                    .font(.system(size: 26, weight: .bold, design: .rounded))
+                    .foregroundStyle(.red)
+            }
+            Spacer(minLength: 4)
+            Text("since \(trip.startDate.formatted(.dateTime.hour().minute()))")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+        .padding(14)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 18))
     }
 
     private func chip(_ kind: SessionItem.Kind?, _ label: String) -> some View {
