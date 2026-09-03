@@ -41,12 +41,10 @@ enum SessionAssembler {
                     unresolved.append(destination)
                 }
             }
+            // Two facts fit a card; the rest live one tap away in the detail.
             var facts = [DriveFormatting.compactDuration(end.timeIntervalSince(trip.startDate))]
             if let weather = trip.weather {
                 facts.append("\(DriveFormatting.fahrenheit(fromCelsius: weather.temperatureC))° \(WeatherCode.label(weather.wmoCode))")
-            }
-            if let maxSpeed = trip.maxSpeed {
-                facts.append("max \(DriveFormatting.milesPerHour(fromMetersPerSecond: maxSpeed)) mph")
             }
             items.append(SessionItem(
                 id: "drive-\(trip.startDate.timeIntervalSince1970)",

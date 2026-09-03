@@ -135,10 +135,7 @@ struct SessionCard: View {
             Spacer(minLength: 4)
             VStack(alignment: .trailing, spacing: 3) {
                 Text(item.start.formatted(.dateTime.month(.defaultDigits).day().year(.twoDigits)))
-                // The span, not just the start — what the Drives rows say.
-                Text(item.duration >= 60
-                     ? "\(item.start.formatted(.dateTime.hour().minute())) – \(item.end.formatted(.dateTime.hour().minute()))"
-                     : item.start.formatted(.dateTime.hour().minute()))
+                Text(item.start.formatted(.dateTime.hour().minute()))
             }
             .font(.footnote)
             .foregroundStyle(.secondary)
