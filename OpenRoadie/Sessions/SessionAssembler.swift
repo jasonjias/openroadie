@@ -133,9 +133,15 @@ enum SessionAssembler {
         )
         for interval in kept {
             let walk = allWalks.first { $0.start == interval.start }
+            let duration = DriveFormatting.compactDuration(interval.end.timeIntervalSince(interval.start))
+            // Same emphasis as a drive card: distance big, time in the
+            // facts line. Only a walk the pedometer couldn't measure leads
+            // with its duration.
+            var metric = duration.uppercased()
             var walkFacts: [String] = []
             if let meters = walk?.meters {
-                walkFacts.append(DriveFormatting.shortDistance(fromMeters: meters))
+                metric = DriveFormatting.shortDistance(fromMeters: meters).uppercased()
+                walkFacts.append(duration)
             }
             if let steps = walk?.steps {
                 walkFacts.append("\(steps) steps")
@@ -143,7 +149,7 @@ enum SessionAssembler {
             items.append(SessionItem(
                 id: "walk-\(interval.start.timeIntervalSince1970)",
                 kind: .walk, symbol: "figure.walk", title: "Walk",
-                metric: DriveFormatting.compactDuration(interval.end.timeIntervalSince(interval.start)).uppercased(),
+                metric: metric,
                 subtitle: walkFacts.isEmpty ? nil : walkFacts.joined(separator: " · "),
                 start: interval.start, end: interval.end
             ))
