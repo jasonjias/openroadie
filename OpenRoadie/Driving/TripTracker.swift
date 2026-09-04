@@ -42,20 +42,47 @@ extension LocationSample {
 /// This is pure state-machine logic — no CoreLocation sessions, no AI, no UI —
 /// so it can be exercised directly in unit tests.
 struct TripTracker {
+    /// Filter thresholds. Defaults are the driving values these were born
+    /// as; walks need their own scale (see `walking`).
+    struct Config: Equatable {
+        /// Samples with worse horizontal accuracy than this are discarded.
+        var maxHorizontalAccuracy: Double = 50
+        /// Minimum movement (meters) from the last counted point before
+        /// distance accumulates. Below this, stationary GPS drift would
+        /// masquerade as travel. Effective threshold is
+        /// `max(minimumDistanceStep, sample accuracy)`.
+        var minimumDistanceStep: Double = 10
+        /// Implied speeds above this between consecutive counted points are
+        /// GPS glitches, not travel. ~200 mph for a car.
+        var maxPlausibleSpeed: Double = 90
+    }
+
+    /// Walking scale. Ten-meter steps are coarse for a footpath, so this
+    /// halves them — and the accuracy gate TIGHTENS, because a fix with
+    /// ±40 m of error would draw a random scribble rather than a route.
+    /// The honest consequence: crisp trails outdoors, silence indoors,
+    /// where nothing better than a scribble is available anyway.
+    static let walking = Config(
+        maxHorizontalAccuracy: 35,
+        minimumDistanceStep: 5,
+        maxPlausibleSpeed: 12
+    )
+
+    var config = Config()
+
     private(set) var context = DrivingContext()
     private(set) var isActive = false
 
     /// Samples with worse horizontal accuracy than this are discarded entirely.
-    static let maxHorizontalAccuracy: Double = 50
+    static let maxHorizontalAccuracy: Double = Config().maxHorizontalAccuracy
 
     /// Minimum movement (meters) from the last counted point before distance
-    /// accumulates. Below this, stationary GPS drift would masquerade as travel.
-    /// The effective threshold is `max(minimumDistanceStep, sample accuracy)`.
-    static let minimumDistanceStep: Double = 10
+    /// accumulates.
+    static let minimumDistanceStep: Double = Config().minimumDistanceStep
 
     /// Implied speeds above this (~200 mph) between consecutive counted points
     /// are treated as GPS glitches, not travel.
-    static let maxPlausibleSpeed: Double = 90
+    static let maxPlausibleSpeed: Double = Config().maxPlausibleSpeed
 
     /// The last position that contributed to `tripDistance`.
     private var anchor: (coordinate: Coordinate, timestamp: Date)?
@@ -87,7 +114,7 @@ struct TripTracker {
     mutating func process(_ sample: LocationSample) -> ProcessResult {
         guard isActive else { return .rejected }
         guard sample.horizontalAccuracy > 0,
-              sample.horizontalAccuracy <= Self.maxHorizontalAccuracy else { return .rejected }
+              sample.horizontalAccuracy <= config.maxHorizontalAccuracy else { return .rejected }
 
         let coordinate = Coordinate(latitude: sample.latitude, longitude: sample.longitude)
         context.timestamp = sample.timestamp
@@ -121,12 +148,12 @@ struct TripTracker {
 
         // A teleport-like jump is a glitch: re-anchor at the new position so
         // later movement is measured from there, but count nothing for the jump.
-        if delta / elapsed > Self.maxPlausibleSpeed {
+        if delta / elapsed > config.maxPlausibleSpeed {
             self.anchor = (coordinate, timestamp)
             return true
         }
 
-        if delta >= max(Self.minimumDistanceStep, accuracy) {
+        if delta >= max(config.minimumDistanceStep, accuracy) {
             context.tripDistance += delta
             self.anchor = (coordinate, timestamp)
             return true

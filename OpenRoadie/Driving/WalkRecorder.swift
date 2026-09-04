@@ -74,6 +74,7 @@ final class WalkRecorder {
         Self.isActive = true
         LocationSessionJanitor.markSessionsOpen()
         log.info("walk recording started")
+        tracker.config = TripTracker.walking
         tracker.start()
         coordinates = []
         detector = WalkEndDetector()

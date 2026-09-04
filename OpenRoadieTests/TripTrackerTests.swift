@@ -188,3 +188,42 @@ struct TripTrackerTests {
         #expect(tracker.process(fix(lat: 37.0009, at: 12)) == .accepted(movedFromLastPoint: true))
     }
 }
+
+/// Walks need a finer scale than drives — and a stricter one.
+struct WalkingScaleTests {
+    @Test func walkingRecordsFinerStepsThanDriving() {
+        // ~7 m of travel with a good fix: below the driving step, above
+        // the walking one.
+        var driving = TripTracker()
+        driving.start(at: Date(timeIntervalSince1970: 0))
+        _ = driving.process(fix(lat: 37.0, accuracy: 4, at: 0))
+        let drivingMoved = driving.process(fix(lat: 37.00006, accuracy: 4, at: 5))
+        #expect(drivingMoved == .accepted(movedFromLastPoint: false))
+
+        var walking = TripTracker()
+        walking.config = TripTracker.walking
+        walking.start(at: Date(timeIntervalSince1970: 0))
+        _ = walking.process(fix(lat: 37.0, accuracy: 4, at: 0))
+        let walkingMoved = walking.process(fix(lat: 37.00006, accuracy: 4, at: 5))
+        #expect(walkingMoved == .accepted(movedFromLastPoint: true))
+    }
+
+    /// The indoor case: a 40 m fix passes for a drive but is a scribble on
+    /// a footpath, so the walking scale rejects it.
+    @Test func walkingRejectsIndoorGradeAccuracy() {
+        var walking = TripTracker()
+        walking.config = TripTracker.walking
+        walking.start(at: Date(timeIntervalSince1970: 0))
+        #expect(walking.process(fix(accuracy: 40, at: 1)) == .rejected)
+
+        var driving = TripTracker()
+        driving.start(at: Date(timeIntervalSince1970: 0))
+        #expect(driving.process(fix(accuracy: 40, at: 1)) != .rejected)
+    }
+
+    @Test func drivingDefaultsAreUnchanged() {
+        #expect(TripTracker().config.maxHorizontalAccuracy == 50)
+        #expect(TripTracker().config.minimumDistanceStep == 10)
+        #expect(TripTracker().config.maxPlausibleSpeed == 90)
+    }
+}
