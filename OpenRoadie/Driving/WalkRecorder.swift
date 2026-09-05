@@ -61,6 +61,10 @@ final class WalkRecorder {
     private var isWalking = true
     private var updatesTask: Task<Void, Never>?
     private var serviceSession: CLServiceSession?
+    /// Without this the app is suspended seconds after the drive that
+    /// spawned this recorder tears ITS session down — which is exactly
+    /// when walk recording begins. Field symptom: no walk trails, ever.
+    private var backgroundSession: CLBackgroundActivitySession?
     private let log = Logger(subsystem: "com.openroadie", category: "walk")
 
     init(store: TripStore?) {
@@ -82,6 +86,7 @@ final class WalkRecorder {
         serviceSession = status == .authorizedAlways
             ? CLServiceSession(authorization: .always)
             : CLServiceSession(authorization: .whenInUse)
+        backgroundSession = CLBackgroundActivitySession()
         if CMMotionActivityManager.isActivityAvailable() {
             activityManager.startActivityUpdates(to: .main) { [weak self] activity in
                 guard let activity else { return }
@@ -134,6 +139,8 @@ final class WalkRecorder {
         updatesTask = nil
         serviceSession?.invalidate()
         serviceSession = nil
+        backgroundSession?.invalidate()
+        backgroundSession = nil
         activityManager.stopActivityUpdates()
         LocationSessionJanitor.markSessionsClosed()
         tracker.stop()

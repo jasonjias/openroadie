@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 @main
 struct OpenRoadieApp: App {
@@ -36,15 +37,11 @@ struct OpenRoadieApp: App {
             RootView(session: session, agent: agent, speaker: speaker, wake: wake, autoDrive: autoDrive)
                 .modelContainer(store.container)
                 .task {
-                    // ORDER MATTERS: conclude any sessions preserved from a
-                    // previous incarnation BEFORE anything in this process
-                    // may open its own location stream — CoreLocation
-                    // supports one liveUpdates stream per process, and the
-                    // janitor's brief consume must never race the drive's.
-                    await LocationSessionJanitor.reconcileIfNeeded(isDriving: session.isDriving)
-                    // Then arm always-on detection — including the
-                    // background relaunches iOS itself triggers, where this
-                    // closure is the whole reason we woke up.
+                    // Arm detection FIRST. On a background relaunch this
+                    // closure is the whole reason we woke up, and the window
+                    // before iOS suspends us is measured in seconds — the
+                    // janitor's 8-second cleanup must never come first.
+                    let launchedInBackground = UIApplication.shared.applicationState == .background
                     backgroundWatcher.refresh { [weak autoDrive, weak session] coordinate, accuracy in
                         // Each wake drops a breadcrumb (unless a drive is
                         // already recording the real route) — ambient walks
@@ -54,6 +51,14 @@ struct OpenRoadieApp: App {
                         }
                         autoDrive?.checkRecentActivity()
                     }
+                    // Everything below is housekeeping — skipped entirely
+                    // on a background wake, where the only job is catching
+                    // the drive.
+                    guard !launchedInBackground else { return }
+                    // Conclude sessions preserved from an incarnation that
+                    // died holding them (one liveUpdates stream per process,
+                    // so this must not race a drive's).
+                    await LocationSessionJanitor.reconcileIfNeeded(isDriving: session.isDriving)
                     store.pruneCrumbs(olderThan: .now.addingTimeInterval(-8 * 86_400))
                     // Old trips gain weather a few at a time (Open-Meteo's
                     // archive), newest first. No-op once caught up.

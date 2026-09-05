@@ -113,7 +113,6 @@ final class AutoDriveMonitor {
             Self.note("wake: no motion data — probing")
             detector = Self.likelyDetector()
             startSpeedProbe()
-            endWakeSession()
             return
         }
         let start = Date.now.addingTimeInterval(-180)
@@ -134,8 +133,11 @@ final class AutoDriveMonitor {
                 if case .idle = self.detector.state {
                     self.detector = Self.likelyDetector()
                 }
+                // NOT ending the wake session here: startSpeedProbe only
+                // SCHEDULES a Task, and the probe's own sessions are created
+                // inside it. Releasing now would leave the app unprotected
+                // in exactly that gap. The probe's defer hands it back.
                 self.startSpeedProbe()
-                self.endWakeSession()
             }
         }
     }
@@ -241,6 +243,7 @@ final class AutoDriveMonitor {
             defer {
                 location.invalidate()
                 background.invalidate()
+                self?.endWakeSession()
                 // Only stand the flag down if no drive took over the
                 // sessions — a confirmed drive holds its own.
                 if self?.session.isDriving != true {
