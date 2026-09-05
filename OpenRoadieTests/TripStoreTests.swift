@@ -44,6 +44,20 @@ struct TripStoreTests {
         #expect(resolved?.startDate == trip.startDate)
     }
 
+    /// Every app launch delivers an immediate SLC fix; without dedup the
+    /// crumb table fills with identical home points. A near-duplicate is
+    /// dropped; real travel is kept.
+    @Test func saveCrumbDropsNearDuplicates() throws {
+        let store = try TripStore.inMemory()
+        let home = Coordinate(latitude: 37.42719, longitude: -122.13766)
+        store.saveCrumb(home, accuracy: 20)
+        store.saveCrumb(home, accuracy: 20)                                   // same spot, dropped
+        store.saveCrumb(Coordinate(latitude: 37.42721, longitude: -122.13768), accuracy: 20) // ~3 m, dropped
+        store.saveCrumb(Coordinate(latitude: 37.43200, longitude: -122.13766), accuracy: 20) // ~530 m, kept
+        let all = (try? store.container.mainContext.fetch(FetchDescriptor<LocationCrumb>())) ?? []
+        #expect(all.count == 2)
+    }
+
     private func makeStore() throws -> TripStore {
         try TripStore.inMemory()
     }

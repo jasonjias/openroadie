@@ -189,6 +189,16 @@ final class TripStore {
     }
 
     func saveCrumb(_ coordinate: Coordinate, accuracy: Double, at date: Date = .now) {
+        // Dedup: startMonitoringSignificantLocationChanges delivers the
+        // current fix immediately on every launch, so without this the
+        // crumb table fills with identical points at home/work every time
+        // the app opens. A crumb within 30 m of the last one isn't travel.
+        var recent = FetchDescriptor<LocationCrumb>(sortBy: [SortDescriptor(\.timestamp, order: .reverse)])
+        recent.fetchLimit = 1
+        if let last = (try? context.fetch(recent))?.first,
+           TripTracker.distance(from: last.coordinate, to: coordinate) < 30 {
+            return
+        }
         context.insert(LocationCrumb(timestamp: date, coordinate: coordinate, accuracy: accuracy))
         try? context.save()
     }
