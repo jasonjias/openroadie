@@ -137,17 +137,21 @@ enum SessionAssembler {
             guard let previous = calendar.date(byAdding: .day, value: -1, to: day) else { break }
             day = previous
         }
-        // Recorded trails first: real breadcrumbs beat inferred intervals.
+        // Ambient walk fragments (motion history) become OUTINGS: every
+        // fragment inside one stay is a single walk — in, lunch, out — and
+        // loose fragments merge across gaps under an hour. One card, one
+        // trail, instead of a dozen three-minute shards.
         let recorded = walkPaths.filter { $0.startDate >= from && $0.startDate < to }
         let kept = SessionBuilder.walks(
             allWalks.map { ($0.start, $0.end) },
             notCoveredBy: workouts.map { ($0.start, $0.end) }
-                + recorded.map { ($0.startDate, $0.endDate) }
                 // A "walk" overlapping a drive is a Core Motion misread —
                 // a passenger's fidgeting is not a walk.
                 + completed.map { ($0.startDate, $0.endDate ?? $0.startDate) }
         )
-        // Every moment a trip pinned the phone somewhere — walk anchors.
+        let stopWindows = placedStops.map { ($0.start, $0.end) }
+        // Every moment a trip pinned the phone somewhere — walk anchors when
+        // no stay claims the outing.
         var fixes: [(date: Date, coordinate: Coordinate)] = []
         for trip in completed {
             if let first = trip.route.first {
@@ -157,61 +161,73 @@ enum SessionAssembler {
                 fixes.append((end, Coordinate(latitude: last.latitude, longitude: last.longitude)))
             }
         }
-        for interval in kept {
-            let walk = allWalks.first { $0.start == interval.start }
-            let duration = DriveFormatting.compactDuration(interval.end.timeIntervalSince(interval.start))
-            // Same emphasis as a drive card: distance big, time in the
-            // facts line. Only a walk the pedometer couldn't measure leads
-            // with its duration.
-            var metric = duration.uppercased()
-            var walkFacts: [String] = []
-            let meters = SessionBuilder.walkMeters(pedometerMeters: walk?.meters, steps: walk?.steps)
-            if let meters {
-                metric = DriveFormatting.shortDistance(fromMeters: meters).uppercased()
-                walkFacts.append(duration)
+        var trailsUsed = Set<Date>()
+        for group in SessionBuilder.bundleWalks(kept, stops: stopWindows) {
+            let fragments = group.map { kept[$0] }
+            guard let start = fragments.map(\.start).min(),
+                  let end = fragments.map(\.end).max() else { continue }
+            let walkingSeconds = fragments.reduce(0) { $0 + $1.end.timeIntervalSince($1.start) }
+            let records = fragments.compactMap { fragment in allWalks.first { $0.start == fragment.start } }
+            var meters = 0.0
+            var measured = false
+            var steps = 0
+            for record in records {
+                if let m = SessionBuilder.walkMeters(pedometerMeters: record.meters, steps: record.steps) {
+                    meters += m
+                    measured = true
+                }
+                steps += record.steps ?? 0
             }
-            if let steps = walk?.steps {
-                walkFacts.append("\(steps) steps")
+            // Where: the stay it happened in, else the nearest parked fix.
+            let stopIndex = SessionBuilder.enclosingStop(of: start, in: stopWindows)
+            let place = stopIndex.map { placedStops[$0].name } ?? nil
+            var anchor = stopIndex.flatMap { placedStops[$0].coordinate }
+                ?? SessionBuilder.nearestFix(to: start, in: fixes)
+            // The trail: a recorded WalkPath overlapping the outing beats
+            // wake-up crumbs; crumbs beat a bare anchor.
+            var route: [Coordinate]?
+            var coarse = false
+            if let trail = recorded.first(where: { $0.startDate < end && $0.endDate > start && !trailsUsed.contains($0.startDate) }) {
+                trailsUsed.insert(trail.startDate)
+                let coordinates = trail.coordinates
+                if coordinates.count >= 2 { route = coordinates }
+                anchor = coordinates.first ?? anchor
+                if !measured, trail.distance > 0 {
+                    meters = trail.distance
+                    measured = true
+                }
+            } else {
+                let crumbs = SessionBuilder.crumbTrail(for: (start, end), crumbs: crumbs)
+                if crumbs.count >= 2 {
+                    route = crumbs
+                    coarse = true
+                }
+                anchor = crumbs.first ?? anchor
             }
-            // A walk inside a stop's window happened AT that place — "where
-            // was I shopping" answered from time-window logic alone.
-            var walkPlace: String?
-            var anchor = SessionBuilder.nearestFix(to: interval.start, in: fixes)
-            // Always-on wake crumbs that fell during this walk: two or more
-            // make a coarse trail; even one beats a nearest-fix guess.
-            let trail = SessionBuilder.crumbTrail(for: interval, crumbs: crumbs)
-            if let first = trail.first {
-                anchor = first
-            }
-            if let index = SessionBuilder.enclosingStop(
-                of: interval.start,
-                in: placedStops.map { ($0.start, $0.end) }
-            ) {
-                let stop = placedStops[index]
-                walkPlace = stop.name
-                anchor = stop.coordinate ?? anchor
-            }
+            let walked = DriveFormatting.compactDuration(walkingSeconds)
+            var facts = ["walked \(walked)"]
+            if steps > 0 { facts.append("\(steps) steps") }
             items.append(SessionItem(
-                id: "walk-\(interval.start.timeIntervalSince1970)",
+                id: "walk-\(start.timeIntervalSince1970)",
                 kind: .walk, symbol: "figure.walk", title: "Walk",
-                placeName: walkPlace,
-                metric: metric,
-                subtitle: walkFacts.isEmpty ? nil : walkFacts.joined(separator: " · "),
-                start: interval.start, end: interval.end,
+                placeName: place,
+                metric: measured
+                    ? DriveFormatting.shortDistance(fromMeters: meters).uppercased()
+                    : walked.uppercased(),
+                subtitle: facts.joined(separator: " · "),
+                start: start, end: end,
                 coordinate: anchor,
-                meters: meters,
-                route: trail.count >= 2 ? trail : nil,
-                routeIsCoarse: trail.count >= 2
+                meters: measured ? meters : nil,
+                route: route,
+                routeIsCoarse: coarse
             ))
         }
 
-        for path in recorded {
+        // A recorded trail no ambient fragment claimed still stands alone.
+        for path in recorded where !trailsUsed.contains(path.startDate) {
             let coordinates = path.coordinates
             var trailPlace: String?
-            if let index = SessionBuilder.enclosingStop(
-                of: path.startDate,
-                in: placedStops.map { ($0.start, $0.end) }
-            ) {
+            if let index = SessionBuilder.enclosingStop(of: path.startDate, in: stopWindows) {
                 trailPlace = placedStops[index].name
             }
             let duration = DriveFormatting.compactDuration(path.endDate.timeIntervalSince(path.startDate))
@@ -224,7 +240,7 @@ enum SessionAssembler {
                 start: path.startDate, end: path.endDate,
                 coordinate: coordinates.first,
                 meters: path.distance,
-                route: coordinates
+                route: coordinates.count >= 2 ? coordinates : nil
             ))
         }
 

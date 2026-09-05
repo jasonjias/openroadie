@@ -243,15 +243,15 @@ struct WalkEndDetectorTests {
         }
     }
 
-    /// Standing still in an aisle isn't the end; three minutes of not
-    /// walking is.
-    @Test func stoppingWalkingEndsAfterThreeMinutes() {
+    /// Sitting down to lunch is a pause, not the end: the outing survives
+    /// twenty minutes still and ends only after thirty.
+    @Test func lunchIsAPauseNotAnEnd() {
         var detector = WalkEndDetector()
         _ = detector.process(walking: true, speedMps: 1.2, at: t0)
-        let early = detector.process(walking: false, speedMps: 0, at: t0 + 100)
-        let late = detector.process(walking: false, speedMps: 0, at: t0 + 290)
-        #expect(!early)
-        #expect(late)
+        let lunch = detector.process(walking: false, speedMps: 0, at: t0 + 20 * 60)
+        let settled = detector.process(walking: false, speedMps: 0, at: t0 + 31 * 60)
+        #expect(!lunch)
+        #expect(settled)
     }
 
     @Test func vehicleSpeedEndsImmediately() {
@@ -264,7 +264,9 @@ struct WalkEndDetectorTests {
     @Test func theCapEndsEvenAPerpetualWalker() {
         var detector = WalkEndDetector()
         _ = detector.process(walking: true, speedMps: 1.4, at: t0)
-        let ended = detector.process(walking: true, speedMps: 1.4, at: t0 + 46 * 60)
+        let afternoon = detector.process(walking: true, speedMps: 1.4, at: t0 + 2 * 3_600)
+        let ended = detector.process(walking: true, speedMps: 1.4, at: t0 + 3 * 3_600 + 60)
+        #expect(!afternoon)
         #expect(ended)
     }
 }
@@ -322,6 +324,35 @@ struct StayTests {
         #expect(SessionBuilder.stopActivity(forPlaceName: "Chevron").title == "Fuel stop")
         #expect(SessionBuilder.stopActivity(forPlaceName: "Oak Grove Ave · Menlo Park").title == "Parked")
         #expect(SessionBuilder.stopActivity(forPlaceName: nil).title == "Parked")
+    }
+}
+
+struct WalkBundlingTests {
+    private let t0 = Date(timeIntervalSince1970: 1_724_500_000)
+
+    /// The field complaint: a lunch outing showed as three walks. Inside one
+    /// stay they are one outing, however long the sit between them.
+    @Test func fragmentsInsideOneStayAreOneOuting() {
+        let stop = [(t0, t0 + 2 * 3_600)]
+        let walks = [(t0 + 60, t0 + 300), (t0 + 50 * 60, t0 + 52 * 60), (t0 + 100 * 60, t0 + 105 * 60)]
+        #expect(SessionBuilder.bundleWalks(walks, stops: stop) == [[0, 1, 2]])
+    }
+
+    @Test func differentStaysAreDifferentOutings() {
+        let stops = [(t0, t0 + 3_600), (t0 + 7_200, t0 + 10_800)]
+        let walks = [(t0 + 60, t0 + 300), (t0 + 7_260, t0 + 7_500)]
+        #expect(SessionBuilder.bundleWalks(walks, stops: stops) == [[0], [1]])
+    }
+
+    /// Outside any stay, an hour is the seam between outings.
+    @Test func looseFragmentsMergeAcrossShortGapsOnly() {
+        let walks = [(t0, t0 + 300), (t0 + 1_800, t0 + 2_100), (t0 + 3 * 3_600, t0 + 3 * 3_600 + 300)]
+        #expect(SessionBuilder.bundleWalks(walks, stops: []) == [[0, 1], [2]])
+    }
+
+    @Test func orderIsByTimeNotInput() {
+        let walks = [(t0 + 1_800, t0 + 2_100), (t0, t0 + 300)]
+        #expect(SessionBuilder.bundleWalks(walks, stops: []) == [[1, 0]])
     }
 }
 

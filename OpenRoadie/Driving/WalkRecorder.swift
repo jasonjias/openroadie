@@ -6,13 +6,16 @@ import os
 /// Decides when a recorded walk is over. Pure and unit-tested.
 struct WalkEndDetector: Equatable {
     struct Config: Equatable {
-        /// Not walking this long → the walk ended (sat down, went inside
-        /// and stood still, reached the desk).
-        var notWalkingEndsAfter: TimeInterval = 180
+        /// Not walking this long → the outing is over. Thirty minutes, not
+        /// three: sitting down to lunch is a PAUSE in a walk the way a red
+        /// light is a pause in a drive — the trail out of the restaurant
+        /// belongs to the same outing as the trail in. Think of it as a
+        /// slow drive being recorded.
+        var notWalkingEndsAfter: TimeInterval = 30 * 60
         /// Sustained speed no pedestrian reaches → back in a vehicle.
         var vehicleSpeed: Double = 6
-        /// Nobody needs an hour of breadcrumbs from one errand.
-        var maxDuration: TimeInterval = 45 * 60
+        /// An afternoon on foot is one outing; a whole day is not.
+        var maxDuration: TimeInterval = 3 * 3_600
     }
 
     var config = Config()
@@ -114,7 +117,7 @@ final class WalkRecorder {
                         self.finish()
                         break
                     }
-                    if self.coordinates.count > 1_500 {
+                    if self.coordinates.count > 8_000 {
                         self.finish()
                         break
                     }
@@ -127,7 +130,7 @@ final class WalkRecorder {
         // Hard deadline, mirroring the probe's: the loop's own checks only
         // run when a fix arrives.
         Task { [weak self] in
-            try? await Task.sleep(for: .seconds(50 * 60))
+            try? await Task.sleep(for: .seconds(3 * 3_600 + 300))
             self?.finish()
         }
     }

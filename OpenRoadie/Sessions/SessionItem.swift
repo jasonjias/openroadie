@@ -133,6 +133,44 @@ enum SessionBuilder {
         return (0.5...2.0).contains(ratio) ? pedometerMeters : fromSteps
     }
 
+    /// Groups walk fragments into outings. Every fragment inside the same
+    /// stay is one outing regardless of the gaps between them (walk in, sit
+    /// through lunch, walk out); fragments outside any stay merge while the
+    /// gap between them is under an hour. Returns index groups in time
+    /// order. Pure and unit-tested.
+    static func bundleWalks(
+        _ walks: [(start: Date, end: Date)],
+        stops: [(start: Date, end: Date)],
+        looseGap: TimeInterval = 3_600
+    ) -> [[Int]] {
+        let order = walks.indices.sorted { walks[$0].start < walks[$1].start }
+        var groups: [[Int]] = []
+        var currentStop: Int?
+        var currentEnd = Date.distantPast
+        for index in order {
+            let walk = walks[index]
+            let stop = enclosingStop(of: walk.start, in: stops)
+            let joins: Bool
+            if groups.isEmpty {
+                joins = false
+            } else if let stop, stop == currentStop {
+                joins = true
+            } else if stop == nil, currentStop == nil {
+                joins = walk.start.timeIntervalSince(currentEnd) < looseGap
+            } else {
+                joins = false
+            }
+            if joins {
+                groups[groups.count - 1].append(index)
+            } else {
+                groups.append([index])
+            }
+            currentStop = stop
+            currentEnd = max(currentEnd, walk.end)
+        }
+        return groups
+    }
+
     /// The stop whose window contains this moment — a walk that happened
     /// while parked at Walmart happened AT Walmart. Pure and unit-tested.
     static func enclosingStop(of date: Date, in stops: [(start: Date, end: Date)]) -> Int? {
