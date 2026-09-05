@@ -135,23 +135,32 @@ struct WakeProbeGateTests {
     /// one automotive sample in three. The old 60% rule rejected it; a
     /// single automotive sample is now enough.
     @Test func oneAutomotiveSampleJustifiesAProbe() {
-        #expect(AutoDriveMonitor.shouldProbe(automotive: 1, onFoot: 1, samples: 3))
+        #expect(AutoDriveMonitor.shouldProbe(automotive: 1, onFoot: 1, samples: 3, travelEvidence: true))
+        #expect(AutoDriveMonitor.shouldProbe(automotive: 1, onFoot: 1, samples: 3, travelEvidence: false))
     }
 
     /// Core Motion had no opinion — but iOS still saw ~500 m of travel.
-    @Test func noSamplesStillProbes() {
-        #expect(AutoDriveMonitor.shouldProbe(automotive: 0, onFoot: 0, samples: 0))
+    @Test func noSamplesStillProbesOnAWake() {
+        #expect(AutoDriveMonitor.shouldProbe(automotive: 0, onFoot: 0, samples: 0, travelEvidence: true))
     }
 
     /// You walked the 500 m: no reason to spend GPS.
     @Test func onFootDominanceSkipsTheProbe() {
-        #expect(!AutoDriveMonitor.shouldProbe(automotive: 0, onFoot: 4, samples: 5))
+        #expect(!AutoDriveMonitor.shouldProbe(automotive: 0, onFoot: 4, samples: 5, travelEvidence: true))
     }
 
-    /// Ambiguous windows (stationary-heavy, no automotive, little walking)
-    /// still probe — the speedometer is the cheap, definitive test.
-    @Test func ambiguousWindowsProbe() {
-        #expect(AutoDriveMonitor.shouldProbe(automotive: 0, onFoot: 1, samples: 4))
+    /// A wake with a stationary-heavy window still probes — iOS saw the
+    /// travel even if Core Motion hasn't labeled it yet.
+    @Test func ambiguousWindowsProbeOnAWake() {
+        #expect(AutoDriveMonitor.shouldProbe(automotive: 0, onFoot: 1, samples: 4, travelEvidence: true))
+    }
+
+    /// The field log: opening the app on the couch fired a probe every
+    /// time. A foreground launch has no travel evidence, so without an
+    /// automotive sample it must not spend GPS.
+    @Test func foregroundLaunchWithoutAutomotiveNeverProbes() {
+        #expect(!AutoDriveMonitor.shouldProbe(automotive: 0, onFoot: 0, samples: 5, travelEvidence: false))
+        #expect(!AutoDriveMonitor.shouldProbe(automotive: 0, onFoot: 0, samples: 0, travelEvidence: false))
     }
 }
 

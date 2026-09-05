@@ -49,7 +49,7 @@ struct OpenRoadieApp: App {
                         if let coordinate, accuracy >= 0, session?.isDriving != true {
                             store.saveCrumb(coordinate, accuracy: accuracy)
                         }
-                        autoDrive?.checkRecentActivity()
+                        autoDrive?.checkRecentActivity(travelEvidence: true)
                     }
                     // Everything below is housekeeping — skipped entirely
                     // on a background wake, where the only job is catching

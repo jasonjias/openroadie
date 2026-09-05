@@ -152,7 +152,7 @@ struct SettingsView: View {
                     // itself instead of failing silently.
                     if let events = UserDefaults.standard.stringArray(forKey: AutoDriveMonitor.eventLogKey), !events.isEmpty {
                         VStack(alignment: .leading, spacing: 2) {
-                            ForEach(events.reversed(), id: \.self) { event in
+                            ForEach(Array(events.suffix(12).reversed()), id: \.self) { event in
                                 Text(event)
                             }
                         }

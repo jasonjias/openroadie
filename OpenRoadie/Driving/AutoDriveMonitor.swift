@@ -43,7 +43,8 @@ final class AutoDriveMonitor {
         let stamp = Date.now.formatted(.dateTime.month(.defaultDigits).day().hour().minute())
         var log = UserDefaults.standard.stringArray(forKey: eventLogKey) ?? []
         log.append("\(stamp)  \(event)")
-        UserDefaults.standard.set(Array(log.suffix(6)), forKey: eventLogKey)
+        // Deep enough that a day's real events survive a burst of installs.
+        UserDefaults.standard.set(Array(log.suffix(40)), forKey: eventLogKey)
     }
     /// Hands-free: no Start Drive button at all — OpenRoadie begins and ends
     /// drives on its own.
@@ -101,8 +102,9 @@ final class AutoDriveMonitor {
 
     /// Cold-start check: if the phone was already in automotive motion over
     /// the last few minutes, the drive is happening NOW — skip the wait.
-    func checkRecentActivity() {
+    func checkRecentActivity(travelEvidence: Bool = false) {
         guard Self.mode != .off, !session.isDriving else { return }
+        let source = travelEvidence ? "wake" : "launch"
         // A background-LAUNCHED app is suspended within seconds of its wake
         // event unless it holds an activity session — including across this
         // motion query. Held until the probe takes over its own.
@@ -110,7 +112,11 @@ final class AutoDriveMonitor {
         guard CMMotionActivityManager.isActivityAvailable() else {
             // No motion classifier on this device: the 500 m wake alone is
             // reason enough to look at the speedometer.
-            Self.note("wake: no motion data — probing")
+            guard travelEvidence else {
+                endWakeSession()
+                return
+            }
+            Self.note("\(source): no motion data — probing")
             detector = Self.likelyDetector()
             startSpeedProbe()
             return
@@ -122,12 +128,15 @@ final class AutoDriveMonitor {
                 let samples = activities ?? []
                 let automotive = samples.filter(\.automotive).count
                 let onFoot = samples.filter { $0.walking || $0.running }.count
-                guard Self.shouldProbe(automotive: automotive, onFoot: onFoot, samples: samples.count) else {
-                    Self.note("wake: on foot (\(onFoot)/\(samples.count)) — no probe")
+                guard Self.shouldProbe(
+                    automotive: automotive, onFoot: onFoot, samples: samples.count,
+                    travelEvidence: travelEvidence
+                ) else {
+                    Self.note("\(source): \(automotive) auto, \(onFoot) foot / \(samples.count) — no probe")
                     self.endWakeSession()
                     return
                 }
-                Self.note("wake: \(automotive) auto / \(samples.count) samples — probing")
+                Self.note("\(source): \(automotive) auto / \(samples.count) samples — probing")
                 self.log.info("wake justifies a probe")
                 _ = self.detector.processMotion(automotive: true, otherActivity: false, at: .now.addingTimeInterval(-60))
                 if case .idle = self.detector.state {
@@ -160,9 +169,17 @@ final class AutoDriveMonitor {
     ///
     /// Now the probe runs unless the window is dominated by on-foot
     /// motion — you walked the 500 m. Pure and unit-tested.
-    nonisolated static func shouldProbe(automotive: Int, onFoot: Int, samples: Int) -> Bool {
+    ///
+    /// `travelEvidence` is the difference between a background WAKE (iOS
+    /// itself saw ~500 m of movement) and a foreground LAUNCH (the user
+    /// opened the app — no movement implied). Field log: without the
+    /// distinction, every app open at home fired a GPS probe because
+    /// "stationary" isn't "on foot".
+    nonisolated static func shouldProbe(automotive: Int, onFoot: Int, samples: Int, travelEvidence: Bool) -> Bool {
         if automotive > 0 { return true }
-        // No classification either way: the travel itself stands alone.
+        // A cold launch with no automotive history has no reason to spend GPS.
+        guard travelEvidence else { return false }
+        // No classification either way, but 500 m of travel stands alone.
         guard samples > 0 else { return true }
         return Double(onFoot) / Double(samples) <= 0.6
     }
