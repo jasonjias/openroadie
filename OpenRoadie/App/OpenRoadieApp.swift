@@ -42,15 +42,19 @@ struct OpenRoadieApp: App {
                     // before iOS suspends us is measured in seconds — the
                     // janitor's 8-second cleanup must never come first.
                     let launchedInBackground = UIApplication.shared.applicationState == .background
-                    backgroundWatcher.refresh { [weak autoDrive, weak session] coordinate, accuracy in
-                        // Each wake drops a breadcrumb (unless a drive is
-                        // already recording the real route) — ambient walks
-                        // assemble coarse trails from these at read time.
+                    backgroundWatcher.refresh { [weak session] coordinate, accuracy in
+                        // A wake means the app is alive again — start the
+                        // continuous spine, which drops breadcrumbs and
+                        // promotes itself to a drive on road speed. No more
+                        // fragile probe handoff.
                         if let coordinate, accuracy >= 0, session?.isDriving != true {
                             store.saveCrumb(coordinate, accuracy: accuracy)
                         }
-                        autoDrive?.checkRecentActivity(travelEvidence: true)
+                        session?.ensureContinuousRecording()
                     }
+                    // Start the spine on this launch too (foreground or a
+                    // background relaunch).
+                    session.ensureContinuousRecording()
                     // Everything below is housekeeping — skipped entirely
                     // on a background wake, where the only job is catching
                     // the drive.

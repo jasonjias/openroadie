@@ -232,6 +232,17 @@ struct WalkDistanceSanityTests {
     }
 }
 
+struct ContinuousRecorderTests {
+    /// The always-on spine runs only when the user opted in, location is
+    /// granted, and no drive already owns the single stream.
+    @Test func runsOnlyWhenEnabledAuthorizedAndNotDriving() {
+        #expect(ContinuousRecorder.shouldRun(enabled: true, authorized: true, isDriving: false))
+        #expect(!ContinuousRecorder.shouldRun(enabled: false, authorized: true, isDriving: false))
+        #expect(!ContinuousRecorder.shouldRun(enabled: true, authorized: false, isDriving: false))
+        #expect(!ContinuousRecorder.shouldRun(enabled: true, authorized: true, isDriving: true))
+    }
+}
+
 struct WalkEndDetectorTests {
     private let t0 = Date(timeIntervalSince1970: 1_724_500_000)
 

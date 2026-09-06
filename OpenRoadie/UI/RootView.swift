@@ -42,6 +42,7 @@ struct RootView: View {
         // volume dip) unless a drive is actually recording.
         .onChange(of: scenePhase) { _, phase in
             wake.setAppActive(phase == .active)
+            if phase == .active { session.ensureContinuousRecording() }
         }
         .onChange(of: modelProvider) { _, _ in agent.reconfigure() }
         .onChange(of: customModelURL) { _, _ in agent.reconfigure() }

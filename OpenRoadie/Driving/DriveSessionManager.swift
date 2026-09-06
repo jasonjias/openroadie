@@ -40,6 +40,7 @@ final class DriveSessionManager {
     private let severeWeather = SevereWeatherWatch()
     private let liveActivity = DriveActivityController()
     private let walkRecorder: WalkRecorder
+    private let continuous: ContinuousRecorder
     private let store: TripStore?
     private var tracker = TripTracker()
     private var alertEngine = SpeedAlertEngine()
@@ -77,6 +78,10 @@ final class DriveSessionManager {
     init(store: TripStore? = nil) {
         self.store = store
         self.walkRecorder = WalkRecorder(store: store)
+        self.continuous = ContinuousRecorder(store: store)
+        // The continuous stream promotes itself to a real drive on road
+        // speed — the single, reliable auto-start path.
+        self.continuous.onRoadSpeed = { [weak self] in self?.startDrive() }
         // Alert rules apply live: whether changed in Settings or written by
         // Roadie ("warn me at 80"), the engine reconfigures mid-drive.
         NotificationCenter.default.addObserver(
@@ -86,6 +91,14 @@ final class DriveSessionManager {
                 self?.reloadAlertConfig()
             }
         }
+    }
+
+    /// Ensure the always-on breadcrumb spine is running (app launch, a
+    /// background wake, or returning to foreground). No-op while driving or
+    /// when Always-on is off.
+    func ensureContinuousRecording() {
+        guard !isDriving else { return }
+        continuous.start()
     }
 
     private func reloadAlertConfig() {
@@ -98,6 +111,9 @@ final class DriveSessionManager {
 
     func startDrive() {
         guard !isDriving else { return }
+        // One stream per process: the continuous recorder and any walk
+        // recording must let go before the drive opens its own.
+        continuous.stop()
         walkRecorder.finish()
         lastErrorDescription = nil
         isStationary = false
@@ -165,6 +181,10 @@ final class DriveSessionManager {
         updatesTask = nil
         locationService.end()
         roadService.cancel()
+        // Resume the always-on breadcrumb spine now the drive released the
+        // stream — this is what captures the walk from the car and the
+        // stretch until the next drive.
+        continuous.start()
         motionService.stop()
         // The drive ended when the car last MOVED — not minutes later when
         // the walk-away or settle detector got around to closing it. The
@@ -408,9 +428,6 @@ final class DriveSessionManager {
             guard AlertCenter.autoEndEnabled || AutoDriveMonitor.handsFree else { break }
             stopDrive()
             alerts.deliverDriveAutoEnded(walkedAway: true)
-            // The one window where walk breadcrumbs exist without always-on
-            // location: the app is alive RIGHT NOW because the drive was.
-            walkRecorder.start()
         }
     }
 

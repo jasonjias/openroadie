@@ -448,7 +448,24 @@ struct DayDrivesMap: View {
     let title: String
     var events: [DriveEvent] = []
 
+    /// The day's continuous breadcrumbs — the connective spine between
+    /// drives, so a day reads as one thread, not scattered routes.
+    @Query private var crumbs: [LocationCrumb]
+
+    init(trips: [Trip], title: String, events: [DriveEvent] = []) {
+        self.trips = trips
+        self.title = title
+        self.events = events
+        let day = Calendar.current.startOfDay(for: trips.map(\.startDate).min() ?? .now)
+        let next = day.addingTimeInterval(86_400)
+        _crumbs = Query(
+            filter: #Predicate<LocationCrumb> { $0.timestamp >= day && $0.timestamp < next },
+            sort: \.timestamp
+        )
+    }
+
     @State private var colorMode: RouteColorMode = .vsLimit
+    @State private var showsBreadcrumbs = true
     @State private var photosModel = MapPhotosModel()
     @State private var viewingPhoto: MapPhoto?
     /// The day's event pins (hard braking, over-limit, and friends) can
@@ -468,6 +485,15 @@ struct DayDrivesMap: View {
 
         VStack(spacing: 0) {
             Map(initialPosition: .automatic) {
+                // The connective spine first, under the drive routes: every
+                // recorded position across the day, as a faint dotted thread.
+                if showsBreadcrumbs, crumbs.count >= 2 {
+                    MapPolyline(coordinates: crumbs.map {
+                        CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude)
+                    })
+                    .stroke(.secondary.opacity(0.5),
+                            style: StrokeStyle(lineWidth: 2, lineCap: .round, dash: [2, 5]))
+                }
                 ForEach(trips) { trip in
                     ColoredRoute(route: trip.route, mode: colorMode)
                 }
@@ -496,6 +522,14 @@ struct DayDrivesMap: View {
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    showsBreadcrumbs.toggle()
+                } label: {
+                    Image(systemName: showsBreadcrumbs ? "point.topleft.down.to.point.bottomright.curvepath.fill" : "point.topleft.down.to.point.bottomright.curvepath")
+                }
+                .accessibilityLabel(showsBreadcrumbs ? "Hide breadcrumbs" : "Show breadcrumbs")
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     showsEventPins.toggle()
