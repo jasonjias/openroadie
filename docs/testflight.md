@@ -116,7 +116,12 @@ Verified and fixed on 2026-10-01 so the build is submission-clean:
 - **Team:** `DEVELOPMENT_TEAM` lives in `Config/Local.xcconfig`
   (gitignored). A fresh clone recreates that file with its own team ID,
   same as the README says for device builds.
-- **Release archive builds clean** with automatic signing.
+- **Release archive builds clean**, and once the Apple ID was signed into
+  Xcode the **App Store export succeeds**: `OpenRoadie.ipa` signed
+  "Apple Distribution: Jason Chen (92HZ963W7D)", with App Store profiles
+  auto-created for all three bundle IDs (OpenRoadie, watchkitapp, Widgets),
+  verified with `codesign`. Only the upload itself is left, and that is
+  yours to run.
 
 ### App Group: not needed
 
