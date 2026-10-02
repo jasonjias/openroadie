@@ -3,75 +3,92 @@
 Drafts for the public launch. Repo is public, so nothing here names other
 projects or carries secrets. Everything is yours to edit before posting.
 
-## Demo clip: shot list (20 to 30 seconds)
-
-Record on the phone, screen recording plus a short real-drive clip if you
-can. Keep each shot 3 to 5 seconds. The goal is "my phone already knows all
-this," not a feature tour.
-
-1. **Get in, drive off.** The dashboard with live speed, the road name, and
-   the Drive Scene. No tapping. (Hands-free auto-start is on, so just drive.)
-   Caption idea: "Just drive. It starts itself."
-2. **Glance down at a stop.** Speed, speed limit, the road you are on. Maybe
-   a speed alert chime if you go over. Caption: "Knows the road and the
-   limit."
-3. **The day, after.** Open Trips. Scroll the Sessions timeline: the drive,
-   the stop named (coffee, store, gym), the walk, weather on the card.
-   Caption: "Your whole day, on the device."
-4. **Tap into a drive.** The route map, the pace strip, the weather card.
-   Caption: "Every drive, in detail."
-5. **Nearby.** Tap Nearby, find a charger or coffee. Caption: "What's around,
-   from open map data."
-
-Optional voice shot, only if you turn it on first (Settings > Hey Roadie):
-"Hey Roadie, where am I?" and the spoken answer. It is off by default
-because an open mic makes iOS dim other audio, so demo it deliberately or
-skip it.
-
-Keep the privacy line on screen at the end: **"Your driving data stays on
-your phone."**
+Guardrail: Tesla is the inspiration, not the product. Say "Tesla-like" or
+"what I loved about a Tesla" as a feeling. Do not use Tesla logos, car
+images, UI screenshots, or anything that implies affiliation. OpenRoadie is
+for any car.
 
 ## Draft X post
 
-Lead post, short, one line on what it is. Put the repo link in the first
-reply, not the post, so the post itself travels further.
+Short lead, one idea. Put the link in the first reply so the post itself
+travels further.
 
-> I built an open-source driving copilot for iPhone.
+> OpenRoadie: an open-source AI copilot for any car.
 >
-> Get in, drive off, and it records the trip by itself: route, speed, the
-> road and its limit, the weather, where you stopped. Then it shows your
-> whole day as a timeline.
+> I loved how a Tesla makes the car feel aware of the drive. I wanted that in
+> my 10-year-old car, so I built it on the computer every driver already
+> owns: the iPhone.
 >
-> All on the phone. No account, no cloud.
->
-> It's free and the code is open. 🧵
+> Get in, drive off. It records the whole trip by itself, all on the phone. 🧵
 
-First reply:
+First reply (link + TestFlight):
 
-> Code and build instructions: github.com/jasonjias/openroadie
+> Code: github.com/jasonjias/openroadie (Apache 2.0). TestFlight coming soon.
 >
-> Built on iPhone sensors, OpenStreetMap, and Open-Meteo. Apache 2.0.
-> Early, rough, and real. Feedback welcome.
+> It knows the road and the speed limit (OpenStreetMap), the weather
+> (Open-Meteo), and lays your whole day out as a timeline. No account, no
+> cloud. Early and real. Feedback welcome.
 
-Alternate shorter lead, if you want punchier:
+Punchier alternate lead, if you want it:
 
 > Your iPhone already knows your whole drive. I made it show you.
 >
-> Open-source driving copilot: auto-records every trip (route, speed, road,
-> limits, weather, stops) and lays your day out as a timeline. All on the
-> device, no account. 🧵
+> OpenRoadie: an open-source, Tesla-like copilot for any car. Auto-records
+> every trip (route, speed, road, limits, weather, stops) and lays your day
+> out as a timeline. All on the device. 🧵
 
-### Subject-line style notes (from the outbound playbook)
+Optional follow-up reply, your call, to frame it as the passion project it
+is (keeps your other work out of it, you can add that live if you want):
 
-For the first reply and any DMs, specific and slightly odd beats generic.
-"your phone already logs this, you just can't see it" beats "introducing
-OpenRoadie." Lead with the thing they feel, not the product name.
+> This is the project I build for love. It is where a lot of my thinking
+> about on-device, personal AI copilots gets to run free, in the one place I
+> spend real time: the car.
+
+## Demo clip: shot list (20 to 30 seconds)
+
+Record today on a real drive. Screen recording, plus a short clip of the
+phone on the mount if you can. Keep each shot 3 to 5 seconds. The goal is
+"my phone already knows all this," not a feature tour.
+
+1. **Get in, drive off.** The dashboard: live speed, the road name, the Drive
+   Scene. No tapping, hands-free auto-start is on. Caption: "Just drive. It
+   starts itself."
+2. **Glance at a stop.** Speed, the posted limit, the road you are on. A
+   speed-alert chime if you nudge over. Caption: "Knows the road and the
+   limit."
+3. **The day, after.** Open Trips. Scroll the Sessions timeline: the drive,
+   the stop named (coffee, store, gym), the walk between them, weather on the
+   card. Caption: "Your whole day, built by itself."
+4. **Into a drive.** Tap a drive: the route map, the pace strip, the weather
+   card. Caption: "Every drive, in detail."
+5. **Nearby.** Tap Nearby, find a charger or coffee. Caption: "What's around,
+   from open map data."
+
+End card, held on screen: **"Your driving data stays on your phone."**
+
+Optional voice shot, only if you switch it on first (Settings > Hey Roadie):
+"Hey Roadie, where am I?" and the spoken reply. Off by default, so demo it
+on purpose or skip it.
+
+## Screenshots worth taking (2 to 3)
+
+Still shots for the post and the README hero. Take them on a day with a
+real drive so they look lived-in, not empty.
+
+1. **The live dashboard, mid-drive.** Speed, road name, Drive Scene. This is
+   the hero image.
+2. **The Sessions timeline for a day.** Drive to a named stop to a walk, each
+   card in its color, a weather chip on a drive. This is the "it built my
+   day" shot.
+3. **A trip detail.** Route map on top, the pace strip, the weather card.
+   The "it actually understood the drive" shot.
 
 ## Pre-post checklist
 
 - README has the privacy line, a quick start, and a "what works today" list.
-- A hero GIF or screenshot is in the post (replace the placeholder in the
-  README once recorded).
+- A hero GIF or screenshot is in the post (record shot 1 above, or the demo
+  clip, and drop it into the README placeholder).
 - The repo has no secrets and no half-finished branches on `main`.
+- Build 5 is ready to upload from Xcode Organizer when you want TestFlight.
 - You are ready to reply fast. The first hour of replies is where it lives
   or dies.
