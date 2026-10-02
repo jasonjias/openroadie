@@ -10,7 +10,6 @@ struct SessionDetailView: View {
     private var accent: Color { item.kind.tint }
 
     @State private var route: [Coordinate] = []
-    @State private var health = HealthSessions()
 
     var body: some View {
         ScrollView {
@@ -84,7 +83,7 @@ struct SessionDetailView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 18))
                     .padding(.horizontal)
                     if item.kind == .walk {
-                        Text("Approximate — anchored to where the phone last had a fix (usually where you parked). Walks recorded as watch workouts carry their exact route.")
+                        Text("Approximate, anchored to where the phone last had a fix (usually where you parked).")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
@@ -92,7 +91,7 @@ struct SessionDetailView: View {
                     }
                 }
 
-                // The GPS trail the watch recorded with an outdoor workout.
+                // The recorded walk trail.
                 if route.count >= 2 {
                     let coordinates = route.map {
                         CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude)
@@ -113,7 +112,7 @@ struct SessionDetailView: View {
                 }
 
                 if item.kind == .walk, item.routeIsCoarse, !route.isEmpty {
-                    Text("Coarse trail — one point per ~500 m, from Always-on wake-ups. Walks recorded as watch workouts carry an exact route.")
+                    Text("Coarse trail, one point per ~500 m, from Always-on wake-ups.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
@@ -121,7 +120,7 @@ struct SessionDetailView: View {
                 }
 
                 if item.kind == .walk, item.coordinate == nil, item.route == nil {
-                    Text("No location for this walk — it comes from the motion coprocessor's history, which records activity but not position, and no drive pinned the phone nearby. Walks recorded as watch workouts carry their exact route.")
+                    Text("No location for this walk. It comes from the motion coprocessor's history, which records activity but not position, and no drive pinned the phone nearby.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
@@ -131,9 +130,7 @@ struct SessionDetailView: View {
         }
         .task {
             if let trail = item.route {
-                route = HealthSessions.thin(trail, to: 300)
-            } else if let uuid = item.workoutUUID {
-                route = await health.route(forWorkoutWith: uuid)
+                route = SessionBuilder.thin(trail, to: 300)
             }
         }
         .background(Color(.systemGroupedBackground))

@@ -9,8 +9,6 @@ extension SessionItem.Kind {
         switch self {
         case .drive: .blue
         case .walk: .green
-        case .workout: .orange
-        case .sleep: .indigo
         case .stop: .teal
         }
     }

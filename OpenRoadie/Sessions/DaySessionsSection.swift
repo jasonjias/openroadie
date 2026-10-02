@@ -15,7 +15,6 @@ struct DaySessionsSection: View {
 
     @State private var filter: SessionItem.Kind?
     @State private var items: [SessionItem] = []
-    @State private var health = HealthSessions()
     @State private var walkHistory = WalkHistory()
 
     var body: some View {
@@ -25,8 +24,6 @@ struct DaySessionsSection: View {
                     chip(nil, "All")
                     chip(.drive, "Drives")
                     chip(.walk, "Walks")
-                    chip(.workout, "Workouts")
-                    chip(.sleep, "Sleep")
                     chip(.stop, "Stops")
                 }
             }
@@ -48,8 +45,8 @@ struct DaySessionsSection: View {
                     .listRowSeparator(.hidden)
                     .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
                     .swipeActions(edge: .trailing) {
-                        // Only drives are OURS to delete — walks, workouts
-                        // and sleep belong to Health and motion history.
+                        // Only drives are OURS to delete — walks come from
+                        // the motion coprocessor's history, not from us.
                         if item.kind == .drive, let tripID = item.tripID {
                             Button(role: .destructive) {
                                 if let trip = modelContext.model(for: tripID) as? Trip {
@@ -66,7 +63,6 @@ struct DaySessionsSection: View {
             SectionHeader("Sessions")
         }
         .task(id: taskKey) {
-            await health.requestAccess()
             await rebuild()
         }
     }
@@ -114,7 +110,6 @@ struct DaySessionsSection: View {
         let calendar = Calendar.current
         let from = calendar.startOfDay(for: day)
         let to = calendar.date(byAdding: .day, value: 1, to: from) ?? from
-        // Sleep looks 12 h back so last night belongs to this morning.
         let paths = (try? modelContext.fetch(FetchDescriptor<WalkPath>(
             predicate: #Predicate { $0.startDate >= from && $0.startDate < to }
         ))) ?? []
@@ -122,15 +117,13 @@ struct DaySessionsSection: View {
             predicate: #Predicate { $0.timestamp >= from && $0.timestamp < to }
         ))) ?? []).map { (date: $0.timestamp, coordinate: $0.coordinate) }
         let result = await SessionAssembler.assemble(
-            trips: trips, walkPaths: paths, crumbs: crumbs, from: from, to: to, sleepLookback: 12 * 3_600,
-            health: health, walkHistory: walkHistory
+            trips: trips, walkPaths: paths, crumbs: crumbs, from: from, to: to, walkHistory: walkHistory
         )
         items = result.items
         if !result.unresolved.isEmpty {
             await SessionAssembler.warmNames(result.unresolved)
             items = await SessionAssembler.assemble(
-                trips: trips, walkPaths: paths, crumbs: crumbs, from: from, to: to, sleepLookback: 12 * 3_600,
-                health: health, walkHistory: walkHistory
+                trips: trips, walkPaths: paths, crumbs: crumbs, from: from, to: to, walkHistory: walkHistory
             ).items
         }
     }

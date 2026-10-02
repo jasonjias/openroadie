@@ -19,8 +19,6 @@ enum SessionAssembler {
         crumbs: [(date: Date, coordinate: Coordinate)] = [],
         from: Date,
         to: Date,
-        sleepLookback: TimeInterval = 0,
-        health: HealthSessions,
         walkHistory: WalkHistory
     ) async -> Result {
         let calendar = Calendar.current
@@ -94,41 +92,7 @@ enum SessionAssembler {
             ))
         }
 
-        let workouts = await health.workouts(from: from, to: to)
-        for workout in workouts {
-            let look = HealthSessions.workoutPresentation(activity: workout.activity)
-            let metric: String = if let meters = workout.meters, meters > 150 {
-                String(format: "%.2f MI", meters / 1609.344)
-            } else if let kcal = workout.kilocalories {
-                "\(Int(kcal.rounded())) CAL"
-            } else {
-                DriveFormatting.compactDuration(workout.end.timeIntervalSince(workout.start)).uppercased()
-            }
-            var workoutFacts = [DriveFormatting.compactDuration(workout.end.timeIntervalSince(workout.start))]
-            if let kcal = workout.kilocalories, metric.hasSuffix("MI") {
-                workoutFacts.append("\(Int(kcal.rounded())) cal")
-            }
-            items.append(SessionItem(
-                id: "workout-\(workout.start.timeIntervalSince1970)",
-                kind: .workout, symbol: look.symbol, title: look.title,
-                metric: metric, subtitle: workoutFacts.joined(separator: " · "),
-                start: workout.start, end: workout.end,
-                workoutUUID: workout.uuid
-            ))
-        }
-
-        for night in await health.sleepNights(from: from.addingTimeInterval(-sleepLookback), to: to) {
-            items.append(SessionItem(
-                id: "sleep-\(night.start.timeIntervalSince1970)",
-                kind: .sleep, symbol: "bed.double.fill", title: "Sleep",
-                metric: DriveFormatting.compactDuration(night.asleepSeconds).uppercased(),
-                subtitle: "in bed \(DriveFormatting.compactDuration(night.end.timeIntervalSince(night.start)))",
-                start: night.start, end: night.end
-            ))
-        }
-
-        // Ambient walks (motion history reaches back ~a week), minus any
-        // covered by a deliberate workout.
+        // Ambient walks (motion history reaches back ~a week).
         var allWalks: [WalkHistory.Walk] = []
         var day = calendar.startOfDay(for: min(to, .now))
         while day >= calendar.startOfDay(for: from),
@@ -142,12 +106,11 @@ enum SessionAssembler {
         // loose fragments merge across gaps under an hour. One card, one
         // trail, instead of a dozen three-minute shards.
         let recorded = walkPaths.filter { $0.startDate >= from && $0.startDate < to }
+        // A "walk" overlapping a drive is a Core Motion misread — a
+        // passenger's fidgeting is not a walk.
         let kept = SessionBuilder.walks(
             allWalks.map { ($0.start, $0.end) },
-            notCoveredBy: workouts.map { ($0.start, $0.end) }
-                // A "walk" overlapping a drive is a Core Motion misread —
-                // a passenger's fidgeting is not a walk.
-                + completed.map { ($0.startDate, $0.endDate ?? $0.startDate) }
+            notCoveredBy: completed.map { ($0.startDate, $0.endDate ?? $0.startDate) }
         )
         let stopWindows = placedStops.map { ($0.start, $0.end) }
         // Every moment a trip pinned the phone somewhere — walk anchors when

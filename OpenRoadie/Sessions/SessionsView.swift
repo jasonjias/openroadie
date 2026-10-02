@@ -2,8 +2,8 @@ import SwiftData
 import SwiftUI
 
 /// The Sessions timeline: everything the phone knows you did — drives,
-/// walks, workouts, sleep, stops — as Fitness-style cards with filter
-/// chips. Rendered dark like its inspiration; every source is on-device.
+/// walks, and stops — as cards with filter chips. Every source is
+/// on-device.
 struct SessionsView: View {
     @Query(sort: \Trip.startDate, order: .reverse) private var trips: [Trip]
 
@@ -12,7 +12,6 @@ struct SessionsView: View {
     @State private var filter: SessionItem.Kind?
     @State private var items: [SessionItem] = []
     @State private var loaded = false
-    @State private var health = HealthSessions()
     @State private var walkHistory = WalkHistory()
 
     var body: some View {
@@ -32,7 +31,6 @@ struct SessionsView: View {
         .background(Color(.systemGroupedBackground))
         .navigationTitle("Sessions")
         .task {
-            await health.requestAccess()
             await rebuild()
             loaded = true
         }
@@ -44,8 +42,6 @@ struct SessionsView: View {
                 chip(nil, "All")
                 chip(.drive, "Drives")
                 chip(.walk, "Walks")
-                chip(.workout, "Workouts")
-                chip(.sleep, "Sleep")
                 chip(.stop, "Stops")
             }
         }
@@ -64,9 +60,7 @@ struct SessionsView: View {
             Calendar.current.dateInterval(of: .month, for: item.start)?.start ?? item.start
         }
         if shown.isEmpty {
-            Text(filter == .sleep || filter == .workout
-                 ? "Nothing here yet — this comes from Health, so it needs Health access and a watch (or app) that records it."
-                 : "Nothing here yet.")
+            Text("Nothing here yet.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .padding(.top, 40)
@@ -94,14 +88,14 @@ struct SessionsView: View {
             predicate: #Predicate { $0.timestamp >= from && $0.timestamp < now }
         ))) ?? []).map { (date: $0.timestamp, coordinate: $0.coordinate) }
         let result = await SessionAssembler.assemble(
-            trips: trips, walkPaths: paths, crumbs: crumbs, from: from, to: now, health: health, walkHistory: walkHistory
+            trips: trips, walkPaths: paths, crumbs: crumbs, from: from, to: now, walkHistory: walkHistory
         )
         items = result.items
         loaded = true
         if !result.unresolved.isEmpty {
             await SessionAssembler.warmNames(result.unresolved)
             items = await SessionAssembler.assemble(
-                trips: trips, walkPaths: paths, crumbs: crumbs, from: from, to: now, health: health, walkHistory: walkHistory
+                trips: trips, walkPaths: paths, crumbs: crumbs, from: from, to: now, walkHistory: walkHistory
             ).items
         }
     }

@@ -60,7 +60,7 @@ OpenRoadie records your driving day by itself and shows it back to you, all on t
 
 - **Auto-recorded drives.** Get in, drive off. It starts and ends trips on its own, through red lights and gas stops, and saves the route.
 - **Road awareness.** The road you are on and its speed limit, from OpenStreetMap, with optional speed alerts.
-- **A day timeline.** Drives, walks, and stops laid out as cards, with each stop named (coffee, store, gym) and the walk between them. Workouts and sleep come from Apple Health.
+- **A day timeline.** Drives, walks, and stops laid out as cards, with each stop named (coffee, store, gym) and the walk between them.
 - **Weather per drive.** Conditions, temperature, and air quality from Open-Meteo, shown as a widget-style card and animated on the dashboard.
 - **Maps.** Every trip drawn as a route colored by speed, with photos you took that day placed where you took them.
 - **Roadie, on device.** An optional voice assistant ("Hey Roadie, where am I?") and nearby search for food, coffee, gas, and chargers. Runs on Apple's on-device model or a model you bring.

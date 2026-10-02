@@ -129,8 +129,8 @@ struct WalkHistoryTests {
     }
 
     @Test func walksInsideDrivesAreMisreadsAndDrop() {
-        // The same overlap dedupe that suppresses double-counted workouts
-        // also drops passenger-fidget "walks" that overlap a drive.
+        // The overlap dedupe drops passenger-fidget "walks" that overlap a
+        // drive.
         let kept = SessionBuilder.walks(
             [(t0 + 100, t0 + 400), (t0 + 2_000, t0 + 2_400)],
             notCoveredBy: [(t0, t0 + 1_000)]
@@ -154,40 +154,15 @@ struct SessionBuilderTests {
         #expect(SessionBuilder.stopSymbol(forPlaceName: nil) == "mappin.circle")
     }
 
-    /// The same walk seen by two sensors is one event: the deliberate
-    /// HealthKit workout wins over the ambient motion-history walk.
-    @Test func ambientWalksCoveredByWorkoutsDrop() {
+    /// A walk interval overlapping a drive is a Core Motion misread and is
+    /// dropped; a separate walk is kept.
+    @Test func walksOverlappingAnIntervalDrop() {
         let kept = SessionBuilder.walks(
             [(t0, t0 + 600), (t0 + 5_000, t0 + 5_600)],
             notCoveredBy: [(t0 - 60, t0 + 700)]
         )
         #expect(kept.count == 1)
         #expect(kept[0].start == t0 + 5_000)
-    }
-
-    @Test func sleepSamplesCoalesceIntoNights() {
-        // Core sleep, brief 3 AM wake, more sleep: one night, asleep time
-        // excludes the gap.
-        let nights = HealthSessions.nights(from: [
-            (t0, t0 + 3 * 3_600),
-            (t0 + 3 * 3_600 + 900, t0 + 7 * 3_600),
-        ])
-        #expect(nights.count == 1)
-        #expect(nights[0].start == t0)
-        #expect(nights[0].end == t0 + 7 * 3_600)
-        #expect(abs(nights[0].asleepSeconds - (7 * 3_600 - 900)) < 1)
-    }
-
-    @Test func aNapAndANightAreSeparate() {
-        let nights = HealthSessions.nights(from: [
-            (t0, t0 + 2 * 3_600),
-            (t0 + 10 * 3_600, t0 + 17 * 3_600),
-        ])
-        #expect(nights.count == 2)
-    }
-
-    @Test func aTwentyMinuteDozeIsNotANight() {
-        #expect(HealthSessions.nights(from: [(t0, t0 + 1_200)]).isEmpty)
     }
 }
 
@@ -198,12 +173,12 @@ struct RouteThinningTests {
 
     @Test func shortRoutesPassThroughUntouched() {
         let route = (0..<50).map(coord)
-        #expect(HealthSessions.thin(route, to: 300) == route)
+        #expect(SessionBuilder.thin(route, to: 300) == route)
     }
 
     @Test func longRoutesKeepEndsAndSpreadEvenly() {
         let route = (0..<3_000).map(coord)
-        let thinned = HealthSessions.thin(route, to: 300)
+        let thinned = SessionBuilder.thin(route, to: 300)
         #expect(thinned.count == 300)
         #expect(thinned.first == route.first)
         #expect(thinned.last == route.last)

@@ -1,15 +1,13 @@
 import Foundation
 import SwiftData
 
-/// One entry in the Sessions timeline — a drive, a walk, a workout, a
-/// night's sleep, or a stop at a place. The unifying shape behind the
-/// Fitness-style cards: icon, title, one big metric, a moment in time.
+/// One entry in the Sessions timeline — a drive, a walk, or a stop at a
+/// place. The unifying shape behind the cards: icon, title, one big metric,
+/// a moment in time.
 struct SessionItem: Identifiable, Equatable, Sendable {
     enum Kind: String, CaseIterable, Sendable {
         case drive
         case walk
-        case workout
-        case sleep
         case stop
     }
 
@@ -20,7 +18,7 @@ struct SessionItem: Identifiable, Equatable, Sendable {
     var title: String
     /// Where — shown in the facts line on cards, in full on the detail.
     var placeName: String?
-    /// The big lime number — "1.9 MI", "152 CAL", "7h 12m".
+    /// The big number — "1.9 MI", "27 min".
     var metric: String
     /// Small secondary facts under the metric — "27 min · 74° Clear".
     var subtitle: String?
@@ -29,8 +27,6 @@ struct SessionItem: Identifiable, Equatable, Sendable {
     /// The backing trip, for drive cards — tapping opens the full trip
     /// detail, same as the Drives list.
     var tripID: PersistentIdentifier?
-    /// The backing HealthKit workout, for fetching its recorded route.
-    var workoutUUID: UUID?
     /// Where it happened — exact for stops; for ambient walks, the nearest
     /// known fix (usually where the car parked just before).
     var coordinate: Coordinate?
@@ -73,8 +69,8 @@ enum SessionBuilder {
     }
 
     /// What a stay at a place most likely WAS — the "I shouldn't have to
-    /// record this" guess: a restaurant stop is a meal, a gym stop is a
-    /// workout. Guessed from the place name; unrecognized places stay an
+    /// record this" guess: a restaurant stop is a meal, a gym stop a gym.
+    /// Guessed from the place name; unrecognized places stay an
     /// honest "Parked". Pure and tested.
     static func stopActivity(forPlaceName name: String?) -> (title: String, symbol: String) {
         switch stopSymbol(forPlaceName: name) {
@@ -191,6 +187,15 @@ enum SessionBuilder {
             .map(\.coordinate)
     }
 
+    /// Thins a route to at most `maximum` points, keeping the ends and
+    /// spreading the rest — a watch or GPS trail records far denser than a
+    /// map needs. Pure and tested.
+    nonisolated static func thin(_ route: [Coordinate], to maximum: Int) -> [Coordinate] {
+        guard route.count > maximum, maximum >= 2 else { return route }
+        let stride = Double(route.count - 1) / Double(maximum - 1)
+        return (0..<maximum).map { route[Int((Double($0) * stride).rounded())] }
+    }
+
     /// The known position nearest in time to a moment — how an ambient
     /// walk (recorded without location) gets anchored to the parking spot
     /// it started from. Pure and unit-tested; nil beyond the tolerance,
@@ -205,15 +210,16 @@ enum SessionBuilder {
         return best.coordinate
     }
 
-    /// Ambient walks that overlap a deliberate HealthKit workout are the
-    /// same event seen by two sensors — the workout (richer) wins.
+    /// Drops walk intervals that overlap any of the given intervals — used
+    /// to suppress Core Motion "walks" that fall inside a drive (a
+    /// passenger's fidgeting is not a walk). Pure and tested.
     static func walks(
         _ walks: [(start: Date, end: Date)],
-        notCoveredBy workouts: [(start: Date, end: Date)]
+        notCoveredBy intervals: [(start: Date, end: Date)]
     ) -> [(start: Date, end: Date)] {
         walks.filter { walk in
-            !workouts.contains { workout in
-                max(walk.start, workout.start) < min(walk.end, workout.end)
+            !intervals.contains { other in
+                max(walk.start, other.start) < min(walk.end, other.end)
             }
         }
     }

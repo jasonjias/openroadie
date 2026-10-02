@@ -110,7 +110,7 @@ Verified and fixed on 2026-10-01 so the build is submission-clean:
   in `OpenRoadie/Info.plist`.
 - **Privacy usage strings** are all present and in plain language:
   location (when-in-use and always), motion, microphone, speech
-  recognition, photo library, Health (read only), Apple Music.
+  recognition, photo library, Apple Music.
 - **Background modes:** `location` and `audio`.
 - **Bundle IDs:** `com.openroadie.OpenRoadie`, `.Widgets`.
 - **Team:** `DEVELOPMENT_TEAM` lives in `Config/Local.xcconfig`
@@ -149,9 +149,8 @@ identity, not used for tracking.
 > for your data. To show the road you are on, speed limits, nearby places,
 > and weather, the app sends your approximate location to public services
 > (OpenStreetMap, Open-Meteo, the U.S. National Weather Service). The app
-> reads workouts and sleep from Apple Health and photos from your library
-> only to show them alongside your drives, on the device, and never copies or
-> uploads them. You can delete any trip, and deleting the app removes
+> reads photos from your library only to show them alongside your drives,
+> on the device, and never copies or uploads them. You can delete any trip, and deleting the app removes
 > everything.
 
 Host it anywhere stable (a GitHub Pages page in this repo works) and put the
