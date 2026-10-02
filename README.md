@@ -64,7 +64,7 @@ OpenRoadie records your driving day by itself and shows it back to you, all on t
 - **Weather per drive.** Conditions, temperature, and air quality from Open-Meteo, shown as a widget-style card and animated on the dashboard.
 - **Maps.** Every trip drawn as a route colored by speed, with photos you took that day placed where you took them.
 - **Roadie, on device.** An optional voice assistant ("Hey Roadie, where am I?") and nearby search for food, coffee, gas, and chargers. Runs on Apple's on-device model or a model you bring.
-- **Live Activity and Apple Watch.** The drive on your Lock Screen, Dynamic Island, and wrist.
+- **Live Activity.** The drive on your Lock Screen and in the Dynamic Island.
 
 Still early and rough. The core idea is proven: make an iPhone understand the drive, keep the data on the phone, and give an AI access to that context. Android and more integrations can follow.
 

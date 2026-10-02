@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		0B00000000000000000000A8 /* OpenRoadieWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 0B00000000000000000000A3 /* OpenRoadieWatch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		0C00000000000000000000C8 /* OpenRoadieWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 0C00000000000000000000C3 /* OpenRoadieWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
@@ -19,13 +18,6 @@
 			remoteGlobalIDString = 0A0000000000000000000002;
 			remoteInfo = OpenRoadie;
 		};
-		0B00000000000000000000A9 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 0A0000000000000000000001 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 0B00000000000000000000A2;
-			remoteInfo = OpenRoadieWatch;
-		};
 		0C00000000000000000000C9 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 0A0000000000000000000001 /* Project object */;
@@ -36,17 +28,6 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
-		0B00000000000000000000A7 /* Embed Watch Content */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
-			dstSubfolderSpec = 16;
-			files = (
-				0B00000000000000000000A8 /* OpenRoadieWatch.app in Embed Watch Content */,
-			);
-			name = "Embed Watch Content";
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		0C00000000000000000000C7 /* Embed Foundation Extensions */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
@@ -64,7 +45,6 @@
 		0A0000000000000000000006 /* OpenRoadie.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OpenRoadie.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0A0000000000000000000007 /* OpenRoadieTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OpenRoadieTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		0A0000000000000000000020 /* Shared.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Shared.xcconfig; path = Config/Shared.xcconfig; sourceTree = "<group>"; };
-		0B00000000000000000000A3 /* OpenRoadieWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OpenRoadieWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0C00000000000000000000C3 /* OpenRoadieWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = OpenRoadieWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -107,11 +87,6 @@
 			path = OpenRoadieTests;
 			sourceTree = "<group>";
 		};
-		0B00000000000000000000A1 /* OpenRoadieWatch */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = OpenRoadieWatch;
-			sourceTree = "<group>";
-		};
 		0C00000000000000000000C1 /* OpenRoadieWidgets */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
@@ -137,13 +112,6 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		0B00000000000000000000A5 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		0C00000000000000000000C5 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -160,7 +128,6 @@
 				0A0000000000000000000020 /* Shared.xcconfig */,
 				0A0000000000000000000008 /* OpenRoadie */,
 				0A0000000000000000000009 /* OpenRoadieTests */,
-				0B00000000000000000000A1 /* OpenRoadieWatch */,
 				0C00000000000000000000C1 /* OpenRoadieWidgets */,
 				0A0000000000000000000005 /* Products */,
 			);
@@ -171,7 +138,6 @@
 			children = (
 				0A0000000000000000000006 /* OpenRoadie.app */,
 				0A0000000000000000000007 /* OpenRoadieTests.xctest */,
-				0B00000000000000000000A3 /* OpenRoadieWatch.app */,
 				0C00000000000000000000C3 /* OpenRoadieWidgets.appex */,
 			);
 			name = Products;
@@ -187,13 +153,11 @@
 				0A000000000000000000000B /* Sources */,
 				0A000000000000000000000C /* Frameworks */,
 				0A000000000000000000000D /* Resources */,
-				0B00000000000000000000A7 /* Embed Watch Content */,
 				0C00000000000000000000C7 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				0B00000000000000000000AA /* PBXTargetDependency */,
 				0C00000000000000000000CA /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
@@ -228,28 +192,6 @@
 			productName = OpenRoadieTests;
 			productReference = 0A0000000000000000000007 /* OpenRoadieTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
-		};
-		0B00000000000000000000A2 /* OpenRoadieWatch */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 0B00000000000000000000AB /* Build configuration list for PBXNativeTarget "OpenRoadieWatch" */;
-			buildPhases = (
-				0B00000000000000000000A4 /* Sources */,
-				0B00000000000000000000A5 /* Frameworks */,
-				0B00000000000000000000A6 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			fileSystemSynchronizedGroups = (
-				0B00000000000000000000A1 /* OpenRoadieWatch */,
-			);
-			name = OpenRoadieWatch;
-			packageProductDependencies = (
-			);
-			productName = OpenRoadieWatch;
-			productReference = 0B00000000000000000000A3 /* OpenRoadieWatch.app */;
-			productType = "com.apple.product-type.application";
 		};
 		0C00000000000000000000C2 /* OpenRoadieWidgets */ = {
 			isa = PBXNativeTarget;
@@ -304,7 +246,6 @@
 			targets = (
 				0A0000000000000000000002 /* OpenRoadie */,
 				0A0000000000000000000003 /* OpenRoadieTests */,
-				0B00000000000000000000A2 /* OpenRoadieWatch */,
 				0C00000000000000000000C2 /* OpenRoadieWidgets */,
 			);
 		};
@@ -319,13 +260,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		0A0000000000000000000010 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		0B00000000000000000000A6 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -356,13 +290,6 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		0B00000000000000000000A4 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		0C00000000000000000000C4 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -377,11 +304,6 @@
 			isa = PBXTargetDependency;
 			target = 0A0000000000000000000002 /* OpenRoadie */;
 			targetProxy = 0A0000000000000000000011 /* PBXContainerItemProxy */;
-		};
-		0B00000000000000000000AA /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 0B00000000000000000000A2 /* OpenRoadieWatch */;
-			targetProxy = 0B00000000000000000000A9 /* PBXContainerItemProxy */;
 		};
 		0C00000000000000000000CA /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -522,10 +444,20 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = OpenRoadie/OpenRoadie.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = OpenRoadie/Info.plist;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_NSAppleMusicUsageDescription = "OpenRoadie searches your music library so Roadie can play songs you ask for while driving.";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "OpenRoadie can show your workouts and sleep from Health in the Sessions timeline, next to your drives and walks. Health data is read on this device only and never leaves it.";
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "With Always access, OpenRoadie notices when a drive starts and records it without you opening the app. Driving data stays on your device. Nothing is uploaded.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "OpenRoadie uses your location to show live speed, heading, and trip distance while you drive. Driving data stays on your device.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "OpenRoadie uses the microphone so you can talk to Roadie hands-free while driving.";
+				INFOPLIST_KEY_NSMotionUsageDescription = "OpenRoadie uses motion activity to notice when you start driving, so drives can begin automatically.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "OpenRoadie can show photos you took during your drives on the trip maps. Photos stay in your library — nothing is copied or uploaded.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Your questions are transcribed entirely on this device. Your voice never leaves your iPhone.";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -550,10 +482,20 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = OpenRoadie/OpenRoadie.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = OpenRoadie/Info.plist;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_NSAppleMusicUsageDescription = "OpenRoadie searches your music library so Roadie can play songs you ask for while driving.";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "OpenRoadie can show your workouts and sleep from Health in the Sessions timeline, next to your drives and walks. Health data is read on this device only and never leaves it.";
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "With Always access, OpenRoadie notices when a drive starts and records it without you opening the app. Driving data stays on your device. Nothing is uploaded.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "OpenRoadie uses your location to show live speed, heading, and trip distance while you drive. Driving data stays on your device.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "OpenRoadie uses the microphone so you can talk to Roadie hands-free while driving.";
+				INFOPLIST_KEY_NSMotionUsageDescription = "OpenRoadie uses motion activity to notice when you start driving, so drives can begin automatically.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "OpenRoadie can show photos you took during your drives on the trip maps. Photos stay in your library — nothing is copied or uploaded.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Your questions are transcribed entirely on this device. Your voice never leaves your iPhone.";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -576,7 +518,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.openroadie.OpenRoadieTests;
@@ -593,7 +535,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.openroadie.OpenRoadieTests;
@@ -604,66 +546,12 @@
 			};
 			name = Release;
 		};
-		0B00000000000000000000AC /* Debug */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 0A0000000000000000000020 /* Shared.xcconfig */;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
-				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = OpenRoadie;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
-				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.openroadie.OpenRoadie;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
-				MARKETING_VERSION = 0.1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.openroadie.OpenRoadie.watchkitapp;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = watchos;
-				SKIP_INSTALL = YES;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				TARGETED_DEVICE_FAMILY = 4;
-				WATCHOS_DEPLOYMENT_TARGET = 26.0;
-			};
-			name = Debug;
-		};
-		0B00000000000000000000AD /* Release */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 0A0000000000000000000020 /* Shared.xcconfig */;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
-				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = OpenRoadie;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
-				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.openroadie.OpenRoadie;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
-				MARKETING_VERSION = 0.1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.openroadie.OpenRoadie.watchkitapp;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = watchos;
-				SKIP_INSTALL = YES;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				TARGETED_DEVICE_FAMILY = 4;
-				WATCHOS_DEPLOYMENT_TARGET = 26.0;
-			};
-			name = Release;
-		};
 		0C00000000000000000000CC /* Debug */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 0A0000000000000000000020 /* Shared.xcconfig */;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = OpenRoadieWidgets/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = OpenRoadie;
@@ -686,7 +574,7 @@
 			baseConfigurationReference = 0A0000000000000000000020 /* Shared.xcconfig */;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = OpenRoadieWidgets/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = OpenRoadie;
@@ -730,15 +618,6 @@
 			buildConfigurations = (
 				0A000000000000000000001A /* Debug */,
 				0A000000000000000000001B /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		0B00000000000000000000AB /* Build configuration list for PBXNativeTarget "OpenRoadieWatch" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				0B00000000000000000000AC /* Debug */,
-				0B00000000000000000000AD /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

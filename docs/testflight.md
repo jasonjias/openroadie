@@ -1,8 +1,8 @@
 # Shipping OpenRoadie to TestFlight
 
 This is the exact path from the repo to a TestFlight build. OpenRoadie is an
-iPhone app with a Watch app and a widget extension, so it ships through
-TestFlight and the App Store, not notarization.
+iPhone app with a widget extension, so it ships through TestFlight and
+the App Store, not notarization.
 
 ## The one real blocker: sign the Apple ID into Xcode
 
@@ -103,23 +103,23 @@ action and your go.
 
 Verified and fixed on 2026-10-01 so the build is submission-clean:
 
-- **App icons flattened.** Both the iPhone and Watch `AppIcon.png` had an
-  alpha channel, which App Store Connect rejects. Both are now opaque
-  1024x1024, artwork unchanged.
+- **App icon flattened.** The iPhone `AppIcon.png` had an alpha channel,
+  which App Store Connect rejects. It is now opaque 1024x1024, artwork
+  unchanged.
 - **Encryption compliance key set.** `ITSAppUsesNonExemptEncryption = false`
   in `OpenRoadie/Info.plist`.
 - **Privacy usage strings** are all present and in plain language:
   location (when-in-use and always), motion, microphone, speech
   recognition, photo library, Health (read only), Apple Music.
 - **Background modes:** `location` and `audio`.
-- **Bundle IDs:** `com.openroadie.OpenRoadie`, `.watchkitapp`, `.Widgets`.
+- **Bundle IDs:** `com.openroadie.OpenRoadie`, `.Widgets`.
 - **Team:** `DEVELOPMENT_TEAM` lives in `Config/Local.xcconfig`
   (gitignored). A fresh clone recreates that file with its own team ID,
   same as the README says for device builds.
 - **Release archive builds clean**, and once the Apple ID was signed into
   Xcode the **App Store export succeeds**: `OpenRoadie.ipa` signed
   "Apple Distribution: Jason Chen (92HZ963W7D)", with App Store profiles
-  auto-created for all three bundle IDs (OpenRoadie, watchkitapp, Widgets),
+  auto-created for both bundle IDs (OpenRoadie, Widgets),
   verified with `codesign`. Only the upload itself is left, and that is
   yours to run.
 
