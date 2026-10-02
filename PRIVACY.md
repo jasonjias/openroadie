@@ -56,9 +56,11 @@ speech recognition. Your voice is not uploaded.
 ## Sensors and permissions, and exactly how they are used
 
 - **Location (While Using, and optionally Always).** Live speed, heading, and
-  trip distance; drawing your route. With Always access, OpenRoadie can start
-  recording a drive on its own and keep a continuous breadcrumb trail. You can
-  use While Using only, or turn drive detection off.
+  trip distance; drawing your route. By default OpenRoadie records only when you
+  tap Start Drive, and While Using access is enough. If you turn on automatic
+  drive detection in Settings and grant Always access, it can start recording a
+  drive on its own and keep a continuous breadcrumb trail. Automatic detection
+  is off until you enable it.
 - **Motion & Fitness.** To tell driving from walking, to notice hard braking
   and cornering, and to read step count and distance for walks. Read on the
   device.

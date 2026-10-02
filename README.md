@@ -56,9 +56,9 @@ Ask things like:
 
 ## What works today
 
-OpenRoadie records your driving day by itself and shows it back to you, all on the device.
+OpenRoadie records your drives and lays your day back out for you, all on the device.
 
-- **Auto-recorded drives.** Get in, drive off. It starts and ends trips on its own, through red lights and gas stops, and saves the route.
+- **One-tap drives.** Tap **Start Drive** and go. It keeps recording through red lights and gas stops, and saves the route. Want it hands-free? Turn on automatic drive detection in Settings and it starts and ends trips on its own.
 - **Road awareness.** The road you are on and its speed limit, from OpenStreetMap, with optional speed alerts.
 - **A day timeline.** Drives, walks, and stops laid out as cards, with each stop named (coffee, store, gym) and the walk between them.
 - **Weather per drive.** Conditions, temperature, and air quality from Open-Meteo, shown as a widget-style card and animated on the dashboard.
