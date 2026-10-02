@@ -5,10 +5,10 @@ import Testing
 struct PlaceNameFormattingTests {
     @Test func pointOfInterestBeatsStreetAddress() {
         let name = PlaceNamer.displayName(
-            areaOfInterest: "Draeger's Market",
-            name: "1010 University Dr", thoroughfare: "University Dr", locality: "Menlo Park"
+            areaOfInterest: "Grand Market",
+            name: "1010 Main Street", thoroughfare: "Main Street", locality: "Springfield"
         )
-        #expect(name == "Draeger's Market · Menlo Park")
+        #expect(name == "Grand Market · Springfield")
     }
 
     /// CLPlacemark's `name` is usually a house-number address; the street
@@ -16,21 +16,21 @@ struct PlaceNameFormattingTests {
     @Test func houseNumbersGetStripped() {
         let name = PlaceNamer.displayName(
             areaOfInterest: nil,
-            name: "851 Oak Grove Ave", thoroughfare: "Oak Grove Ave", locality: "Menlo Park"
+            name: "851 Oak Avenue", thoroughfare: "Oak Avenue", locality: "Springfield"
         )
-        #expect(name == "Oak Grove Ave · Menlo Park")
+        #expect(name == "Oak Avenue · Springfield")
     }
 
     @Test func cityAloneWhenThatIsAllThereIs() {
-        #expect(PlaceNamer.displayName(areaOfInterest: nil, name: nil, thoroughfare: nil, locality: "Gilroy") == "Gilroy")
-        #expect(PlaceNamer.displayName(areaOfInterest: nil, name: "Gilroy", thoroughfare: nil, locality: "Gilroy") == "Gilroy")
+        #expect(PlaceNamer.displayName(areaOfInterest: nil, name: nil, thoroughfare: nil, locality: "Springfield") == "Springfield")
+        #expect(PlaceNamer.displayName(areaOfInterest: nil, name: "Springfield", thoroughfare: nil, locality: "Springfield") == "Springfield")
         #expect(PlaceNamer.displayName(areaOfInterest: nil, name: nil, thoroughfare: nil, locality: nil) == nil)
     }
 
     @Test func cacheKeysGroupByHundredMeters() {
-        let a = Coordinate(latitude: 37.45061, longitude: -122.18321)
-        let b = Coordinate(latitude: 37.45072, longitude: -122.18337)
-        let far = Coordinate(latitude: 37.46101, longitude: -122.18321)
+        let a = Coordinate(latitude: 37.7686, longitude: -122.4862)
+        let b = Coordinate(latitude: 37.76872, longitude: -122.48631)
+        let far = Coordinate(latitude: 37.77861, longitude: -122.4862)
         #expect(PlaceNamer.cacheKey(for: a) == PlaceNamer.cacheKey(for: b))
         #expect(PlaceNamer.cacheKey(for: a) != PlaceNamer.cacheKey(for: far))
     }
@@ -144,13 +144,13 @@ struct SessionBuilderTests {
     private let t0 = Date(timeIntervalSince1970: 1_724_500_000)
 
     @Test func stopIconsMatchThePlace() {
-        #expect(SessionBuilder.stopSymbol(forPlaceName: "24 Hour Fitness · San Leandro") == "dumbbell")
+        #expect(SessionBuilder.stopSymbol(forPlaceName: "24 Hour Fitness · Springfield") == "dumbbell")
         #expect(SessionBuilder.stopSymbol(forPlaceName: "Walmart Supercenter") == "cart")
-        #expect(SessionBuilder.stopSymbol(forPlaceName: "Philz Coffee · Palo Alto") == "cup.and.saucer")
+        #expect(SessionBuilder.stopSymbol(forPlaceName: "Corner Cafe · Springfield") == "cup.and.saucer")
         #expect(SessionBuilder.stopSymbol(forPlaceName: "Chevron") == "fuelpump")
-        #expect(SessionBuilder.stopSymbol(forPlaceName: "Oak Grove Ave · Menlo Park") == "mappin.circle")
+        #expect(SessionBuilder.stopSymbol(forPlaceName: "Oak Avenue · Springfield") == "mappin.circle")
         // A street named Park is not a park.
-        #expect(SessionBuilder.stopSymbol(forPlaceName: "Park Blvd · Palo Alto") == "mappin.circle")
+        #expect(SessionBuilder.stopSymbol(forPlaceName: "Park Boulevard · Springfield") == "mappin.circle")
         #expect(SessionBuilder.stopSymbol(forPlaceName: nil) == "mappin.circle")
     }
 
@@ -303,12 +303,12 @@ struct StayTests {
     }
 
     @Test func placesBecomeActivities() {
-        #expect(SessionBuilder.stopActivity(forPlaceName: "Ramen Nagi · Palo Alto").title == "Meal")
-        #expect(SessionBuilder.stopActivity(forPlaceName: "Philz Coffee").title == "Coffee")
+        #expect(SessionBuilder.stopActivity(forPlaceName: "Ramen House · Springfield").title == "Meal")
+        #expect(SessionBuilder.stopActivity(forPlaceName: "Corner Cafe").title == "Coffee")
         #expect(SessionBuilder.stopActivity(forPlaceName: "Trader Joe's").title == "Shopping")
         #expect(SessionBuilder.stopActivity(forPlaceName: "24 Hour Fitness").title == "Gym")
         #expect(SessionBuilder.stopActivity(forPlaceName: "Chevron").title == "Fuel stop")
-        #expect(SessionBuilder.stopActivity(forPlaceName: "Oak Grove Ave · Menlo Park").title == "Parked")
+        #expect(SessionBuilder.stopActivity(forPlaceName: "Oak Avenue · Springfield").title == "Parked")
         #expect(SessionBuilder.stopActivity(forPlaceName: nil).title == "Parked")
     }
 }

@@ -6,10 +6,10 @@ import Testing
 struct RoadieFormattingTests {
     @Test func describesAFullDrive() {
         var context = DrivingContext()
-        context.coordinate = Coordinate(latitude: 37.4272, longitude: -122.1376)
+        context.coordinate = Coordinate(latitude: 37.7694, longitude: -122.4862)
         context.speed = 29.06 // 65 mph
         context.course = 315
-        context.road = RoadInfo(name: "Alma Street", ref: nil, speedLimit: 15.6464) // 35 mph
+        context.road = RoadInfo(name: "Main Street", ref: nil, speedLimit: 15.6464) // 35 mph
         context.tripStart = Date(timeIntervalSinceReferenceDate: 0)
         context.tripEnd = Date(timeIntervalSinceReferenceDate: 23 * 60)
         context.tripDistance = 29_611 // 18.4 mi
@@ -20,7 +20,7 @@ struct RoadieFormattingTests {
         #expect(text.contains("Drive status: active"))
         #expect(text.contains("65 mph"))
         #expect(text.contains("NW"))
-        #expect(text.contains("Alma Street, speed limit 35 mph"))
+        #expect(text.contains("Main Street, speed limit 35 mph"))
         #expect(text.contains("23 min"))
         #expect(text.contains("18.4 mi"))
         #expect(text.contains("Top speed this trip: 70 mph"))

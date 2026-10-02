@@ -29,7 +29,7 @@ final class PlaceNamer {
         String(format: "%.3f,%.3f", coordinate.latitude, coordinate.longitude)
     }
 
-    /// Human name for a spot — "Draeger's Market · Menlo Park", or the
+    /// Human name for a spot — "Grand Market · Springfield", or the
     /// street when no point of interest is there. Pure and unit-tested.
     nonisolated static func displayName(areaOfInterest: String?, name: String?, thoroughfare: String?, locality: String?) -> String? {
         // CLPlacemark's `name` is often a street address ("851 Oak Grove

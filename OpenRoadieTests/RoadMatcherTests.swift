@@ -6,12 +6,12 @@ struct RoadMatcherTests {
     // A west–east street at latitude 37.0001 and a south–north street at
     // longitude -122.0001, crossing near the test point.
     private let eastWest = OverpassWay(
-        tags: ["highway": "residential", "name": "Emerson St", "maxspeed": "25 mph"],
+        tags: ["highway": "residential", "name": "First Street", "maxspeed": "25 mph"],
         geometry: [Coordinate(latitude: 37.0001, longitude: -122.001),
                    Coordinate(latitude: 37.0001, longitude: -121.999)]
     )
     private let southNorth = OverpassWay(
-        tags: ["highway": "primary", "name": "El Camino Real", "ref": "CA 82", "maxspeed": "35 mph"],
+        tags: ["highway": "primary", "name": "Grand Avenue", "ref": "CA 1", "maxspeed": "35 mph"],
         geometry: [Coordinate(latitude: 36.999, longitude: -122.0001),
                    Coordinate(latitude: 37.001, longitude: -122.0001)]
     )
@@ -20,7 +20,7 @@ struct RoadMatcherTests {
         // ~11 m north of the east–west street, ~90 m east of the other.
         let point = Coordinate(latitude: 37.0002, longitude: -122.0011)
         let road = RoadMatcher.road(at: point, from: [southNorth, eastWest])
-        #expect(road?.name == "Emerson St")
+        #expect(road?.name == "First Street")
         #expect(road?.speedLimit != nil)
     }
 
@@ -36,7 +36,7 @@ struct RoadMatcherTests {
         let point = Coordinate(latitude: 37.0005, longitude: -122.0001)
         let road = RoadMatcher.road(at: point, from: [unnamed])
         #expect(road?.name == nil)
-        #expect(road?.displayName == "CA 82")
+        #expect(road?.displayName == "CA 1")
     }
 
     @Test func parsesMaxspeedVariants() {
@@ -68,8 +68,8 @@ struct RoadMatcherTests {
     @Test func parsesOverpassResponse() throws {
         let json = """
         {"elements":[
-          {"type":"way","id":1,"tags":{"highway":"residential","name":"Kipling St","maxspeed":"25 mph"},
-           "geometry":[{"lat":37.44,"lon":-122.14},{"lat":37.441,"lon":-122.141}]},
+          {"type":"way","id":1,"tags":{"highway":"residential","name":"Second Street","maxspeed":"25 mph"},
+           "geometry":[{"lat":37.77,"lon":-122.49},{"lat":37.771,"lon":-122.491}]},
           {"type":"way","id":2,"geometry":[{"lat":37.0,"lon":-122.0}]},
           {"type":"node","id":3}
         ]}
@@ -77,7 +77,7 @@ struct RoadMatcherTests {
         let ways = try OverpassClient.parse(Data(json.utf8))
         // The single-point way and the node are dropped.
         #expect(ways.count == 1)
-        #expect(ways[0].tags["name"] == "Kipling St")
+        #expect(ways[0].tags["name"] == "Second Street")
         #expect(ways[0].geometry.count == 2)
     }
 }
@@ -188,7 +188,7 @@ struct OverpassMatchingTests {
     /// A surface street bridging over it east–west, 45 mph, crossing 3 m
     /// north of the driver — i.e. CLOSER than the freeway's centerline.
     private let overpass = OverpassWay(
-        tags: ["highway": "secondary", "name": "Embarcadero Rd", "maxspeed": "45 mph"],
+        tags: ["highway": "secondary", "name": "Third Street", "maxspeed": "45 mph"],
         geometry: [Coordinate(latitude: 37.000027, longitude: -122.002),
                    Coordinate(latitude: 37.000027, longitude: -121.998)],
         id: 202
@@ -215,7 +215,7 @@ struct OverpassMatchingTests {
         let road = RoadMatcher.road(
             at: onFreeway, courseDegrees: 90, speedMps: 20, from: [freeway, overpass]
         )
-        #expect(road?.name == "Embarcadero Rd")
+        #expect(road?.name == "Third Street")
     }
 
     @Test func stationaryFixesFallBackToDistance() {
@@ -223,7 +223,7 @@ struct OverpassMatchingTests {
         let road = RoadMatcher.road(
             at: onFreeway, courseDegrees: 0, speedMps: 0, from: [freeway, overpass]
         )
-        #expect(road?.name == "Embarcadero Rd") // nearest, as before
+        #expect(road?.name == "Third Street") // nearest, as before
     }
 
     @Test func headingDeltaFoldsToNinety() {

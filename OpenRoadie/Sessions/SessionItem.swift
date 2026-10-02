@@ -90,7 +90,7 @@ enum SessionBuilder {
     /// Which icon a stop's place name earns. Keyword heuristics, pure and
     /// tested; anything unrecognized gets an honest map pin.
     static func stopSymbol(forPlaceName name: String?) -> String {
-        // Match only the base name — "Oak Grove Ave · Menlo Park" must not
+        // Match only the base name — "Oak Avenue · Springfield" must not
         // hit the park keyword via its CITY. And match whole words, so
         // "Parkside" or "760 El Camino" can't false-positive either.
         guard let full = name?.lowercased() else { return "mappin.circle" }

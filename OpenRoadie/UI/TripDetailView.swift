@@ -268,7 +268,7 @@ struct TripDetailView: View {
         }
     }
 
-    /// "Menlo Park → Draeger's · Menlo Park" — the drive as a sentence.
+    /// "Springfield → Grand Market · Springfield" — the drive as a sentence.
     /// Names arrive asynchronously and the line simply grows.
     @ViewBuilder
     private func journeyLine(samples: [RouteSample]) -> some View {

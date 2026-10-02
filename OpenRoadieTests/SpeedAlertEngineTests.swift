@@ -137,7 +137,7 @@ struct RoadLimitTests {
         #expect(RoadLimitTool.searchTerm(from: "101") == "101")
         #expect(RoadLimitTool.searchTerm(from: "I-280") == "280")
         #expect(RoadLimitTool.searchTerm(from: "US 101") == "101")
-        #expect(RoadLimitTool.searchTerm(from: "El Camino Real") == "El Camino Real")
+        #expect(RoadLimitTool.searchTerm(from: "Grand Avenue") == "Grand Avenue")
     }
 
     @Test func summarizesUniformLimit() {

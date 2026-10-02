@@ -112,12 +112,12 @@ struct CustomCategoryTests {
         let found = FoundPlace(
             id: "Chipotle@37.42,-122.14",
             name: "Chipotle Mexican Grill",
-            address: "2675 El Camino Real, Palo Alto",
+            address: "2675 Main Street, Springfield",
             coordinate: Coordinate(latitude: 37.42, longitude: -122.14)
         )
         let place = Place(found)
         #expect(place.displayName == "Chipotle Mexican Grill")
-        #expect(place.address == "2675 El Camino Real, Palo Alto")
+        #expect(place.address == "2675 Main Street, Springfield")
         #expect(place.id == found.id)
         #expect(place.matches(keyword: "chipotle"))
     }

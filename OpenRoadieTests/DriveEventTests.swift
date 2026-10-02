@@ -55,7 +55,7 @@ struct CommunityExportTests {
         let event = DriveEvent(
             kind: "hardBraking",
             peakG: 0.4567,
-            coordinate: Coordinate(latitude: 37.441912, longitude: -122.143087),
+            coordinate: Coordinate(latitude: 37.769412, longitude: -122.486087),
             speedMph: 47,
             timestamp: Date(timeIntervalSince1970: 1_724_500_000)
         )
@@ -63,8 +63,8 @@ struct CommunityExportTests {
 
         #expect(entries.count == 1)
         // ~110 m grid: three decimals, nothing finer survives.
-        #expect(entries[0]["lat"] as? Double == 37.442)
-        #expect(entries[0]["lon"] as? Double == -122.143)
+        #expect(entries[0]["lat"] as? Double == 37.769)
+        #expect(entries[0]["lon"] as? Double == -122.486)
         #expect(entries[0]["peakG"] as? Double == 0.46)
         // Hour granularity, no minutes or seconds.
         let dateHour = entries[0]["dateHour"] as? String

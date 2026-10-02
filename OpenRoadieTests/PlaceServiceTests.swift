@@ -49,7 +49,7 @@ struct PlaceParsingTests {
 
     @Test func keywordMatchesAnyIdentityTag() {
         let supercharger = Place(
-            id: "node/1", name: "Mountain View Supercharger", brand: "Tesla Supercharger",
+            id: "node/1", name: "Downtown Supercharger", brand: "Tesla Supercharger",
             operatedBy: "Tesla, Inc.", address: nil, category: .charger,
             coordinate: Coordinate(latitude: 37, longitude: -122)
         )
@@ -68,16 +68,16 @@ struct PlaceParsingTests {
         {"elements":[
           {"type":"node","id":1,"lat":37.44,"lon":-122.16,
            "tags":{"amenity":"charging_station","brand":"Tesla Supercharger",
-                   "addr:housenumber":"550","addr:street":"High Street","addr:city":"Palo Alto"}},
+                   "addr:housenumber":"550","addr:street":"Main Street","addr:city":"Springfield"}},
           {"type":"node","id":2,"lat":37.44,"lon":-122.16,
-           "tags":{"amenity":"charging_station","addr:street":"Emerson Street"}},
+           "tags":{"amenity":"charging_station","addr:street":"Oak Avenue"}},
           {"type":"node","id":3,"lat":37.44,"lon":-122.16,
            "tags":{"amenity":"charging_station"}}
         ]}
         """
         let places = try OverpassClient.parsePlaces(Data(json.utf8), category: .charger)
-        #expect(places[0].address == "550 High Street, Palo Alto")
-        #expect(places[1].address == "Emerson Street")
+        #expect(places[0].address == "550 Main Street, Springfield")
+        #expect(places[1].address == "Oak Avenue")
         #expect(places[2].address == nil)
     }
 
@@ -122,12 +122,12 @@ struct SearchFormattingTests {
     @Test func describesSearchResultsWithAddresses() {
         let origin = Coordinate(latitude: 37.0, longitude: -122.0)
         let results = [
-            (FoundPlace(id: "1", name: "Walgreens", address: "300 University Ave, Palo Alto",
+            (FoundPlace(id: "1", name: "Walgreens", address: "300 Main Street, Springfield",
                         coordinate: Coordinate(latitude: 37.001, longitude: -122.0)), 111.0),
         ]
         let text = RoadieToolFormatting.describeSearchResults(query: "pharmacy", results: results, origin: origin)
         #expect(text.contains("Walgreens"))
-        #expect(text.contains("300 University Ave"))
+        #expect(text.contains("300 Main Street"))
         #expect(text.contains("pharmacy"))
     }
 
