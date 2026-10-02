@@ -4,32 +4,43 @@ This is the exact path from the repo to a TestFlight build. OpenRoadie is an
 iPhone app with a Watch app and a widget extension, so it ships through
 TestFlight and the App Store, not notarization.
 
-## The one real blocker: a paid Apple Developer account
+## The one real blocker: sign the Apple ID into Xcode
 
-A local Release archive builds and signs fine with a **development**
-identity. An **App Store export fails**:
+You are already enrolled in the paid Apple Developer Program (team
+`92HZ963W7D`). The blocker is local, not your membership.
+
+A Release archive builds fine. The **App Store export fails**:
 
 ```
 error: exportArchive No Accounts
 error: exportArchive No profiles for 'com.openroadie.OpenRoadie' were found
 ```
 
-TestFlight needs an **Apple Distribution** certificate and App Store
-provisioning profiles. Those exist only with a paid **Apple Developer
-Program** membership ($99/year). A free personal team can install to your
-own device for 7 days but cannot use TestFlight at all.
+Why: OpenRoadie has only **development** provisioning profiles on this Mac.
+An App Store export needs **distribution** profiles, and those do not exist
+for OpenRoadie's bundle IDs yet. Creating them needs an Apple ID account
+that Xcode can reach, and right now no account is signed into Xcode's store
+(`IDEProvisioningTeams` is empty). That is exactly what "No Accounts" means.
 
-So step 1 is non-negotiable and only you can do it.
+Proof it is only this: the sibling repo on this same Mac exports fine,
+because it already has a cached distribution profile
+(`iOS Team Store Provisioning Profile`). OpenRoadie just needs its
+distribution profiles created once.
+
+Once an account is signed in, creating the profiles is automatic.
 
 ## What you must do (in order)
 
-1. **Enroll in the Apple Developer Program.** developer.apple.com/programs,
-   $99/year. Approval is usually same day, sometimes up to 48 hours. Use the
-   Apple ID that owns your developer team.
+1. **Sign the Apple ID into Xcode.** Xcode > Settings > Accounts > add the
+   Apple ID that owns team `92HZ963W7D`. This fills the account store and
+   lets automatic signing create OpenRoadie's distribution certificate and
+   App Store profiles. This is the step that clears "No Accounts".
 
-2. **Sign in to Xcode.** Xcode > Settings > Accounts > add that Apple ID.
-   This is what fixes the "No Accounts" error above and lets Xcode create
-   the distribution certificate and App Store profiles automatically.
+   (Headless alternative, if you prefer CLI only: create an App Store
+   Connect API key, drop the `.p8` in `~/.appstoreconnect/private_keys/`,
+   and pass `-authenticationKeyPath/-authenticationKeyID/-authenticationKeyIssuerID`
+   to the archive and export commands. Signing into Xcode is simpler for a
+   first ship.)
 
 3. **Create the app record in App Store Connect.**
    appstoreconnect.apple.com > Apps > +.
@@ -58,6 +69,27 @@ So step 1 is non-negotiable and only you can do it.
    - In Organizer: Distribute App > TestFlight & App Store Connect > Upload.
    - Automatic signing will create the distribution cert and profiles the
      first time.
+
+### Repeatable CLI build (after the account is signed in)
+
+Once the distribution profiles exist, this is the headless path, same shape
+as the sibling repo:
+
+```
+xcodebuild archive -project OpenRoadie.xcodeproj -scheme OpenRoadie \
+  -configuration Release -destination 'generic/platform=iOS' \
+  -archivePath build/OpenRoadie.xcarchive -allowProvisioningUpdates
+
+xcodebuild -exportArchive -archivePath build/OpenRoadie.xcarchive \
+  -exportPath build/export -exportOptionsPlist scripts/ExportOptions.plist \
+  -allowProvisioningUpdates
+```
+
+That produces `build/export/OpenRoadie.ipa`, signed
+"Apple Distribution (92HZ963W7D)". Upload with Xcode Organizer or
+`xcrun altool`/`notarytool` later. The first run still needs a signed-in
+account (or an API key) so automatic signing can create the profiles; after
+that the profiles are cached and the commands run clean.
 
 6. **Add internal testers.** App Store Connect > your app > TestFlight >
    Internal Testing. Up to 100 internal testers, no App Review wait. They
