@@ -73,7 +73,6 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
-				OpenRoadie.entitlements,
 			);
 			target = 0A0000000000000000000002 /* OpenRoadie */;
 		};
@@ -103,14 +102,6 @@
 			path = OpenRoadie;
 			sourceTree = "<group>";
 		};
-		0C00000000000000000000C1 /* OpenRoadieWidgets */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				0C00000000000000000000CE /* Exceptions for "OpenRoadieWidgets" folder in "OpenRoadieWidgets" target */,
-			);
-			path = OpenRoadieWidgets;
-			sourceTree = "<group>";
-		};
 		0A0000000000000000000009 /* OpenRoadieTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = OpenRoadieTests;
@@ -119,6 +110,14 @@
 		0B00000000000000000000A1 /* OpenRoadieWatch */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = OpenRoadieWatch;
+			sourceTree = "<group>";
+		};
+		0C00000000000000000000C1 /* OpenRoadieWidgets */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				0C00000000000000000000CE /* Exceptions for "OpenRoadieWidgets" folder in "OpenRoadieWidgets" target */,
+			);
+			path = OpenRoadieWidgets;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -523,7 +522,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = OpenRoadie/OpenRoadie.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = OpenRoadie/Info.plist;
@@ -551,7 +550,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = OpenRoadie/OpenRoadie.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = OpenRoadie/Info.plist;
@@ -577,7 +576,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.openroadie.OpenRoadieTests;
@@ -594,7 +593,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.openroadie.OpenRoadieTests;
@@ -611,7 +610,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = OpenRoadie;
@@ -638,7 +637,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = OpenRoadie;
@@ -664,7 +663,7 @@
 			baseConfigurationReference = 0A0000000000000000000020 /* Shared.xcconfig */;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = OpenRoadieWidgets/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = OpenRoadie;
@@ -687,7 +686,7 @@
 			baseConfigurationReference = 0A0000000000000000000020 /* Shared.xcconfig */;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = OpenRoadieWidgets/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = OpenRoadie;
