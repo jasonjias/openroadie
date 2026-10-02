@@ -67,7 +67,8 @@ speech recognition. Your voice is not uploaded.
 - **Photos.** Read only. To show photos you took during a drive on the trip
   map, placed where you took them. Photos are never copied or uploaded.
 - **Apple Health.** Read only. To show your workouts and sleep in the Sessions
-  timeline next to your drives. Read on the device.
+  timeline next to your drives. OpenRoadie never writes to Health, and Health
+  data is read on the device.
 - **Apple Music.** To search your music library when you ask Roadie to play a
   song.
 
