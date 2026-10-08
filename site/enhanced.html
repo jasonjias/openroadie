@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OpenRoadie: an open-source AI copilot for the road</title>
+  <meta name="description" content="OpenRoadie is a free, open-source iPhone copilot for any car. It records your drives, knows the road and the speed limit, and keeps your data on your phone.">
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#0e1a33">
+  <link rel="icon" type="image/png" href="/favicon.png">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <meta property="og:title" content="OpenRoadie">
+  <meta property="og:description" content="An open-source AI copilot for the road. Your driving data stays on your phone.">
+  <meta property="og:image" content="https://www.openroadie.com/icon-512.png">
+  <meta property="og:url" content="https://www.openroadie.com/enhanced">
+  <meta name="twitter:card" content="summary">
+  <link rel="stylesheet" href="/enhanced.css">
+</head>
+<body>
+  <header class="top">
+    <div class="wrap">
+      <a class="brand" href="/"><img src="/favicon.png" alt="">OpenRoadie</a>
+      <nav>
+        <a class="hide-sm" href="#features">Features</a>
+        <a href="/privacy">Privacy</a>
+        <a href="https://github.com/jasonjias/openroadie">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <div class="wrap">
+      <div class="hero">
+        <img class="icon" src="/icon-512.png" alt="OpenRoadie app icon">
+        <h1>An open-source AI copilot for the road.</h1>
+        <p class="lede">OpenRoadie makes your iPhone aware of the drive: where you are, the road you're on, the speed limit, the weather, and your whole day laid out as a timeline. For any car.</p>
+        <div class="cta">
+          <a class="btn primary" href="https://github.com/jasonjias/openroadie">View on GitHub</a>
+          <a class="btn" href="/privacy">How your data is handled</a>
+        </div>
+        <p class="note">iPhone, iOS 26 or later. TestFlight coming soon. Apache 2.0.</p>
+      </div>
+
+      <div class="road" aria-hidden="true"></div>
+
+      <section>
+        <div class="privacy-banner">
+          <strong>Your driving data stays on your phone.</strong>
+          <span>No account. No cloud. No backend for your trips. Read the source to check.</span>
+        </div>
+      </section>
+
+      <section id="features">
+        <h2>What works today</h2>
+        <p class="sub">It records your drives and lays your day back out for you, all on the device. Still early and rough.</p>
+        <div class="grid">
+          <div class="card">
+            <span class="emoji">🚗</span>
+            <h3>One-tap drives</h3>
+            <p>Tap Start Drive and go. It keeps recording through red lights and gas stops. Or turn on automatic drive detection and let it start and end trips on its own. Built on Apple's Core Location for GPS, speed, and heading, and Core Motion to tell driving from walking and catch hard braking.</p>
+          </div>
+          <div class="card">
+            <span class="emoji">🛣️</span>
+            <h3>Road awareness</h3>
+            <p>The road you're on and its speed limit, from OpenStreetMap, with optional speed alerts.</p>
+          </div>
+          <div class="card">
+            <span class="emoji">🗓️</span>
+            <h3>A day timeline</h3>
+            <p>Drives, walks, and stops as cards, with each stop named (coffee, store, gym) and the walk between them.</p>
+          </div>
+          <div class="card">
+            <span class="emoji">🌤️</span>
+            <h3>Weather per drive</h3>
+            <p>Conditions, temperature, and air quality from Open-Meteo, stamped on every drive.</p>
+          </div>
+          <div class="card">
+            <span class="emoji">🗺️</span>
+            <h3>Maps</h3>
+            <p>Every trip drawn on Apple Maps as a route colored by speed, with the photos you took that day placed where you took them.</p>
+          </div>
+          <div class="card">
+            <span class="emoji">🎙️</span>
+            <h3>Roadie, on device</h3>
+            <p>Speed limit coaching: go over the limit and Roadie nudges you, in the tone you pick, out loud if you want. Plus an optional voice assistant and nearby search for food, coffee, gas, and chargers. Runs on Apple's on-device model, or a model you bring.</p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Ask your drive</h2>
+        <p class="sub">OpenRoadie turns phone telemetry and open map data into context an AI can understand.</p>
+        <div class="asks">
+          <span>"Where am I?"</span>
+          <span>"How fast am I going?"</span>
+          <span>"What's around here?"</span>
+          <span>"Find a charger nearby."</span>
+          <span>"Tell me when I'm 10 over."</span>
+        </div>
+      </section>
+
+      <section>
+        <h2>Principles</h2>
+        <p class="sub">Settled decisions, not open questions.</p>
+        <ul class="principles">
+          <li><b>Open source.</b> Apache 2.0, the app and the core.</li>
+          <li><b>Local first.</b> Your driving data stays on your device.</li>
+          <li><b>Free by default.</b> On-device models and open data where possible.</li>
+          <li><b>Model agnostic.</b> Use the system model or bring your own.</li>
+          <li><b>Navigation agnostic.</b> Works alongside Apple Maps, Google Maps, Waze, or your car's nav.</li>
+          <li><b>No crippleware.</b> The open app is never limited to make you pay.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Built in the open</h2>
+        <p class="sub">Ideas, issues, and pull requests are welcome: telemetry, OpenStreetMap, EV charging, CarPlay, OBD-II, voice, Android, and more.</p>
+        <div class="cta" style="justify-content:flex-start;margin-top:0">
+          <a class="btn primary" href="https://github.com/jasonjias/openroadie">Star or fork on GitHub</a>
+          <a class="btn" href="https://x.com/jasonjias">Follow on X</a>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <span>OpenRoadie. Apache License 2.0.</span>
+      <span>
+        <a href="/privacy">Privacy</a>
+        <a href="https://github.com/jasonjias/openroadie">GitHub</a>
+        <a href="https://x.com/jasonjias">X</a>
+      </span>
+    </div>
+  </footer>
+</body>
+</html>
