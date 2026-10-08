@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Privacy · OpenRoadie</title>
+  <meta name="description" content="OpenRoadie privacy: your driving data stays on your iPhone. No account, no server for your data.">
+  <meta name="theme-color" content="#0e1a33">
+  <link rel="icon" type="image/png" href="/favicon.png">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="wrap">
+      <a class="brand" href="/"><img src="/favicon.png" alt="">OpenRoadie</a>
+      <nav>
+        <a class="hide-sm" href="/#features">Features</a>
+        <a href="/privacy">Privacy</a>
+        <a href="https://github.com/jasonjias/openroadie">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap doc">
+    <h1>Privacy</h1>
+    <p><strong>Short version: your driving data stays on your iPhone.</strong> OpenRoadie has no account and no server for your data. Nothing about your trips is uploaded to the developer, because there is nowhere for it to go.</p>
+    <p>This policy is checked against the source code. Every claim below is something you can verify by <a href="https://github.com/jasonjias/openroadie">reading the code</a>. The canonical copy is <a href="https://github.com/jasonjias/openroadie/blob/main/PRIVACY.md">PRIVACY.md</a> in the repository.</p>
+
+    <h2>What stays on your phone</h2>
+    <p>Everything OpenRoadie records about you lives only on the device, in a local database (SwiftData) and in the app's settings:</p>
+    <ul>
+      <li>Trips: routes, speed, distance, the road and its speed limit, events like hard braking.</li>
+      <li>Walks and stops, and the breadcrumb trails of walks the app recorded.</li>
+      <li>Weather and air quality stamped on each drive.</li>
+      <li>Driving notes you dictate.</li>
+      <li>Your settings.</li>
+    </ul>
+    <p>None of this is sent to the developer. There is no OpenRoadie account, no login, and no backend that receives your trips.</p>
+
+    <h2>What leaves your phone, to whom, and why</h2>
+    <p>OpenRoadie talks to a few public services to look things up. In each case it sends an approximate location (and sometimes a date), and gets back public information. It does not send your name, an account ID, or your stored trips.</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Service</th><th>What is sent</th><th>Why</th></tr></thead>
+        <tbody>
+          <tr><td>OpenStreetMap (Overpass)</td><td>a map area around you</td><td>the road you are on, speed limits, nearby places</td></tr>
+          <tr><td>Open-Meteo</td><td>a coordinate and a date</td><td>weather and air quality for a drive</td></tr>
+          <tr><td>U.S. National Weather Service</td><td>a coordinate</td><td>severe-weather alerts while driving</td></tr>
+          <tr><td>Apple (reverse geocoding)</td><td>a coordinate</td><td>the name of a place you stopped</td></tr>
+          <tr><td>Apple (place search)</td><td>a search term and area</td><td>nearby food, coffee, gas, chargers</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Each of these can be turned off and the rest of the app keeps working. Road and weather lookups have Settings toggles. With them off, OpenRoadie makes no network calls of its own.</p>
+
+    <h2>The AI assistant (Roadie)</h2>
+    <p>By default, Roadie runs on Apple's on-device model. Your questions are answered on the phone and are not sent anywhere.</p>
+    <p>You can optionally point Roadie at your own AI endpoint (any OpenAI-compatible service). If you do, your question text goes to the endpoint you configure, and the API key you enter is stored in the device Keychain. This is off unless you set it up.</p>
+    <p>Voice ("Hey Roadie") is transcribed on the device using Apple's on-device speech recognition. Your voice is not uploaded.</p>
+
+    <h2>Sensors and permissions</h2>
+    <ul>
+      <li><strong>Location (While Using, and optionally Always).</strong> Live speed, heading, and trip distance; drawing your route. By default OpenRoadie records only when you tap Start Drive. If you turn on automatic drive detection and grant Always access, it can start recording a drive on its own. Automatic detection is off until you enable it.</li>
+      <li><strong>Motion &amp; Fitness.</strong> To tell driving from walking, to notice hard braking and cornering, and to read step count and distance for walks. Read on the device.</li>
+      <li><strong>Microphone and Speech Recognition.</strong> Only for "Hey Roadie" voice. Off by default. Transcribed on the device.</li>
+      <li><strong>Photos.</strong> Read only. To show photos you took during a drive on the trip map. Photos are never copied or uploaded.</li>
+      <li><strong>Apple Music.</strong> To search your music library when you ask Roadie to play a song.</li>
+    </ul>
+
+    <h2>No tracking, no analytics, no ads</h2>
+    <p>OpenRoadie contains no analytics, no crash reporting, no advertising, and no third-party tracking SDKs. The app has zero third-party package dependencies. It does not track you across apps or websites, and it collects no advertising identifier.</p>
+    <p>This website has no analytics or cookies either.</p>
+
+    <h2>Logs</h2>
+    <p>OpenRoadie writes only to the standard on-device system log for its own diagnostics. These logs stay on the device and are not sent to the developer.</p>
+
+    <h2>Deleting your data</h2>
+    <p>Delete any trip from inside the app. Deleting the app removes everything OpenRoadie stored, because it was all on the device.</p>
+
+    <h2>Contact</h2>
+    <p>Questions about privacy: <a href="https://x.com/jasonjias">@jasonjias on X</a>.</p>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <span>OpenRoadie. Apache License 2.0.</span>
+      <span>
+        <a href="/">Home</a>
+        <a href="https://github.com/jasonjias/openroadie">GitHub</a>
+        <a href="https://x.com/jasonjias">X</a>
+      </span>
+    </div>
+  </footer>
+</body>
+</html>
